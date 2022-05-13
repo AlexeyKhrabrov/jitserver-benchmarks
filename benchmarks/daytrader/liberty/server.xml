@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<server description="DayTrader server">
+
+	<!-- Enable features -->
+	<featureManager>
+		<feature>ejb-3.2</feature>
+		<feature>servlet-3.1</feature>
+		<feature>jsf-2.2</feature>
+		<feature>jpa-2.1</feature>
+		<feature>mdb-3.2</feature>
+		<feature>wasJmsServer-1.0</feature>
+		<feature>wasJmsClient-2.0</feature>
+		<feature>cdi-1.2</feature>
+		<feature>websocket-1.1</feature>
+		<feature>concurrent-1.0</feature>
+		<feature>jsonp-1.0</feature>
+		<feature>beanValidation-1.1</feature>
+	</featureManager>
+
+	<!-- allow reuse of 'busy' ports for fast server recycling on linux
+	(where ports remain blocked for up to 2 mins after server stops)
+	${tradelite.http.port} set in bootstrap.properties -->
+	<httpEndpoint id="defaultHttpEndpoint" host="*" httpPort="9080" httpsPort="9443">
+		<tcpOptions soReuseAddr="true" />
+		<httpOptions maxKeepAliveRequests="-1" />
+	</httpEndpoint>
+
+	<wasJmsEndpoint host="*" wasJmsPort="7276" wasJmsSSLPort="7286" />
+
+	<iiopEndpoint id="defaultIiopEndpoint" iiopPort="2809" iiopsPort="2810" />
+
+	<application type="ear" id="daytrader7" name="daytrader7"
+		location="daytrader-ee7.ear">
+	</application>
+
+	<applicationMonitor dropinsEnabled="false" updateTrigger="mbean" />
+	<config updateTrigger="disabled" />
+	<!--From WAS team-->
+	<executor name="LargeThreadPool" id="default" maxThreads="50" keepAlive="60s"
+		stealPolicy="LOCAL" rejectedWorkPolicy="CALLER_RUNS" />
+
+	<connectionManager id="conMgr1" agedTimeout="-1" connectionTimeout="5s"
+		maxIdleTime="-1" maxPoolSize="100" minPoolSize="100"
+		purgePolicy="FailingConnectionOnly" reapTime="-1" />
+
+	<jdbcDriver id="DB2JCC" libraryRef="DB2JCCLib" />
+	<library id="DB2JCCLib" filesetRef="DB2JCCFileset" />
+	<fileset id="DB2JCCFileset" dir="${shared.resource.dir}/db2" includes="db2jcc4.jar" />
+
+	<authData id="TradeDataSourceAuthData" user="db2inst1" password="p@ssw0rd" />
+	<authData id="TradeAdminAuthData" user="db2inst1" password="p@ssw0rd" />
+
+	<dataSource jndiName="jdbc/TradeDataSource" id="DefaultDataSource"
+		jdbcDriverRef="DB2JCC" connectionManagerRef="conMgr1"
+		statementCacheSize="60" isolationLevel="TRANSACTION_READ_COMMITTED">
+		<properties serverName="${db2addr}" portNumber="${db2port}" databaseName="TRADEDB"
+			driverType="4" user="db2inst1" password="p@ssw0rd" />
+	</dataSource>
+
+	<messagingEngine id="defaultME">
+		<queue id="TradeBrokerQueue" />
+		<topicSpace id="TradeTopicSpace" />
+	</messagingEngine>
+
+	<jmsQueueConnectionFactory jndiName="jms/TradeBrokerQCF" connectionManagerRef="ConMgr3">
+		<properties.wasJms />
+	</jmsQueueConnectionFactory>
+	<connectionManager id="ConMgr3" maxPoolSize="20"/>
+
+	<jmsTopicConnectionFactory jndiName="jms/TradeStreamerTCF" connectionManagerRef="ConMgr4">
+		<properties.wasJms />
+	</jmsTopicConnectionFactory>
+	<connectionManager id="ConMgr4" maxPoolSize="20"/>
+
+	<jmsQueue id="TradeBrokerQueue" jndiName="jms/TradeBrokerQueue">
+		<properties.wasJms queueName="TradeBrokerQueue" deliveryMode="NonPersistent" />
+	</jmsQueue>
+
+	<jmsTopic id="TradeStreamerTopic" jndiName="jms/TradeStreamerTopic">
+		<properties.wasJms topicSpace="TradeTopicSpace" deliveryMode="NonPersistent" />
+	</jmsTopic>
+
+	<jmsActivationSpec id="eis/TradeBrokerMDB" >
+		<properties.wasJms destinationRef="TradeBrokerQueue" />
+	</jmsActivationSpec>
+
+	<jmsActivationSpec id="eis/TradeStreamerMDB" >
+		<properties.wasJms destinationRef="TradeStreamerTopic" destinationType="javax.jms.Topic" />
+	</jmsActivationSpec>
+
+</server>
