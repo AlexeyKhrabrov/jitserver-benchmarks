@@ -3,48 +3,51 @@
 set -e -u -o pipefail
 
 
-# Usage: ./all_results.sh [logs_path] [results_path]
+# Usage: ./all_results.sh runs density_runs [logs_path] [results_path]
+
+runs="${1}"
+density_runs="${2}"
 
 args=()
 
-if (( $# >= 1 )); then
-	logs_path="${1}"
+if (( $# >= 3 )); then
+	logs_path="${3}"
 	args+=(-L "${logs_path}")
 else
 	logs_path="logs"
 fi
 
-if (( $# >= 2 )); then
-	results_path="${2}"
+if (( $# >= 4 )); then
+	results_path="${4}"
 	args+=(-R "${results_path}")
 else
 	results_path="results"
 fi
 
 
-./run_single.py acmeair -r "${args[@]}" &
-./run_single.py daytrader -r "${args[@]}" &
-./run_single.py petclinic -r "${args[@]}" &
+./run_single.py acmeair -r -n "${runs}" "${args[@]}" &
+./run_single.py daytrader -r -n "${runs}" "${args[@]}" &
+./run_single.py petclinic -r -n "${runs}" "${args[@]}" &
 
-./run_single.py acmeair -r -j "${args[@]}" &
-./run_single.py daytrader -r -j "${args[@]}" &
-./run_single.py petclinic -r -j "${args[@]}" &
+./run_single.py acmeair -r -j -n "${runs}" "${args[@]}" &
+./run_single.py daytrader -r -j -n "${runs}" "${args[@]}" &
+./run_single.py petclinic -r -j -n "${runs}" "${args[@]}" &
 
-./run_scale.py acmeair -r -j "${args[@]}" &
-./run_scale.py daytrader -r -j "${args[@]}" &
-./run_scale.py petclinic -r -j "${args[@]}" &
+./run_scale.py acmeair -r -j -n "${runs}" "${args[@]}" &
+./run_scale.py daytrader -r -j -n "${runs}" "${args[@]}" &
+./run_scale.py petclinic -r -j -n "${runs}" "${args[@]}" &
 
-./run_latency.py acmeair -r -j "${args[@]}" &
-./run_latency.py daytrader -r -j "${args[@]}" &
-./run_latency.py petclinic -r -j "${args[@]}" &
+./run_latency.py acmeair -r -j -n "${runs}" "${args[@]}" &
+./run_latency.py daytrader -r -j -n "${runs}" "${args[@]}" &
+./run_latency.py petclinic -r -j -n "${runs}" "${args[@]}" &
 
-./run_density.py acmeair -r "${args[@]}" &
-./run_density.py daytrader -r "${args[@]}" &
-./run_density.py petclinic -r "${args[@]}" &
+./run_density.py acmeair -r -n "${density_runs}" "${args[@]}" &
+./run_density.py daytrader -r -n "${density_runs}" "${args[@]}" &
+./run_density.py petclinic -r -n "${density_runs}" "${args[@]}" &
 
-./run_density.py acmeair -r -s "${args[@]}" &
-./run_density.py daytrader -r -s "${args[@]}" &
-./run_density.py petclinic -r -s "${args[@]}" &
+./run_density.py acmeair -r -s -n "${density_runs}" "${args[@]}" &
+./run_density.py daytrader -r -s -n "${density_runs}" "${args[@]}" &
+./run_density.py petclinic -r -s -n "${density_runs}" "${args[@]}" &
 
 wait
 
