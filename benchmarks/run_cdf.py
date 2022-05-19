@@ -32,7 +32,7 @@ result_experiments = (
 )
 
 
-def get_config(bench, jmeter, experiment):
+def get_config(bench, jmeter, experiment, n_runs):
 	result = bench.small_config(False)
 	result.name = "cdf_{}".format("full" if jmeter else "start")
 
@@ -49,6 +49,7 @@ def get_config(bench, jmeter, experiment):
 	result.n_instances = 1
 	result.aotcache_extra_instance = True
 	result.run_jmeter = jmeter
+	result.n_runs = n_runs
 
 	result.jitserver_docker_config = docker.DockerConfig(
 		ncpus=1,
@@ -65,9 +66,9 @@ bench_cls = {
 	"petclinic": petclinic.PetClinic
 }
 
-def make_cluster(bench, hosts, jmeter, experiment):
+def make_cluster(bench, hosts, jmeter, experiment, n_runs):
 	return shared.BenchmarkCluster(
-		get_config(bench, jmeter, experiment), bench,
+		get_config(bench, jmeter, experiment, n_runs), bench,
 		jitserver_hosts=[hosts[0]], db_hosts=[hosts[0]],
 		application_hosts=[hosts[1]], jmeter_hosts=[hosts[0]]
 	)
@@ -79,6 +80,7 @@ def main():
 	parser.add_argument("benchmark")
 	parser.add_argument("hosts_file", nargs="?")
 
+	parser.add_argument("-n", "--n-runs", type=int, nargs="?", const=5)
 	parser.add_argument("-c", "--cleanup", action="store_true")
 	parser.add_argument("-j", "--jmeter", action="store_true")
 	parser.add_argument("-v", "--verbose", action="store_true")
@@ -96,7 +98,7 @@ def main():
 	bench = bench_cls[args.benchmark]()
 
 	if args.result:
-		c = get_config(bench, args.jmeter, result_experiments[0])
+		c = get_config(bench, args.jmeter, result_experiments[0], args.n_runs)
 		results.SingleInstanceExperimentResult(
 			result_experiments, bench, c, full_init=args.full_init
 		).save_results()
@@ -108,7 +110,8 @@ def main():
 	util.set_sigint_handler()
 
 	if args.cleanup:
-		cluster = make_cluster(bench, hosts, args.jmeter, run_experiments[0])
+		cluster = make_cluster(bench, hosts, args.jmeter,
+		                       run_experiments[0], args.n_runs)
 		#NOTE: assuming same credentials for all hosts
 		passwd = getpass.getpass()
 		cluster.check_sudo_passwd(passwd)
@@ -116,7 +119,7 @@ def main():
 		return
 
 	for e in run_experiments:
-		cluster = make_cluster(bench, hosts, args.jmeter, e)
+		cluster = make_cluster(bench, hosts, args.jmeter, e, args.n_runs)
 		cluster.run_all_experiments([e], skip_cleanup=True)
 
 
