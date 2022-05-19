@@ -6,7 +6,7 @@ set -e -u -o pipefail
 # Usage: ./all_experiments.sh all_hosts_file main_hosts_file [logs_path]
 
 all_hosts="${1}" # 8 main homogeneous machines
-main_hosts="${3}" # total 11 machines
+main_hosts="${2}" # total 11 machines
 
 args=()
 if (( $# >= 3 )); then
