@@ -210,10 +210,10 @@ class VLog:
 			for line in f:
 				if line.startswith("+ ("):
 					idx = line.index(" time=") + len(" time=")
-					t = float(line[idx:line.index("us ", idx)])
+					t = float(line[idx:line.index("us", idx)])
 					self.comp_times.append(t / 1000.0)
 					idx = line.index(" queueTime=") + len(" queueTime=")
-					t = float(line[idx:line.index("us ", idx)])
+					t = float(line[idx:line.index("us", idx)])
 					self.queue_times.append(t / 1000.0)
 					idx = line.index(" Q_SZ=") + len(" Q_SZ=")
 					self.queue_sizes.append(int(line[idx:line.index(" ", idx)]))
