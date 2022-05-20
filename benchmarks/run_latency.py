@@ -72,7 +72,6 @@ def get_config(benchmark, local, ib, delay_us, jmeter, n_runs, localjit=False):
 
 	result.jitserver_config.server_extra_stats = True
 	result.jitserver_config.client_extra_stats = True
-	result.jitserver_config.require_jitserver = True
 	result.jitserver_config.use_internal_addr = ib or local
 	result.jitserver_config.client_threads = 15
 

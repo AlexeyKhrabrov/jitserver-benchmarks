@@ -79,7 +79,6 @@ def get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs):
 
 	config.jitserver_config.server_extra_stats = True
 	config.jitserver_config.client_extra_stats = True
-	config.jitserver_config.require_jitserver = True
 
 	config.application_config.start_interval = float("+inf")# seconds
 	config.application_config.sleep_time = 1.0# seconds

@@ -40,7 +40,6 @@ def get_config(bench, jmeter, experiment, n_runs):
 	result.jitserver_config.client_vlog = True
 	result.jitserver_config.server_extra_stats = True
 	result.jitserver_config.client_extra_stats = True
-	result.jitserver_config.require_jitserver = True
 
 	result.application_config.start_interval = float("+inf")# seconds
 	result.application_config.sleep_time = 1.0# seconds
