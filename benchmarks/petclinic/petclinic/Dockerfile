@@ -1,5 +1,10 @@
 FROM ubuntu:18.04
 
+# Install packages required for SSL
+RUN apt-get update && apt-get install -y --no-install-recommends \
+		libssl1.1 \
+	&& rm -rf "/var/lib/apt/lists/"*
+
 COPY "spring-petclinic-2.3.0.BUILD-SNAPSHOT.jar" "/application.jar"
 COPY "run.sh" "/"
 
