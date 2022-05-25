@@ -131,16 +131,16 @@ wait
 wait
 ./run_scale.py acmeair "${all_hosts}" 1 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py acmeair "${all_hosts}" 2 -j -n "${runs}" "${args[@]}" &
+wait
 ./run_scale.py acmeair "${all_hosts}" 3 -j -n "${runs}" "${args[@]}" &
-wait
 ./run_scale.py acmeair "${all_hosts}" 4 -j -n "${runs}" "${args[@]}" &
+wait
 ./run_scale.py acmeair "${all_hosts}" 5 -j -n "${runs}" "${args[@]}" &
-wait
 ./run_scale.py acmeair "${all_hosts}" 6 -j -n "${runs}" "${args[@]}" &
-./run_scale.py acmeair "${all_hosts}" 7 -j -n "${runs}" "${args[@]}" &
 wait
-./run_scale.py acmeair "${all_hosts}" 9 -j -n "${runs}" "${args[@]}" &
+./run_scale.py acmeair "${all_hosts}" 7 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py acmeair "${all_hosts}" 8 -j -n "${runs}" "${args[@]}" &
+./run_scale.py acmeair "${all_hosts}" 9 -j -n "${runs}" "${args[@]}" &
 wait
 
 # daytrader scale: ~21h
