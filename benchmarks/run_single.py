@@ -60,7 +60,8 @@ result_experiments = (
 )
 
 
-def get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs):
+def get_config(bench, jmeter, size, warm, duration, scc_extra_duration,
+               n_runs, skip_complete_runs=False):
 	if size == "XS":
 		c = bench.xsmall_config(False)
 	elif size == "S":
@@ -90,6 +91,7 @@ def get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs):
 	config.aotcache_extra_instance = True
 	config.run_jmeter = jmeter
 	config.n_runs = n_runs
+	config.skip_complete_runs = skip_complete_runs
 
 	return config
 
@@ -99,13 +101,14 @@ bench_cls = {
 	"petclinic": petclinic.PetClinic
 }
 
-def make_cluster(bench, hosts, subset, jmeter, size, warm,
-                 duration, scc_extra_duration, n_runs):
+def make_cluster(bench, hosts, subset, jmeter, size, warm, duration,
+                 scc_extra_duration, n_runs, skip_complete_runs=False):
 	host0 = hosts[subset]
 	host1 = hosts[subset + (1 if (subset % 2 == 0) else -1)]
 
 	return shared.BenchmarkCluster(
-		get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs),
+		get_config(bench, jmeter, size, warm, duration,
+		           scc_extra_duration, n_runs, skip_complete_runs),
 		bench, jitserver_hosts=[host0], db_hosts=[host0],
 		application_hosts=[host1], jmeter_hosts=[host0]
 	)
@@ -120,6 +123,7 @@ def main():
 	parser.add_argument("subset", type=int, nargs="?")
 
 	parser.add_argument("-n", "--n-runs", type=int, nargs="?", const=5)
+	parser.add_argument("--skip-complete-runs", action="store_true")
 	parser.add_argument("-c", "--cleanup", action="store_true")
 	parser.add_argument("-j", "--jmeter", action="store_true")
 	parser.add_argument("-v", "--verbose", action="store_true")
@@ -233,8 +237,8 @@ def main():
 		cluster.full_cleanup(passwd=passwd)
 		return
 
-	cluster = make_cluster(bench, hosts, args.subset,
-	                       args.jmeter, *c[:-1], args.n_runs)
+	cluster = make_cluster(bench, hosts, args.subset, args.jmeter,
+	                       *c[:-1], args.n_runs, args.skip_complete_runs)
 	cluster.run_all_experiments(run_experiments, skip_cleanup=True)
 
 

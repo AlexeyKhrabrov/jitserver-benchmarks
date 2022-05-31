@@ -11,7 +11,7 @@ main_hosts="${2}" # total 11 machines
 runs="${3}" # number of runs (repetitions) in all experiments except "density"
 density_runs="${4}"
 
-args=()
+args=("--skip-complete-runs")
 if (( $# >= 5 )); then
 	logs_path="${5}"
 	args+=(-L "${logs_path}")

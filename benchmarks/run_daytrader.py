@@ -140,6 +140,7 @@ def main():
 		n_runs=args.n_runs,
 		attempts=1,
 		skip_runs=(),
+		skip_complete_runs=False,
 		n_invocations=None,
 		idle_time=None,
 		collect_stats=True,

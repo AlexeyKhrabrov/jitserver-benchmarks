@@ -86,7 +86,8 @@ bench_cls = {
 	"petclinic": petclinic.PetClinic
 }
 
-def get_config(benchmark, n_instances, n_dbs, jmeter, n_runs):
+def get_config(benchmark, n_instances, n_dbs, jmeter,
+               n_runs, skip_complete_runs=False):
 	result = bench_cls[benchmark]().small_config(False)
 	result.name = "scale_{}_{}".format("full" if jmeter else "start", n_instances)
 
@@ -98,12 +99,15 @@ def get_config(benchmark, n_instances, n_dbs, jmeter, n_runs):
 	result.n_dbs = n_dbs
 	result.run_jmeter = jmeter
 	result.n_runs = n_runs
+	result.skip_complete_runs = skip_complete_runs
 
 	return result
 
-def make_cluster(benchmark, hosts, n_instances, n_dbs, jitserver_hosts,
-                 db_hosts, application_hosts, jmeter_hosts, jmeter, n_runs):
-	config = get_config(benchmark, n_instances, n_dbs, jmeter, n_runs)
+def make_cluster(benchmark, hosts, n_instances, n_dbs,
+                 jitserver_hosts, db_hosts, application_hosts, jmeter_hosts,
+                 jmeter, n_runs, skip_complete_runs=False):
+	config = get_config(benchmark, n_instances, n_dbs,
+	                    jmeter, n_runs, skip_complete_runs)
 	if config.n_dbs > len(db_hosts):
 		#NOTE: assuming db hosts are homogeneous
 		config.db_config.docker_config.ncpus = (
@@ -127,6 +131,7 @@ def main():
 	parser.add_argument("config_idx", type=int, nargs="?")
 
 	parser.add_argument("-n", "--n-runs", type=int, nargs="?", const=5)
+	parser.add_argument("--skip-complete-runs", action="store_true")
 	parser.add_argument("-c", "--cleanup", action="store_true")
 	parser.add_argument("-j", "--jmeter", action="store_true")
 	parser.add_argument("-v", "--verbose", action="store_true")
@@ -202,8 +207,8 @@ def main():
 		cluster.full_cleanup(passwd=passwd)
 		return
 
-	cluster = make_cluster(args.benchmark, hosts, *c[:-1],
-	                       args.jmeter, args.n_runs)
+	cluster = make_cluster(args.benchmark, hosts, *c[:-1], args.jmeter,
+	                       args.n_runs, args.skip_complete_runs)
 	cluster.run_all_experiments(experiments, skip_cleanup=True)
 
 
