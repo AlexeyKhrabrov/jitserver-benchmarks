@@ -39,6 +39,10 @@ echo
 # 6: pxc + psc + pmc + plc
 # 7: pxw + psw + pmw + plw
 
+./host_cleanup.py acmeair "${main_hosts}"
+./host_cleanup.py daytrader "${main_hosts}"
+./host_cleanup.py petclinic "${main_hosts}"
+
 ./run_single.py daytrader "${main_hosts}" 0 0 -n "${runs}" "${args[@]}" &
 ./run_single.py daytrader "${main_hosts}" 2 1 -n "${runs}" "${args[@]}" && \
 ./run_single.py daytrader "${main_hosts}" 4 1 -n "${runs}" "${args[@]}" &
@@ -68,6 +72,10 @@ echo
 
 wait
 
+./host_cleanup.py acmeair "${main_hosts}"
+./host_cleanup.py daytrader "${main_hosts}"
+./host_cleanup.py petclinic "${main_hosts}"
+
 ./run_single.py daytrader "${main_hosts}" 0 0 -j -n "${runs}" "${args[@]}" &
 ./run_single.py daytrader "${main_hosts}" 2 1 -j -n "${runs}" "${args[@]}" && \
 ./run_single.py daytrader "${main_hosts}" 4 1 -j -n "${runs}" "${args[@]}" &
@@ -96,6 +104,10 @@ wait
 ./run_single.py petclinic "${main_hosts}" 7 7 -j -n "${runs}" "${args[@]}" &
 
 wait
+
+./host_cleanup.py acmeair "${main_hosts}"
+./host_cleanup.py daytrader "${main_hosts}"
+./host_cleanup.py petclinic "${main_hosts}"
 
 
 # all latency localjit: ~1.5h
@@ -127,56 +139,74 @@ wait
 
 
 # acmeair scale: ~8h
+./host_cleanup.py acmeair "${all_hosts}"
 ./run_scale.py acmeair "${all_hosts}" 0 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py acmeair "${all_hosts}"
 ./run_scale.py acmeair "${all_hosts}" 1 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py acmeair "${all_hosts}" 2 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py acmeair "${all_hosts}"
 ./run_scale.py acmeair "${all_hosts}" 3 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py acmeair "${all_hosts}" 4 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py acmeair "${all_hosts}"
 ./run_scale.py acmeair "${all_hosts}" 5 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py acmeair "${all_hosts}" 6 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py acmeair "${all_hosts}"
 ./run_scale.py acmeair "${all_hosts}" 7 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py acmeair "${all_hosts}" 8 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py acmeair "${all_hosts}" 9 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py acmeair "${all_hosts}"
 
 # daytrader scale: ~21h
+./host_cleanup.py daytrader "${all_hosts}"
 ./run_scale.py daytrader "${all_hosts}" 0 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py daytrader "${all_hosts}"
 ./run_scale.py daytrader "${all_hosts}" 1 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py daytrader "${all_hosts}"
 ./run_scale.py daytrader "${all_hosts}" 2 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py daytrader "${all_hosts}" 3 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py daytrader "${all_hosts}"
 ./run_scale.py daytrader "${all_hosts}" 4 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py daytrader "${all_hosts}" 5 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py daytrader "${all_hosts}"
 ./run_scale.py daytrader "${all_hosts}" 6 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py daytrader "${all_hosts}" 7 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py daytrader "${all_hosts}" 8 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py daytrader "${all_hosts}" 9 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py daytrader "${all_hosts}"
 
 # petclinic scale: ~5h
+./host_cleanup.py petclinic "${all_hosts}"
 ./run_scale.py petclinic "${all_hosts}" 0 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py petclinic "${all_hosts}" 1 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py petclinic "${all_hosts}" 2 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py petclinic "${all_hosts}"
 ./run_scale.py petclinic "${all_hosts}" 3 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py petclinic "${all_hosts}" 4 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py petclinic "${all_hosts}"
 ./run_scale.py petclinic "${all_hosts}" 5 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py petclinic "${all_hosts}" 6 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py petclinic "${all_hosts}"
 ./run_scale.py petclinic "${all_hosts}" 7 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py petclinic "${all_hosts}" 8 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py petclinic "${all_hosts}" 9 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py petclinic "${all_hosts}"
 ./run_scale.py petclinic "${all_hosts}" 10 -j -n "${runs}" "${args[@]}" &
 wait
+./host_cleanup.py petclinic "${all_hosts}"
 
 
 # acmeair density: ~60h
