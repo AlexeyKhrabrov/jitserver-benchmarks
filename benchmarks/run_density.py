@@ -136,7 +136,7 @@ def main():
 			).save_results()
 
 		else:
-			cmd = [__file__, args.benchmark]
+			cmd = [__file__, args.benchmark, "-n", str(args.n_runs)]
 			if args.scc:
 				cmd.append("-s")
 			if args.logs_path is not None:

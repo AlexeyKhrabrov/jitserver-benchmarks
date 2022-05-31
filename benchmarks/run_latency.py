@@ -174,7 +174,7 @@ def main():
 
 		else:
 			if args.details:
-				cmd = [__file__, args.benchmark]
+				cmd = [__file__, args.benchmark, "-n", str(args.n_runs)]
 				if args.jmeter:
 					cmd.append("-j")
 				if args.logs_path is not None:
