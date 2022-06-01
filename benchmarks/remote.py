@@ -121,7 +121,8 @@ class RemoteHost:
 		cmd = []
 		if passwd is not None:
 			cmd.append("sshpass")
-		cmd.extend(("ssh-copy-id", "-o", "StrictHostKeyChecking=no", self.host()))
+		cmd.extend(("ssh-copy-id", "-o", "StrictHostKeyChecking=accept-new",
+		            self.host()))
 
 		input_bytes = passwd.encode() if passwd is not None else None
 		util.run(cmd, input=input_bytes, check=True,
