@@ -33,6 +33,14 @@ fi
 ./run_single.py daytrader -r -j -n "${runs}" "${args[@]}" &
 ./run_single.py petclinic -r -j -n "${runs}" "${args[@]}" &
 
+./run_cdf.py acmeair -r -j -n "${runs}" &
+./run_cdf.py daytrader -r -j -n "${runs}" &
+./run_cdf.py petclinic -r -j -n "${runs}" &
+
+./run_cdf.py acmeair -r -j -e -n "${runs}" &
+./run_cdf.py daytrader -r -j -e -n "${runs}" &
+./run_cdf.py petclinic -r -j -e -n "${runs}" &
+
 ./run_scale.py acmeair -r -j -n "${runs}" "${args[@]}" &
 ./run_scale.py daytrader -r -j -n "${runs}" "${args[@]}" &
 ./run_scale.py petclinic -r -j -n "${runs}" "${args[@]}" &
@@ -55,16 +63,18 @@ wait
 benchmarks=("acmeair" "daytrader" "petclinic")
 
 plots=(
-	"density_noscc_cpu_time_per_req" "density_noscc_total_peak_mem"
-	"density_scc_cpu_time_per_req" "density_scc_total_peak_mem"
-	"latency_full_full_warmup_time" "scale_full_full_warmup_time_normalized"
 	"single_start_cold_start_time" "single_full_cold_warmup_time" "single_full_cold_peak_mem"
 	"single_start_warm_start_time" "single_full_warm_warmup_time" "single_full_warm_peak_mem"
+	"cdf_ne_full/comp_times_log" "cdf_ne_full/queue_times_log"
+	"cdf_eq_full/comp_times_log" "cdf_eq_full/queue_times_log"
+	"latency_full_full_warmup_time" "scale_full_full_warmup_time_normalized"
+	"density_noscc_cpu_time_per_req" "density_noscc_total_peak_mem"
+	"density_scc_cpu_time_per_req" "density_scc_total_peak_mem"
 )
 
 for b in "${benchmarks[@]}"; do
 	mkdir -p "${results_path}/plots/${b}"
 	for p in "${plots[@]}"; do
-		cp -a "${results_path}/${b}/${p}.png" "${results_path}/plots/${b}/" || true
+		cp -a "${results_path}/${b}/${p}.png" "${results_path}/plots/${b}/${p////_}.png" || true
 	done
 done

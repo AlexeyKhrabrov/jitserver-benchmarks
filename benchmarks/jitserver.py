@@ -32,6 +32,14 @@ class Experiment(enum.IntEnum):
 		else:
 			return (self, 0)
 
+	def cdf_report_experiment(self):
+		if self.is_warm_aotcache():
+			return Experiment(self.value - 1)
+		elif self.is_aotcache():
+			return Experiment.JITServer
+		else:
+			return self
+
 
 class JITServerConfig:
 	def __init__(self, *,

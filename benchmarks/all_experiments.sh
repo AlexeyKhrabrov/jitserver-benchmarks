@@ -110,6 +110,29 @@ wait
 ./host_cleanup.py petclinic "${main_hosts}"
 
 
+# all cdf: ~4h
+#
+# a=acmeair, d=daytrader, p=petclinic
+# ne="unlimited jitserver cpu", eq="equal jit cpu"
+#
+# 0: a_ne + p_ne
+# 1: a_eq + p_eq
+# 2: d_ne
+# 3: d_eq
+
+./run_cdf.py acmeair "${main_hosts}" 0 -j -n "${runs}" "${args[@]}" && \
+./run_cdf.py petclinic "${main_hosts}" 0 -j -n "${runs}" "${args[@]}" &
+./run_cdf.py acmeair "${main_hosts}" 1 -j -e -n "${runs}" "${args[@]}" && \
+./run_cdf.py petclinic "${main_hosts}" 1 -j -e -n "${runs}" "${args[@]}" &
+./run_cdf.py daytrader "${main_hosts}" 2 -j -n "${runs}" "${args[@]}" &
+./run_cdf.py daytrader "${main_hosts}" 3 -j -e -n "${runs}" "${args[@]}" &
+wait
+
+./host_cleanup.py acmeair "${main_hosts}"
+./host_cleanup.py daytrader "${main_hosts}"
+./host_cleanup.py petclinic "${main_hosts}"
+
+
 # all latency localjit: ~1.5h
 ./run_latency.py acmeair "${main_hosts}" 0 -l -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
 ./run_latency.py daytrader "${main_hosts}" 1 -l -j -n "${runs}" -S "${args[@]}" <<< "${password}" &

@@ -32,9 +32,11 @@ result_experiments = (
 )
 
 
-def get_config(bench, jmeter, experiment, n_runs):
+def get_config(bench, jmeter, experiment, n_runs,
+               equal_resources, skip_complete_runs=False):
 	result = bench.small_config(False)
-	result.name = "cdf_{}".format("full" if jmeter else "start")
+	result.name = "cdf_{}_{}".format("eq" if equal_resources else "ne",
+	                                 "full" if jmeter else "start")
 
 	result.jitserver_config.server_vlog = True
 	result.jitserver_config.client_vlog = True
@@ -49,13 +51,15 @@ def get_config(bench, jmeter, experiment, n_runs):
 	result.aotcache_extra_instance = True
 	result.run_jmeter = jmeter
 	result.n_runs = n_runs
+	result.skip_complete_runs = skip_complete_runs
 
-	result.jitserver_docker_config = docker.DockerConfig(
-		ncpus=1,
-		pin_cpus=True,
-	)
-	ncpus = 1 if experiment.is_jitserver() else 2
-	result.application_config.docker_config.ncpus = ncpus
+	if equal_resources:
+		result.jitserver_docker_config = docker.DockerConfig(
+			ncpus=1,
+			pin_cpus=True,
+		)
+		ncpus = 1 if experiment.is_jitserver() else 2
+		result.application_config.docker_config.ncpus = ncpus
 
 	return result
 
@@ -65,11 +69,16 @@ bench_cls = {
 	"petclinic": petclinic.PetClinic
 }
 
-def make_cluster(bench, hosts, jmeter, experiment, n_runs):
+def make_cluster(bench, hosts, subset, jmeter, experiment, n_runs,
+                 equal_resources, skip_complete_runs=False):
+	host0 = hosts[(2 * subset) % len(hosts)]
+	host1 = hosts[(2 * subset + 1) % len(hosts)]
+
 	return shared.BenchmarkCluster(
-		get_config(bench, jmeter, experiment, n_runs), bench,
-		jitserver_hosts=[hosts[0]], db_hosts=[hosts[0]],
-		application_hosts=[hosts[1]], jmeter_hosts=[hosts[0]]
+		get_config(bench, jmeter, experiment, n_runs,
+		           equal_resources, skip_complete_runs),
+		bench, jitserver_hosts=[host0], db_hosts=[host0],
+		application_hosts=[host1], jmeter_hosts=[host0]
 	)
 
 
@@ -78,8 +87,11 @@ def main():
 
 	parser.add_argument("benchmark")
 	parser.add_argument("hosts_file", nargs="?")
+	parser.add_argument("subset", type=int, nargs="?")
 
+	parser.add_argument("-e", "--equal-resources", action="store_true")
 	parser.add_argument("-n", "--n-runs", type=int, nargs="?", const=5)
+	parser.add_argument("--skip-complete-runs", action="store_true")
 	parser.add_argument("-c", "--cleanup", action="store_true")
 	parser.add_argument("-j", "--jmeter", action="store_true")
 	parser.add_argument("-v", "--verbose", action="store_true")
@@ -97,10 +109,11 @@ def main():
 	bench = bench_cls[args.benchmark]()
 
 	if args.result:
-		c = get_config(bench, args.jmeter, result_experiments[0], args.n_runs)
+		c = get_config(bench, args.jmeter, result_experiments[0],
+		               args.n_runs, args.equal_resources)
 		results.SingleInstanceExperimentResult(
-			result_experiments, bench, c, full_init=args.full_init
-		).save_results()
+			result_experiments, bench, c, full_init=args.full_init,
+		).save_results(legends={"comp_times": False})
 		return
 
 	hosts = [bench.new_host(*h) for h in remote.load_hosts(args.hosts_file)]
@@ -109,8 +122,8 @@ def main():
 	util.set_sigint_handler()
 
 	if args.cleanup:
-		cluster = make_cluster(bench, hosts, args.jmeter,
-		                       run_experiments[0], args.n_runs)
+		cluster = make_cluster(bench, hosts, args.subset, args.jmeter,
+		                       run_experiments[0], args.n_runs, args.equal_resources)
 		#NOTE: assuming same credentials for all hosts
 		passwd = getpass.getpass()
 		cluster.check_sudo_passwd(passwd)
@@ -118,7 +131,8 @@ def main():
 		return
 
 	for e in run_experiments:
-		cluster = make_cluster(bench, hosts, args.jmeter, e, args.n_runs)
+		cluster = make_cluster(bench, hosts, args.subset, args.jmeter, e, args.n_runs,
+		                       args.equal_resources, args.skip_complete_runs)
 		cluster.run_all_experiments([e], skip_cleanup=True)
 
 

@@ -67,7 +67,7 @@ plot_format = "png"
 def save_plot(ax, name, *args):
 	path = os.path.join(results_path(*args), "{}.{}".format(name, plot_format))
 	os.makedirs(os.path.dirname(path), exist_ok=True)
-	ax.get_figure().savefig(path, dpi=300)
+	ax.get_figure().savefig(path)
 	plt.close(ax.get_figure())
 
 
@@ -793,14 +793,17 @@ class ApplicationInstanceResult:
 		for r in self.results:
 			r.save_stats_plots()
 
-	def plot_comp_time_cdf(self, ax, field):
+	def plot_comp_time_cdf(self, ax, field, log=False, cut=None):
 		data = list(itertools.chain.from_iterable(
 			getattr(r.application_output.vlog(), field) for r in self.results
 		))
 		s = pd.Series(data).sort_values()
+		if cut is not None:
+			s = s[:math.floor(len(s) * cut)]
+		e = self.actual_experiment.cdf_report_experiment()
 		df = pd.DataFrame(np.linspace(0.0, 1.0, len(s)), index=s,
-		                  columns=[experiment_names[self.actual_experiment]])
-		df.plot(ax=ax, color="C{}".format(self.actual_experiment.value))
+		                  columns=[experiment_names[e]])
+		df.plot(ax=ax, logx=log, legend=False, color="C{}".format(e.value))
 
 
 class JITServerInstanceResult:
@@ -926,19 +929,24 @@ class SingleInstanceExperimentResult:
 			if r is not None:
 				r.save_stats_plots()
 
-	def save_comp_time_cdf_plot(self, field, label):
+	def save_comp_time_cdf_plot(self, field, label, log=False, cut=None, legends=None):
 		ax = plt.gca()
 		for e in self.experiments:
-			self.application_results[e].plot_comp_time_cdf(ax, field)
-		ax.set(xlabel=label, ylabel="CDF", title="")
-		ax.legend(
-			(matplotlib.lines.Line2D([0], [0], color="C{}".format(e.value))
-			 for e in self.experiments),
-			(experiment_names[e] for e in self.experiments)
-		)
-		save_plot(ax, field, self.benchmark, self.config)
+			self.application_results[e].plot_comp_time_cdf(ax, field, log, cut)
+		ax.set(xlabel=label + (" (log scale)" if log else ""), ylabel="CDF", title="")
 
-	def save_results(self, limits=None, details=False):
+		if (legends or {}).get(field, True):
+			ax.legend(
+				(matplotlib.lines.Line2D(
+					[0], [0], color="C{}".format(e.cdf_report_experiment().value)
+				) for e in self.experiments),
+				(experiment_names_single[e] for e in self.experiments)
+			)
+
+		name = field + ("_log" if log else "") + ("_cut" if cut is not None else "")
+		save_plot(ax, name, self.benchmark, self.config)
+
+	def save_results(self, limits=None, details=False, legends=None):
 		self.save_summary()
 
 		if details:
@@ -954,8 +962,11 @@ class SingleInstanceExperimentResult:
 				self.save_stats_plots()
 
 		if self.config.jitserver_config.client_vlog:
-			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms")
-			self.save_comp_time_cdf_plot("queue_times", "Total compilation time, ms")
+			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms", legends=legends)
+			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms", log=True, legends=legends)
+			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms", cut=0.99, legends=legends)
+			self.save_comp_time_cdf_plot("queue_times", "Total queuing time, ms", legends=legends)
+			self.save_comp_time_cdf_plot("queue_times", "Total queuing time, ms", log=True, legends=legends)
 
 
 class SingleInstanceAllExperimentsResult:
@@ -1018,20 +1029,20 @@ class ApplicationAllInstancesResult:
 				for r in range(config.n_runs)
 			] for i in range(n_instances or config.n_instances)
 		]
-		all_results = list(itertools.chain.from_iterable(self.results))
+		self.all_results = list(itertools.chain.from_iterable(self.results))
 
 		self.fields = result_fields(config)
 		self.values = {}
 		for f in self.fields:
-			add_mean_stdev(self, all_results, f[0])
-		add_min_max(self, all_results, "peak_mem")
+			add_mean_stdev(self, self.all_results, f[0])
+		add_min_max(self, self.all_results, "peak_mem")
 
 		if config.run_jmeter:
 			self.interval = mean(
 				(r.jmeter_output.throughput_data[-1][0] /
 				 (len(r.jmeter_output.throughput_data) - 1))
 				if r.jmeter_output.throughput_data is not None else 0.0
-				for r in all_results
+				for r in self.all_results
 			)
 
 	def aligned_throughput_df(self, instance_id, run_id):
@@ -1087,6 +1098,18 @@ class ApplicationAllInstancesResult:
 		                (x_df + yerr_df)[name], color=c, alpha=throughput_alpha)
 
 		self.plot_peak_throughput_warmup_time(ax)
+
+	def plot_comp_time_cdf(self, ax, field, log=False, cut=None):
+		data = list(itertools.chain.from_iterable(
+			getattr(r.application_output.vlog(), field) for r in self.all_results
+		))
+		s = pd.Series(data).sort_values()
+		if cut is not None:
+			s = s[:math.floor(len(s) * cut)]
+		df = pd.DataFrame(np.linspace(0.0, 1.0, len(s)), index=s,
+		                  columns=[experiment_names[self.experiment]])
+		df.plot(ax=ax, logx=log, legend=False,
+		        color="C{}".format(self.experiment.value))
 
 
 class JITServerAllInstancesResult:
@@ -1235,7 +1258,23 @@ class ScaleExperimentResult:
 			self.application_results[e].plot_avg_throughput(ax)
 		self.save_throughput_plot(ax, "avg", ymax)
 
-	def save_results(self, limits=None):
+	def save_comp_time_cdf_plot(self, field, label, log=False, cut=None, legends=None):
+		ax = plt.gca()
+		for e in self.experiments:
+			self.application_results[e].plot_comp_time_cdf(ax, field, log, cut)
+		ax.set(xlabel=label + (" (log scale)" if log else ""), ylabel="CDF", title="")
+
+		if (legends or {}).get(field, True):
+			ax.legend(
+				(matplotlib.lines.Line2D([0], [0], color="C{}".format(e.value))
+				 for e in self.experiments),
+				(experiment_names_multi[e] for e in self.experiments)
+			)
+
+		name = field + ("_log" if log else "") + ("_cut" if cut is not None else "")
+		save_plot(ax, name, self.benchmark, self.config)
+
+	def save_results(self, limits=None, legends=None):
 		self.save_summary()
 		self.save_all_bar_plots(limits)
 
@@ -1248,6 +1287,13 @@ class ScaleExperimentResult:
 			for r in (self.jitserver_results + self.db_results):
 				if r is not None:
 					r.save_stats_plots()
+
+		if self.config.jitserver_config.client_vlog:
+			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms", legends=legends)
+			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms", log=True, legends=legends)
+			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms", cut=0.99, legends=legends)
+			self.save_comp_time_cdf_plot("queue_times", "Total queuing time, ms", legends=legends)
+			self.save_comp_time_cdf_plot("queue_times", "Total queuing time, ms", log=True, legends=legends)
 
 
 class ScaleAllExperimentsResult:
