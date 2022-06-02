@@ -473,10 +473,13 @@ class ServerInstance:
 		cmd.extend(("tail", "-F", "-n", "+1", self.log_path(), "|",
 		            "grep", "-F", "-m", "1", "-q", self.start_log_line))
 
-		if self.host.run(cmd).returncode != 0:
-			raise Exception("Failed to start {} instance {} on {}".format(
-				self.name, self.instance_id, self.host.addr
-			))
+		result = self.host.run(cmd)
+		if result.returncode != 0:
+			raise Exception(
+				"Failed to start {} instance {} on {}:\nstdout: {}\nstderr: {}".format(
+					self.name, self.instance_id, self.host.addr,
+					result.stdout, result.stderr
+				))
 
 		if self.error_log_line is not None:
 			cmd = ["grep", "-F", "-m", "1", "-q",
