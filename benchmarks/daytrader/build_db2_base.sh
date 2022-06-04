@@ -57,7 +57,7 @@ else
 	docker-copyedit.py "${args[@]}" || "${dir}/docker-copyedit.py" "${args[@]}"
 	rm -rf "load.tmp"
 
-	export DOCKER_BUILDKIT=1
+	# export DOCKER_BUILDKIT=1
 
 	# Build next intermediate image with modified entrypoint script
 	docker build -t "db2-fixed-entrypoint" "${dir}/db2_fixed_entrypoint"
