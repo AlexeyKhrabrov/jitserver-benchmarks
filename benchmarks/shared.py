@@ -33,7 +33,7 @@ class BenchmarkHost(jitserver.JITServerHost):
 		              check=True)
 
 	def benchmark_setup(self, args=None, *, scripts_only=False,
-	                    clean=False, exclude=None):
+	                    clean=False, exclude=None, passwd=None):
 		if clean:
 			self.clean_images()
 		self.update_benchmark(exclude)
@@ -46,8 +46,8 @@ class BenchmarkHost(jitserver.JITServerHost):
 			cmd.extend(args)
 
 		t0 = time.monotonic()
-		self.run(cmd, output=self.log_path("{}_setup".format(self.benchmark)),
-		         check=True)
+		self.run_sudo(cmd, output=self.log_path("{}_setup".format(self.benchmark)),
+		              check=True, passwd=passwd)
 		t1 = time.monotonic()
 
 		print("{} setup on {} took {:.2f} seconds".format(

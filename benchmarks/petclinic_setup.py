@@ -25,17 +25,18 @@ def main():
 	cluster = remote.RemoteCluster(hosts)
 	util.verbose = args.verbose
 
-	if args.prereqs:
-		#NOTE: assuming same credentials for all hosts
-		passwd = getpass.getpass()
-		cluster.check_sudo_passwd(passwd)
+	#NOTE: assuming same credentials for all hosts
+	passwd = getpass.getpass()
+	cluster.check_sudo_passwd(passwd)
 
-		cluster.for_each(petclinic.PetClinicHost.benchmark_prereqs, passwd=passwd,
-		                 parallel=passwd is not None)
+	if args.prereqs:
+		cluster.for_each(petclinic.PetClinicHost.benchmark_prereqs,
+		                 passwd=passwd, parallel=passwd is not None)
 
 	cluster.for_each(
 		petclinic.PetClinicHost.benchmark_setup,
-		scripts_only=args.scripts_only, clean=args.clean, parallel=True
+		scripts_only=args.scripts_only, clean=args.clean, passwd=passwd,
+		parallel=passwd is not None
 	)
 
 
