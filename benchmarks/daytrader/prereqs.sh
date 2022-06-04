@@ -12,4 +12,4 @@ rm -rf "/var/lib/apt/lists/"*
 
 # Allow docker without sudo
 groupadd "docker" || true
-usermod -aG "docker" "${USER}"
+usermod -aG "docker" "${SUDO_USER}"
