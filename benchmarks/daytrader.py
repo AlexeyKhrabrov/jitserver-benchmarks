@@ -17,8 +17,8 @@ class DayTraderHost(shared.BenchmarkHost):
 		self.run(cmd, output=self.log_path("{}_python_prereqs".format(
 		         self.benchmark)), check=True)
 
-	def benchmark_setup(self, db2_path=None, *, scripts_only=False,
-	                    clean=False, build_db2=False, tune=False, passwd=None):
+	def benchmark_setup(self, db2_path=None, *,
+	                    build_db2=False, tune=False, **kwargs):
 		args = []
 		if build_db2:
 			args.append("--db2")
@@ -28,8 +28,7 @@ class DayTraderHost(shared.BenchmarkHost):
 		if tune:
 			args.append("--tune")
 
-		super().benchmark_setup(args, scripts_only=scripts_only, clean=clean,
-		                        exclude="docker-copyedit.py", passwd=passwd)
+		super().benchmark_setup(args, exclude="docker-copyedit.py", **kwargs)
 
 	def full_cleanup(self, *, passwd=None):
 		super().full_cleanup("db2", passwd=passwd)

@@ -32,12 +32,12 @@ class BenchmarkHost(jitserver.JITServerHost):
 		              output=self.log_path("{}_prereqs".format(self.benchmark)),
 		              check=True)
 
-	def benchmark_setup(self, args=None, *, scripts_only=False,
-	                    clean=False, exclude=None, passwd=None):
+	def benchmark_setup(self, args=None, *, scripts_only=False, clean=False,
+	                    exclude=None, sudo=False, passwd=None):
 		if clean:
 			self.clean_images()
 		self.update_benchmark(exclude)
-		self.jitserver_setup(scripts_only)
+		self.jitserver_setup(scripts_only=scripts_only, sudo=sudo, passwd=passwd)
 		if scripts_only:
 			return
 
@@ -45,9 +45,12 @@ class BenchmarkHost(jitserver.JITServerHost):
 		if args is not None:
 			cmd.extend(args)
 
+		output_path = self.log_path("{}_setup".format(self.benchmark))
 		t0 = time.monotonic()
-		self.run_sudo(cmd, output=self.log_path("{}_setup".format(self.benchmark)),
-		              check=True, passwd=passwd)
+		if sudo:
+			self.run_sudo(cmd, output=output_path, check=True, passwd=passwd)
+		else:
+			self.run(cmd, output=output_path, check=True)
 		t1 = time.monotonic()
 
 		print("{} setup on {} took {:.2f} seconds".format(
