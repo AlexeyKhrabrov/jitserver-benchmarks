@@ -17,6 +17,7 @@ def main():
 	parser.add_argument("-p", "--prereqs", action="store_true")
 	parser.add_argument("-s", "--scripts-only", action="store_true")
 	parser.add_argument("-c", "--clean", action="store_true")
+	parser.add_argument("-b", "--buildkit", action="store_true")
 	parser.add_argument("-S", "--sudo", action="store_true")
 	parser.add_argument("-v", "--verbose", action="store_true")
 	parser.add_argument("-d", "--db2", action="store_true")
@@ -41,7 +42,8 @@ def main():
 	cluster.for_each(
 		daytrader.DayTraderHost.benchmark_setup, args.db2_installer_path,
 		build_db2=args.db2, tune=args.tune, scripts_only=args.scripts_only,
-		clean=args.clean, sudo=args.sudo, passwd=passwd, parallel=True
+		clean=args.clean, buildkit=args.buildkit, sudo=args.sudo, passwd=passwd,
+		parallel=True
 	)
 
 

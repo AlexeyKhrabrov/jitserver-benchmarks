@@ -306,7 +306,8 @@ class JITServerHost(docker.DockerHost, openj9.OpenJ9Host):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
-	def jitserver_setup(self, *, scripts_only=False, sudo=False, passwd=None):
+	def jitserver_setup(self, *, scripts_only=False, buildkit=False,
+	                    sudo=False, passwd=None):
 		self.rsync_put(os.path.join(module_dir, "jitserver/"), "jitserver/")
 		self.update_scripts()
 		if scripts_only:
@@ -318,7 +319,8 @@ class JITServerHost(docker.DockerHost, openj9.OpenJ9Host):
 			self.run_sudo(["jitserver/build.sh"], output=output_path,
 			              check=True, passwd=passwd)
 		else:
-			self.run(["jitserver/build.sh"], output=output_path, check=True)
+			self.run(["jitserver/build.sh"], output=output_path, check=True,
+			         env={"DOCKER_BUILDKIT": 1} if buildkit else None)
 		t1 = time.monotonic()
 
 		print("jitserver setup on {} took {:.2f} seconds".format(

@@ -33,11 +33,12 @@ class BenchmarkHost(jitserver.JITServerHost):
 		              check=True)
 
 	def benchmark_setup(self, args=None, *, scripts_only=False, clean=False,
-	                    exclude=None, sudo=False, passwd=None):
+	                    exclude=None, buildkit=False, sudo=False, passwd=None):
 		if clean:
 			self.clean_images()
 		self.update_benchmark(exclude)
-		self.jitserver_setup(scripts_only=scripts_only, sudo=sudo, passwd=passwd)
+		self.jitserver_setup(scripts_only=scripts_only, buildkit=buildkit,
+		                     sudo=sudo, passwd=passwd)
 		if scripts_only:
 			return
 
@@ -50,7 +51,8 @@ class BenchmarkHost(jitserver.JITServerHost):
 		if sudo:
 			self.run_sudo(cmd, output=output_path, check=True, passwd=passwd)
 		else:
-			self.run(cmd, output=output_path, check=True)
+			self.run(cmd, output=output_path, check=True,
+			         env={"DOCKER_BUILDKIT": 1} if buildkit else None)
 		t1 = time.monotonic()
 
 		print("{} setup on {} took {:.2f} seconds".format(

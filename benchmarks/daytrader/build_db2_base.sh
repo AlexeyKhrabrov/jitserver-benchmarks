@@ -45,8 +45,8 @@ if [[ "${db2_installer_path}" != "" ]]; then
 	# Create link to installer inside docker build context
 	link "${db2_installer_path}" "${dir}/db2_base_installer/db2.tar.gz"
 
-	#NOTE: buildkit doesn't support host network build (only with "experimental" dockerfile syntax)
-	#export DOCKER_BUILDKIT=1
+	# Do not use buildkit since it doesn't support host network build
+	DOCKER_BUILDKIT=0 \
 	docker build --network=host -t "db2-base" "${dir}/db2_base_installer"
 
 else
@@ -56,8 +56,6 @@ else
 	args=(FROM "ibmcom/db2" INTO "db2-no-volumes" REMOVE ALL VOLUMES)
 	docker-copyedit.py "${args[@]}" || "${dir}/docker-copyedit.py" "${args[@]}"
 	rm -rf "load.tmp"
-
-	# export DOCKER_BUILDKIT=1
 
 	# Build next intermediate image with modified entrypoint script
 	docker build -t "db2-fixed-entrypoint" "${dir}/db2_fixed_entrypoint"
