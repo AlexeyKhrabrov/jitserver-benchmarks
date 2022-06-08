@@ -100,6 +100,7 @@ def main():
 	parser.add_argument("-R", "--results-path")
 	parser.add_argument("-f", "--full-init", action="store_true")
 	parser.add_argument("-F", "--format")
+	parser.add_argument("--single-legend", action="store_true")
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
@@ -113,7 +114,11 @@ def main():
 		               args.n_runs, args.equal_resources)
 		results.SingleInstanceExperimentResult(
 			result_experiments, bench, c, full_init=args.full_init,
-		).save_results(legends={"comp_times": False})
+		).save_results(
+			legends={
+				"comp_times": False
+			} if args.single_legend else None
+		)
 		return
 
 	hosts = [bench.new_host(*h) for h in remote.load_hosts(args.hosts_file)]

@@ -119,6 +119,7 @@ def main():
 	parser.add_argument("-R", "--results-path")
 	parser.add_argument("-f", "--full-init", action="store_true")
 	parser.add_argument("-F", "--format")
+	parser.add_argument("--single-legend", action="store_true")
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
@@ -158,7 +159,13 @@ def main():
 				[get_config(args.benchmark, *c[:-1], args.scc, args.n_runs)
 				 for c in configs],
 				[c[-1] for c in configs], full_init=args.full_init
-			).save_results()
+			).save_results(
+				legends={
+					"cpu_time_per_req": args.benchmark == "daytrader",
+					"req_per_cpu_time": args.benchmark == "daytrader",
+					"total_peak_mem": False,
+				} if args.single_legend else None
+			)
 
 		return
 

@@ -133,6 +133,7 @@ def main():
 	parser.add_argument("-f", "--full-init", action="store_true")
 	parser.add_argument("-F", "--format")
 	parser.add_argument("-d", "--details", action="store_true")
+	parser.add_argument("--single-legend", action="store_true")
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
@@ -198,12 +199,11 @@ def main():
 				["XS", "S", "M", "L"], [c[-1] for c in cold_configs],
 				full_init=args.full_init
 			).save_results(
-				legends={
+				limits=limits, legends={
 					"start_time": False,
 					"warmup_time": False,
 					"peak_mem": False,
-				},
-				limits=limits
+				} if args.single_legend else None
 			)
 
 			results.SingleInstanceAllExperimentsResult(
@@ -212,12 +212,11 @@ def main():
 				 for c in warm_configs],
 				["XS", "S", "M", "L"], [c[-1] for c in warm_configs]
 			).save_results(
-				legends={
+				limits=limits, legends={
 					"start_time": True,
 					"warmup_time": False,
 					"peak_mem": False
-				},
-				limits=limits
+				} if args.single_legend else None
 			)
 
 		return

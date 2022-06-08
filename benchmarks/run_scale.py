@@ -141,6 +141,7 @@ def main():
 	parser.add_argument("-f", "--full-init", action="store_true")
 	parser.add_argument("-F", "--format")
 	parser.add_argument("-d", "--details", action="store_true")
+	parser.add_argument("--single-legend", action="store_true")
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
@@ -185,9 +186,9 @@ def main():
 				 for c in sorted_configs],
 				[c[-1] for c in sorted_configs], full_init=args.full_init
 			).save_results(
-				legends={"full_warmup_time_normalized": args.benchmark == "petclinic"},
-				limits=({"full_warmup_time_normalized": 1.3}
-				        if args.benchmark == "acmeair" else None)
+				legends={
+					"full_warmup_time_normalized": args.benchmark == "petclinic"
+				} if args.single_legend else None
 			)
 
 		return
