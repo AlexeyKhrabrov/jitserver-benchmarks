@@ -1,5 +1,3 @@
-import os.path
-
 import docker
 import liberty
 import openj9
@@ -12,10 +10,6 @@ class DayTraderHost(shared.BenchmarkHost):
 
 	def benchmark_prereqs(self, *, passwd=None):
 		super().benchmark_prereqs(passwd=passwd, exclude="docker-copyedit.py")
-
-		cmd = [os.path.join(self.benchmark, "python_prereqs.sh")]
-		self.run(cmd, output=self.log_path("{}_python_prereqs".format(
-		         self.benchmark)), check=True)
 
 	def benchmark_setup(self, db2_path=None, *,
 	                    build_db2=False, tune=False, **kwargs):
