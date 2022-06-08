@@ -94,7 +94,6 @@ export TR_PrintCompTime=1
 export TR_PrintJITServerMsgStats=1
 export TR_PrintJITServerAOTCacheStats=1
 export TR_PrintResourceUsageStats=1
-export TR_PrintJITServerMallocStats=1
 
 if [[ "${use_gdb}" == true ]]; then
 	gdb_args=("-ex" "handle SIGPIPE nostop noprint pass")
