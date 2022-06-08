@@ -120,6 +120,7 @@ def main():
 	parser.add_argument("-f", "--full-init", action="store_true")
 	parser.add_argument("-F", "--format")
 	parser.add_argument("--single-legend", action="store_true")
+	parser.add_argument("--same-limits", action="store_true")
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
@@ -154,13 +155,28 @@ def main():
 			util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True),
 			                 range(len(configs)))
 
-			results.DensityAllExperimentsResult(
+			result = results.DensityAllExperimentsResult(
 				experiments, bench,
 				[get_config(args.benchmark, *c[:-1], args.scc, args.n_runs)
 				 for c in configs],
 				[c[-1] for c in configs], full_init=args.full_init
-			).save_results(
-				legends={
+			)
+
+			limits = None
+			if args.same_limits:
+				other_result = results.DensityAllExperimentsResult(
+					experiments, bench,
+					[get_config(args.benchmark, *c[:-1], not args.scc, args.n_runs)
+					 for c in configs],
+					[c[-1] for c in configs], full_init=args.full_init
+				)
+				current_limits = result.save_results(dry_run=True)
+				other_limits = other_result.save_results(dry_run=True)
+				limits = {f: max(current_limits[f], other_limits[f])
+				          for f in current_limits.keys()}
+
+			result.save_results(
+				limits=limits, legends={
 					"cpu_time_per_req": args.benchmark == "daytrader",
 					"req_per_cpu_time": args.benchmark == "daytrader",
 					"total_peak_mem": False,

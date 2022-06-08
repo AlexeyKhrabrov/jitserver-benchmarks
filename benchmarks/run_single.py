@@ -134,6 +134,7 @@ def main():
 	parser.add_argument("-F", "--format")
 	parser.add_argument("-d", "--details", action="store_true")
 	parser.add_argument("--single-legend", action="store_true")
+	parser.add_argument("--same-limits", action="store_true")
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
@@ -174,44 +175,35 @@ def main():
 			cold_configs = configs[0::2]
 			warm_configs = configs[1::2]
 
-			limits = {
-				"start_time": {
-					"acmeair": 33.0,
-					"daytrader": 56.0,
-					"petclinic": 58.0,
-				}.get(args.benchmark, None),
-				"warmup_time": {
-					"acmeair": 280.0,
-					"daytrader": 1350.0,
-					"petclinic": 130.0,
-				}.get(args.benchmark, None),
-				"peak_mem": {
-					"acmeair": 590.0,
-					"daytrader": 700.0,
-					"petclinic": 700.0,
-				}.get(args.benchmark, None),
-			}
-
-			results.SingleInstanceAllExperimentsResult(
+			cold_result = results.SingleInstanceAllExperimentsResult(
 				result_experiments, bench, "cold",
 				[get_config(bench, args.jmeter, *c[:-1], args.n_runs)
 				 for c in cold_configs],
 				["XS", "S", "M", "L"], [c[-1] for c in cold_configs],
 				full_init=args.full_init
-			).save_results(
+			)
+			warm_result = results.SingleInstanceAllExperimentsResult(
+				result_experiments, bench, "warm",
+				[get_config(bench, args.jmeter, *c[:-1], args.n_runs)
+				 for c in warm_configs],
+				["XS", "S", "M", "L"], [c[-1] for c in warm_configs]
+			)
+
+			limits = None
+			if args.same_limits:
+				cold_limits = cold_result.save_results(dry_run=True)
+				warm_limits = warm_result.save_results(dry_run=True)
+				limits = {f: max(cold_limits[f], warm_limits[f])
+				          for f in cold_limits.keys()}
+
+			cold_result.save_results(
 				limits=limits, legends={
 					"start_time": False,
 					"warmup_time": False,
 					"peak_mem": False,
 				} if args.single_legend else None
 			)
-
-			results.SingleInstanceAllExperimentsResult(
-				result_experiments, bench, "warm",
-				[get_config(bench, args.jmeter, *c[:-1], args.n_runs)
-				 for c in warm_configs],
-				["XS", "S", "M", "L"], [c[-1] for c in warm_configs]
-			).save_results(
+			warm_result.save_results(
 				limits=limits, legends={
 					"start_time": True,
 					"warmup_time": False,

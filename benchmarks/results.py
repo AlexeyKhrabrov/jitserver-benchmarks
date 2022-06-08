@@ -997,7 +997,7 @@ class SingleInstanceAllExperimentsResult:
 		}
 		return pd.DataFrame(data, index=self.names)
 
-	def save_bar_plot(self, field, ymax=None, legend=True):
+	def save_bar_plot(self, field, ymax=None, legend=True, dry_run=False):
 		ax = self.get_df(field, "_means").plot.bar(
 			yerr=self.get_df(field, "_stdevs"),
 			rot=0, ylim=(0, ymax), legend=legend
@@ -1007,16 +1007,26 @@ class SingleInstanceAllExperimentsResult:
 			       benchmark_full_names[self.benchmark], self.mode),
 			ylabel=field[1]
 		)
-		save_plot(ax, "single_{}_{}_{}".format("full" if self.jmeter else "start",
-		          self.mode, field[0]), self.benchmark)
+		result = ax.get_ylim()[1]
 
-	def save_all_bar_plots(self, limits=None, legends=None):
+		if dry_run:
+			plt.close(ax.get_figure())
+		else:
+			save_plot(ax, "single_{}_{}_{}".format("full" if self.jmeter
+			          else "start", self.mode, field[0]), self.benchmark)
+		return result
+
+	def save_all_bar_plots(self, limits=None, legends=None, dry_run=False):
+		result = {}
 		for f in self.results[0].fields:
-			self.save_bar_plot(f, (limits or {}).get(f[0]),
-			                   (legends or {}).get(f[0], True))
+			result[f[0]] = self.save_bar_plot(
+				f, (limits or {}).get(f[0]), (legends or {}).get(f[0], True),
+				dry_run
+			)
+		return result
 
-	def save_results(self, limits=None, legends=None):
-		self.save_all_bar_plots(limits, legends)
+	def save_results(self, limits=None, legends=None, dry_run=False):
+		return self.save_all_bar_plots(limits, legends, dry_run)
 
 
 class ApplicationAllInstancesResult:
@@ -1681,23 +1691,31 @@ class DensityAllExperimentsResult:
 		         for c in self.configs]
 		return pd.DataFrame(data, index=index)
 
-	def save_bar_plot(self, field, ymax=None, legend=True):
+	def save_bar_plot(self, field, ymax=None, legend=True, dry_run=False):
 		ax = self.get_df(field, "_means").plot.bar(
 			yerr=self.get_df(field, "_stdevs"),
 			rot=0, ylim=(0, ymax), legend=legend
 		)
 		ax.set(xlabel="{}: Application lifespan".format(
 		       benchmark_full_names[self.benchmark]), ylabel=field[1])
+		result = ax.get_ylim()[1]
 
-		save_plot(ax, "density_{}_{}".format(
-			"scc" if self.configs[0].application_config.populate_scc else "noscc",
-			field[0]
-		), self.benchmark)
+		if dry_run:
+			plt.close(ax.get_figure())
+		else:
+			save_plot(ax, "density_{}_{}".format(
+			          "scc" if self.configs[0].application_config.populate_scc
+			          else "noscc", field[0]), self.benchmark)
+		return result
 
-	def save_all_bar_plots(self, limits=None, legends=None):
+	def save_all_bar_plots(self, limits=None, legends=None, dry_run=False):
+		result = {}
 		for f in self.results[0].fields:
-			self.save_bar_plot(f, (limits or {}).get(f[0]),
-			                   (legends or {}).get(f[0], True))
+			result[f[0]] = self.save_bar_plot(
+				f, (limits or {}).get(f[0]), (legends or {}).get(f[0], True),
+				dry_run
+			)
+		return result
 
-	def save_results(self, limits=None, legends=None):
-		self.save_all_bar_plots(limits, legends)
+	def save_results(self, limits=None, legends=None, dry_run=False):
+		return self.save_all_bar_plots(limits, legends, dry_run)

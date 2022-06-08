@@ -101,6 +101,7 @@ def main():
 	parser.add_argument("-f", "--full-init", action="store_true")
 	parser.add_argument("-F", "--format")
 	parser.add_argument("--single-legend", action="store_true")
+	parser.add_argument("--same-limits", action="store_true")# unused
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
