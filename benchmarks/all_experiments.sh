@@ -3,15 +3,26 @@
 set -e -u -o pipefail
 
 
-# Usage: ./all_experiments.sh all_hosts_file main_hosts_file
-#        runs density_runs [logs_path]
+usage_str="\
+Usage: ${0} all_hosts_file main_hosts_file runs density_runs [logs_path]"
+
+function usage()
+{
+	echo "${usage_str}" 1>&2
+	exit 1
+}
+
+
+if (( $# < 4 )); then usage; fi
 
 all_hosts="${1}" # 8 main homogeneous machines
 main_hosts="${2}" # total 11 machines
 runs="${3}" # number of runs (repetitions) in all experiments except "density"
 density_runs="${4}"
 
+#NOTE: This option skips complete experiment runs and only runs the missing ones
 args=("--skip-complete-runs")
+
 if (( $# >= 5 )); then
 	logs_path="${5}"
 	args+=(-L "${logs_path}")
@@ -22,6 +33,8 @@ fi
 # Needed by latency experiments
 read -s -p "Password: " password
 echo
+
+#NOTE: Estimated durations assume 3 runs for "density" and 5 for other experiments
 
 
 # all single: ~8h

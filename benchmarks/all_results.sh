@@ -3,12 +3,28 @@
 set -e -u -o pipefail
 
 
-# Usage: ./all_results.sh runs density_runs [logs_path] [results_path]
+usage_str="\
+Usage: ${0} runs density_runs [logs_path] [results_path]"
+
+function usage()
+{
+	echo "${usage_str}" 1>&2
+	exit 1
+}
+
+
+if (( $# < 2 )); then usage; fi
 
 runs="${1}"
 density_runs="${2}"
 
-args=()
+format="pdf"
+args=("--format=${format}")
+
+#NOTE: These options generate the plots as presented in the paper - with a
+# single legend per figure (not per plot), and with the same Y axis scale for
+# "cold" and "warm" configurations in "single" and "density" experiments.
+args+=("--single-legend" "--same-limits")
 
 if (( $# >= 3 )); then
 	logs_path="${3}"
@@ -33,13 +49,13 @@ fi
 ./run_single.py daytrader -r -j -n "${runs}" "${args[@]}" &
 ./run_single.py petclinic -r -j -n "${runs}" "${args[@]}" &
 
-./run_cdf.py acmeair -r -j -n "${runs}" &
-./run_cdf.py daytrader -r -j -n "${runs}" &
-./run_cdf.py petclinic -r -j -n "${runs}" &
+./run_cdf.py acmeair -r -j -n "${runs}" "${args[@]}" &
+./run_cdf.py daytrader -r -j -n "${runs}" "${args[@]}" &
+./run_cdf.py petclinic -r -j -n "${runs}" "${args[@]}" &
 
-./run_cdf.py acmeair -r -j -e -n "${runs}" &
-./run_cdf.py daytrader -r -j -e -n "${runs}" &
-./run_cdf.py petclinic -r -j -e -n "${runs}" &
+./run_cdf.py acmeair -r -j -e -n "${runs}" "${args[@]}" &
+./run_cdf.py daytrader -r -j -e -n "${runs}" "${args[@]}" &
+./run_cdf.py petclinic -r -j -e -n "${runs}" "${args[@]}" &
 
 ./run_scale.py acmeair -r -j -n "${runs}" "${args[@]}" &
 ./run_scale.py daytrader -r -j -n "${runs}" "${args[@]}" &
@@ -73,8 +89,9 @@ plots=(
 )
 
 for b in "${benchmarks[@]}"; do
-	mkdir -p "${results_path}/plots/${b}"
+	dst="${results_path}/plots/${b}"
+	mkdir -p "${dst}"
 	for p in "${plots[@]}"; do
-		cp -a "${results_path}/${b}/${p}.png" "${results_path}/plots/${b}/${p////_}.png" || true
+		cp -a "${results_path}/${b}/${p}.${format}" "${dst}/${p////_}.${format}" || true
 	done
 done
