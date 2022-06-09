@@ -18,7 +18,7 @@ if (( $# < 2 )); then usage; fi
 runs="${1}"
 density_runs="${2}"
 
-format="pdf"
+format="png"
 args=("--format=${format}")
 
 #NOTE: These options generate the plots as presented in the paper - with a
