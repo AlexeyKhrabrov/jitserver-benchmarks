@@ -1,88 +1,71 @@
 # jitserver-benchmarks
 
-Benchmarks used in the USENIX ATC'22 paper "JITServer: Disaggregated Caching JIT Compiler for the JVM in the Cloud"
+Benchmarks used in the USENIX ATC'22 paper "JITServer: Disaggregated Caching JIT Compiler for the JVM in the Cloud" - https://www.usenix.org/conference/atc22/presentation/khrabrov.
 
 
 ## Artifact description
 
 The artifact consists of two parts:
 
-1. The open source implementation of our system, which has been contributed to the OpenJ9 project: https://github.com/eclipse-openj9/openj9. Our system is implemented in \~25 KLOC of C++; the code is integrated into the rest of the OpenJ9 code base.
+1. The open source implementation of our system, which has been contributed to the OpenJ9 project: https://github.com/eclipse-openj9/openj9. JITServer is implemented in \~25 KLOC of C++. The code is integrated into the rest of the OpenJ9 code base. Our automated benchmarking platform (see below) is set up to build the system from source. OpenJ9 builds (including JITServer) are also available from e.g. AdoptOpenJDK: https://adoptopenjdk.net/. The OpenJ9 code base is split across three separate repositories:
+	- OpenJ9: https://github.com/eclipse-openj9/openj9. A stable fork based on the 0.32.0 release with some minor changes required by our benchmarking platform (e.g. collecting additional statistics) can be found here: https://github.com/AlexeyKhrabrov/openj9/tree/atc22ae.
+	- OMR: https://github.com/eclipse/omr. A stable fork based on the 0.32.0 OpenJ9 release can be found here: https://github.com/AlexeyKhrabrov/omr/tree/atc22ae.
+	- OpenJDK extensions for OpenJ9: https://github.com/ibmruntimes/openj9-openjdk-jdk8. We used JDK 8 in our experiments; newer JDK versions are also available. A stable fork based on the 0.32.0 OpenJ9 release can be found here: https://github.com/AlexeyKhrabrov/openj9-openjdk-jdk8/tree/atc22ae.
 
-The OpenJ9 code base is split across 3 separate repositories:
+2. A set of scripts (Python, shell scripts, and Docker files) that automate the benchmark runs used in our evaluation and generate the resulting graphs. This part or the artifact is available at https://github.com/AlexeyKhrabrov/jitserver-benchmarks (this repository). A stable branch with the version used for USENIX ATC'22 Artifact Evaluation can be found here: https://github.com/AlexeyKhrabrov/jitserver-benchmarks/tree/atc22ae.
 
-- OpenJ9: https://github.com/eclipse-openj9/openj9. A stable fork for artifact evaluation with some not yet upstreamed minor changes required by our benchmarking platform can be found here: https://github.com/AlexeyKhrabrov/openj9/tree/atc22ae.
-
-- OMR: https://github.com/eclipse/omr. A stable fork for artifact evaluation can be found here: https://github.com/AlexeyKhrabrov/omr/tree/atc22ae.
-
-- OpenJDK extensions for OpenJ9: https://github.com/ibmruntimes/openj9-openjdk-jdk8 (we used JDK 8 in our experiments; newer JDK versions are also available). A stable fork for artifact evaluation can be found here: https://github.com/AlexeyKhrabrov/openj9-openjdk-jdk8/tree/atc22ae.
-
-Our automated benchmarking platform (see below) is set up to build the system from source. OpenJ9 builds (including JITServer) are also available from e.g. AdoptOpenJDK: https://adoptopenjdk.net/.
-
-2. A set of scripts (Python, shell scripts, and Docker files) that automate the benchmark runs used in our evaluation and generate the resulting graphs. This part or the artifact is available at https://github.com/AlexeyKhrabrov/jitserver-benchmarks.
-We used the following open source benchmark applications in our evaluation (their pre-built jars are included in the repository linked above):
-
+We used the following open source benchmark applications in our evaluation (their pre-built jars are included in this repository):
 - AcmeAir: https://github.com/blueperf/acmeair-monolithic-java.
 - DayTrader7: https://github.com/WASdev/sample.daytrader7.
 - Spring PetClinic: https://github.com/spring-projects/spring-petclinic.
 
-Running the largest experiments reported in the paper requires an equivalent of a cluster of 11 machines with 16 CPU cores (32 hyperthreads) each, connected with a 10 Gbit/s network with round-trip latency between machines in the low hundreds of microseconds or less. We will provide remote access to our cluster via ssh (please reach out to the authors via HotCRP for instructions and credentials). Alternatively, the experiments can be run in a public cloud such as AWS on a cluster of virtual instances with roughly equivalent resources, or on a similar set of physical machines. Our setup supports Ubuntu 18.04.
+Running the largest experiments reported in the paper requires an equivalent of a cluster of 11 machines with 16 CPU cores (32 hyperthreads) each, connected with a 10 Gbit/s network (or at least 1 Gbit/s) with round-trip latency between machines in the low hundreds of microseconds or less. Alternatively, the experiments can be run in a public cloud such as AWS on a cluster of virtual instances with roughly equivalent resources. Our setup supports Ubuntu 18.04. We also provide an archive with the logs generated by running the full set of experiments reported in the paper - `logs.tar.xz` in this repository (stored using `git-lfs`).
 
 Our artifact can be used to validate the main claims in our paper, most importantly:
+- JITServer can reduce application start time and warm-up time and system-wide CPU and memory usage for JVM-based applications running in containers with limited resources (which are common in the cloud).
+- Caching dynamically compiled code at the JITServer is necessary to fully achieve the reduction in overall CPU usage and application start times.
 
-- JITServer can reduce application start time and warmup time and system-wide CPU and memory usage for Java applications running in containers with limited resources (which are common in the cloud.)
-
-- Caching dynamically compiled code at JITServer is necessary to fully achieve the reduction in overall CPU usage and application start times.
-
-Note that the experimental results are expected to be slightly different from the ones reported in the paper (even on the same hardware setup) since the OpenJ9 implementation has evolved since we conducted those experiments. However, the main conclusions should still hold.
+Note that the experimental results are expected to be slightly different from the ones reported in the paper (even on the same hardware) since the OpenJ9 implementation has evolved since we conducted those experiments. However, the main conclusions should still hold.
 
 
 ## Getting started
 
 A minimal setup to check the basic JITServer functionality involves cloning the source code repositories, building the JDK with OpenJ9, and running a minimalistic Java application such as `java -version` with JITServer. It should take about 30 minutes, depending on how fast the machine is. The scripts assume Ubuntu 18.04. The steps are as follows.
 
-1. Clone the benchmarks repository.
-
+1. Clone the benchmarks repository (the `atc22ae` branch). To also download the `logs.tar.xz` archive with the full experiment logs used to generate the results reported in the paper, install `git-lfs` and do not pass the `GIT_LFS_SKIP_SMUDGE` option to `git clone`.
 ```
-$ git clone https://github.com/AlexeyKhrabrov/jitserver-benchmarks
+$ GIT_LFS_SKIP_SMUDGE=1 git clone -b atc22ae https://github.com/AlexeyKhrabrov/jitserver-benchmarks
 $ cd jitserver-benchmarks/
 ```
 
 2. Install prerequisite packages.
-
 ```
 $ sudo scripts/openj9_prereqs.sh
 ```
 
 3. Fetch the JDK, OpenJ9, and OMR source code (into `./jdk/`, `./openj9/`, and `./omr/`).
-
 ```
 $ ./get_sources.sh
 ```
 
 4. Build the JDK (into `./jdk/build/release/`).
-
 ```
 $ cd scripts/
 $ ./openj9_build.sh ../jdk/ 8
 ```
 
 5. Start a local JITServer instance.
-
 ```
 $ ./run_jitserver.sh ../jdk/ 8 -s -c
 ```
 
 6. In a separate terminal, run `java -version` (which is a small Java application) using the local JITServer instance.
-
 ```
 $ cd jitserver-benchmarks/scripts/
 $ ./run_jitclient.sh ../jdk/ 8 localhost -s -c -p -version
 ```
 
-Both the JITServer and the client JVM should produce output (JIT compiler verbose log) to `stderr` that describes remote compilation requests generated by the client and processed by the server. Additional client instances can be launched to use the same server, in which case they can take advantage of the cache of compiled methods at the server (which should be reflected in the verbose log messages). The server can be stopped with SIGINT (Ctrl+C).
-
-The shell scripts support a variety of additional options. Please consult their help text and source code for the description of the arguments.
+Both the JITServer and the client JVM should produce output (JIT compiler verbose log) to `stderr` that describes remote compilation requests generated by the client and processed by the server. Additional client instances can be launched to use the same server, in which case they can take advantage of the cache of compiled methods at the server (which should be reflected in the verbose log messages). The server can be stopped with the `SIGINT` signal (Ctrl+C). The shell scripts support a variety of additional options. Please consult their help text and source code for the description of the arguments.
 
 JITServer documentation can be found at https://www.eclipse.org/openj9/docs/jitserver/ and https://github.com/eclipse-openj9/openj9/tree/master/doc/compiler/jitserver. Note that caching compiled code at JITServer is not yet documented in the official documentation.
 
@@ -90,109 +73,109 @@ JITServer documentation can be found at https://www.eclipse.org/openj9/docs/jits
 ## Benchmarking cluster setup overview
 
 Our benchmarking platform assumes that the cluster consists of:
-
 - The *control node* where the user runs the scripts to set up and run the experiments, the logs produced by the experiments are accumulated, and the results are generated from those logs.
-
 - A set of *worker nodes* where the components of the actual benchmarks (JITServer, application JVMs, application database instances, workload generators ) are run. Note that one can run the “control plane” on one of the worker nodes since its overhead is relatively small.
 
-The benchmark “driver” scripts that run on the control node launch tasks on the worker nodes via ssh, and transfer files using `rsync`. For optimal performance, we highly recommend setting up ssh connection caching/multiplexing (see the comment at the top of the file `jitserver-benchmarks/benchmarks/remote.py`). A set of worker nodes is defined in a .hosts file that lists their host names (one per line) and other optional parameters (see the comment in the function load_hosts() in remote.py).
+The benchmark “driver” scripts that run on the control node launch tasks on the worker nodes via SSH, and transfer files using `rsync`. A set of worker nodes is defined in a `.hosts` file (not to be confused with `/etc/hosts`) that lists their host names and other optional parameters. In the simple case, it contains a list of host names of the worker nodes (one per line).
+
+Each line in a `.hosts` file must have the following format: `[user@]addr[|internal_addr][:directory]`. Empty lines and comments (starting with `#`) are ignored. The parameters are as follows:
+- `user` - (optional) remote ssh user name; default is the local user name;
+- `addr` - remote host name or IP address;
+- `internal_addr` - (optional) alternative host name or IP address that the remote host can be accessed by from other worker nodes;
+- `directory` - (optional) working directory for remote commands and file storage; default is the remote user's home directory.
+
+Further instructions refer to the file describing all the worker nodes in the cluster as `all.hosts`. If the control node also acts as one of the worker nodes, it should be included in the `.hosts` files using its actual host name accessible from other nodes (not `localhost`).
 
 
 ## Setting up JITServer and benchmarks on the cluster
 
-Our setup assumes Ubuntu 18.04 as the OS. It should be possible (but not necessarily easy) to tweak it to work on other Linux distributions. Newer Ubuntu versions might require downgrading to an older gcc version (OpenJ9 currently officially supports gcc-7, but should also support gcc-10). Different Linux distributions will need more tweaks, namely different ways of installing prerequisite packages.
+Our setup assumes Ubuntu 18.04 as the OS. It should be possible (although not necessarily easy) to tweak it to work on other Linux distributions. Newer Ubuntu versions might require downgrading to an older GCC version (OpenJ9 currently officially supports GCC 7, but should also support GCC 10). Different Linux distributions will need more tweaks, namely different ways of installing prerequisite packages. JITServer itself supports a wide range of Linux platforms.
 
-The setup assumes the same credentials on all the worker nodes and requires sudo permissions on all the nodes (including the control node). The required amount of storage space is approximately 25-30 GB on each node. This includes the JDK sources and build (\~16GB; can be deleted except for the JDK image if necessary), the Docker container images (\~5 GB on each worker node), and the logs generated by running the experiments (up to \~8GB on the control node).
+The setup assumes the same credentials on all the worker nodes and requires `sudo` permissions on all the nodes (including the control node). The required amount of storage space is approximately 25-30 GB on each node. This includes the JDK sources and build (\~16GB; can be deleted except for the JDK image if necessary), the Docker container images (\~5 GB on each worker node), and the logs generated by running the experiments (up to \~8GB on the control node).
 
-The setup steps are as follows. All the commands should be run on the control node, after completing the initial setup described above. Some of the `.py` commands will prompt for the remote user password. Use the `-v` option to enable verbose output - the trace or local and remote (via ssh) commands invoked by the Python scripts. Most of the setup scripts generate logs (output of remote commands) under the `./logs/` directory.
+The setup steps are as follows. All the commands should be run on the control node, after completing the initial setup described above. Some of the scripts will prompt for the remote user password. Use the `-v` option to enable verbose output - the trace of local and remote (via SSH) commands invoked by the Python scripts. Most of the setup scripts generate log files `./logs/<component>_setup_<host>.log` that store the output (`stdout` and `stderr`) of remote commands, which can be useful for troubleshooting. The setup scripts support a variety of additional options - please consult their help text and source code.
 
 1. Install prerequisite packages on the control node.
-
 ```
 $ cd jitserver-benchmarks/benchmarks/
 $ sudo ./prereqs.sh
 $ ./python_prereqs.sh
 ```
 
-2. Setup ssh key authentication on the worker nodes.
-
+2. Set up SSH connection caching/multiplexing on the control node. Add the following lines to the ssh client configuration file (`~/.ssh/config` by default; create the file if it does not exist):
 ```
-$ ./host_setup.py all_workers.hosts
+Host *
+ControlMaster auto
+ControlPath ~/.ssh/socket/%r@%h:%p
+ControlPersist 600
+```
+where `*` is the host name pattern, and 600 (seconds) is the time period that connections persist for. The socket directory has to be created if it does not exist: `$ mkdir -p ~/.ssh/socket`.
+
+3. Increase SSH session limits on the worker nodes. Modify the `MaxSessions` parameter in the `sshd` configuration file (`/etc/ssh/sshd_config` by default) on each worker node from the default 10 to e.g. 100.
+
+4. Set up SSH key authentication on the worker nodes. Note that this assumes the existence of an identity key pair on the local host (e.g. `~/.ssh/id_rsa[.pub]`), which can be generated using `ssh-keygen`.
+```
+$ ./host_setup.py all.hosts
 ```
 
-Note that this assumes the existence of an identity key pair on the local host (e.g. `~/.ssh/id_rsa[.pub]`), which can be generated using `ssh-keygen`.
-
-3. Build the JDK with OpenJ9 on the worker nodes. This should take about the same time as the local JDK build during initial setup.
-
+5. Build the JDK with OpenJ9 on the worker nodes. This should take about the same time as the local JDK build during initial setup.
 ```
-$ ./openj9_setup.py all_workers.hosts ../jdk/ 8 -p
+$ ./openj9_setup.py all.hosts ../jdk/ 8 -p
 ```
 
-4. Setup individual benchmarks. This will copy the relevant scripts to the worker nodes and build all the Docker container images. This should take about 40 minutes in total, depending on the machine speed.
-
+6. Set up individual benchmarks. This will copy the relevant scripts to the worker nodes, install prerequisite packages, and build all the Docker container images. This should take about 40 minutes in total, depending on the machine speed. These scripts have an option `-S` to run the setup on the worker nodes with `sudo`, which can be useful in case of permission issues. The logs generated by prerequisite package installation are stored in `./logs/<benchmark>_prereqs_<host>.log`.
 ```
-$ ./acmeair_setup.py all_workers.hosts -p
-$ ./daytrader_setup.py all_workers.hosts -p -d
-$ ./petclinic_setup.py all_workers.hosts -p
+$ ./acmeair_setup.py all.hosts -p
+$ ./daytrader_setup.py all.hosts -p -d
+$ ./petclinic_setup.py all.hosts -p
 ```
 
 
 ## Running experiments
 
 The following script can be used to run the whole set of experiments.
-
 ```
 $ cd jitserver-benchmarks/benchmarks/
 $ ./all_experiments.sh all.hosts main.hosts <runs> <density_runs>
 ```
 
 This script invokes various `run_*.py` scripts that implement different experiments. It also describes (in the comments) how long each experiment is expected to take. The mapping of the experiment names in the scripts to the sections and figures in the paper is as follows:
-
 - `run_single.py`: Section 4.1, Figures 3-5;
 - `run_density.py`: Section 4.2, Figures 6-7;
-- `run_scale.py`: Section 4.3, Figure 8;
-- `run_latency.py`: Section 4.4, Figure 9.
+- `run_cdf.py`: Section 4.3, Figures 8-9;
+- `run_scale.py`: Section 4.4, Figure 10;
+- `run_latency.py`: Section 4.5, Figure 11.
 
-The runs and density_runs parameters specify the number of times each experiment is repeated (the runs parameter applies to all experiments except “density”). The results in the graphs (see next section) are averaged over these runs, with error bars representing standard deviation. The results reported in the paper were produced with `runs=5` and `density_runs=3`. To run a subset of experiments, simply comment out the unused parts of the code in `all_experiments.sh`.
+The `runs` and `density_runs` parameters specify the number of times each experiment is repeated (the `runs` parameter applies to all experiments except “density”). The results in the graphs (see next section) are averaged over these runs, with error bars representing standard deviation. The results reported in the paper were produced with `runs=5` and `density_runs=3`. To run a subset of experiments, simply comment out the unused parts of the code in `all_experiments.sh`.
 
-All the scripts assume a setup with 11 machines (specified by the `all_hosts_file` parameter in `all_experiments.sh`), the first 8 of which (specified by `main_hosts_file`) have 16 cores each, and last 3 can be a bit smaller (they are only used for the workload generator which is not a bottleneck).
+All the scripts assume a setup with 11 machines (specified by the `all_hosts_file` parameter in `all_experiments.sh`), the first 8 of which (specified by `main_hosts_file`) have 16 cores each, and the last 3 can be a bit smaller - they are only used to run the workload generator which is not a bottleneck.
 
-Running the experiments on a different number of nodes and/or CPU cores per node might require resizing the experiments (changing the numbers of instances and their assignment to hosts). Please reach out to the authors to discuss this if modifying the scripts for a different hardware configuration is not straightforward.
+Running the experiments on a different number of nodes and/or CPU cores per node might require resizing the experiments (changing the numbers of instances and their assignment to hosts). Please feel free to reach out to the authors to discuss this if modifying the scripts for a different hardware configuration is not straightforward.
 
-Workload durations specified in the scripts are based on estimated warmup time, which depends on single core speed. Durations might need to be adjusted for a different hardware setup, e.g. increased if application instances do not reach peak throughput.
+Workload durations specified in the scripts are based on estimated warm-up time, which depends on single core speed. Durations might need to be adjusted for a different hardware setup, e.g. increased if application instances do not reach peak throughput. They are specified in either the `jmeter_durations` or the `configurations` variable in the `run_*.py` scripts.
 
 Running the whole set of experiments as reported in the paper takes about 10 days of machine time. This time can be reduced as follows if necessary.
 
-- Reduce the number of repetitions, e.g.:
-
-```
-$ ./all_experiments.sh all.hosts main.hosts 2 1
-```
-
-(instead of the full 5 runs for single/scale/latency and 3 for density experiments). You can also specify the number of runs for individual experiments using the `-n` option, e.g.: `$ ./run_density.py acmeair all.hosts -n 1`.
+- Reduce the number of repetitions, e.g. run `$ ./all_experiments.sh all.hosts main.hosts 2 1` instead of the full 5 runs for "single"/"cdf"/"scale"/"latency" and 3 for "density" experiments. You can also specify the number of runs for individual experiments using the `-n` option, e.g.: `$ ./run_density.py acmeair all.hosts -n 1`.
 
 - Reduce the duration (number of application instance invocations) in “density” experiments (which take the longest time). The number of invocations is specified at the top of `run_density.py` in the `configurations` variable (the 4th tuple element).
 
 Experiments produce logs under the `./logs/` directory with the following structure:
-
 ```
-<benchmark>/<experiment>_<parameters...>/<JITmode>/run_<runID>/
-<component>_<instanceID>/{<component>.log, ...other log files...}
+<benchmark>/<experiment>_<parameters...>/<JITmode>/run_<runID>/<component>_<instanceID>/{<component>.log, ...other log files...}
 ```
-
-Where:
+where:
 - `benchmark` is one of: `acmeair` | `daytrader` | `petclinic`.
 - The set of parameters depends on the experiment, e.g. number of instances, SCC mode, simulated latency, etc.
 - `JITmode` is one of: `localjit` | `jitserver` (remote JIT without caching) | `aotcache` (remote JIT with caching).
 - `component` is one of: `<benchmark>` (application JVM) | `jitserver` | `jmeter` (workload generator) | `<database>` (e.g. `mongo` or `db2`).
 
-The main log file `<component>.log` captures the `stdout` and `stderr` of the corresponding instance. Some of the components produce additional log files.
+The main log file `<component>.log` captures the `stdout` and `stderr` of the corresponding instance. Some of the components produce additional log files. The `all_experiments.sh` script skips complete experiment runs (for which all the logs are already present), and only runs the missing ones. This behaviour is enabled with the `--skip-complete-runs` option passed to the `run_*.py` scripts (see the source code).
 
 
 ## Generating results
 
-To generate the results based on the logs produced by the experiments, run the following script. To generate results for a subset of experiments, simply comment out unused code in `all_results.sh`. Note that the `-n` arguments passed to the `run_*.py` scripts specified in `all_experiments.sh` must match in `all_results.sh`.
-
+To generate the results based on the logs produced by the experiments, run the following script. To generate results for a subset of experiments, simply comment out unused code in `all_results.sh`. Note that the `runs` and `density_runs` parameters must match the previous invocation of `all_experiments.sh` (more generally, the `-n` arguments passed to the `run_*.py` scripts must match the ones in `all_experiments.sh`).
 ```
 $ cd jitserver-benchmarks/benchmarks/
 $ ./all_results.sh <runs> <density_runs>
@@ -200,27 +183,27 @@ $ ./all_results.sh <runs> <density_runs>
 
 This should take up to a few minutes, and will produce the main graphs under `./results/plots/`, as well as a larger and more detailed additional set of graphs and `summary.txt` files (containing e.g. percentage differences in various performance metrics between JIT compilation modes) for each experiment under `./results/`.
 
+Note that `all_results.sh` generates the plots as presented in the paper - with a single legend per figure (not per plot), and with the same Y axis scale for "cold" and "warm" configurations in "single" and "density" experiments. Please see the source code to modify the options that control this behaviour. The plot image format is also configurable; the default is PNG.
+
 
 ## Environment used in our evaluation
 
-We performed the evaluation described in our paper in a private cluster of 11 machines as described below. We will provide remote access to the cluster via ssh. Please reach out to the authors via HotCRP for access instructions and credentials. We also provide an archive with the logs from running the full set of experiments reported in the paper (`logs.tar.xz` in the `jitserver-benchmarks` repository).
-
-Our cluster consists of 8 machines of type A (see below), and 3 additional less powerful machines of type B that were used to run the workload generator (which could be run on the same hardware as the other components without affecting the results). The description of the performance experiments and their setup (e.g. what components run on what machines) can be found in the paper.
+We performed the evaluation described in our paper in a private cluster of 11 machines as described below. The cluster consists of 8 machines of type A (see below), and 3 additional less powerful machines of type B that were used to run the workload generator (which could be run on the same hardware as the other components without affecting the results). The description of the performance experiments and their setup (e.g. what components run on what machines) can be found in the paper.
 
 Type A machines hardware details:
-- CPU: 16-core (32 hyperthreads) AMD EPYC 7302P
-- memory: 256 GB DDR4 2666 MHz
-- motherboard: TYAN S8021
-- storage: 2x Samsung NVMe SSD SM981/PM981 in RAID0
-- NIC: Intel 10G X550T
+- CPU: 16-core (32 hyperthreads) AMD EPYC 7302P;
+- memory: 256 GB DDR4 2666 MHz;
+- motherboard: TYAN S8021;
+- storage: 2x Samsung NVMe SSD SM981/PM981 in RAID0;
+- NIC: Intel 10G X550T.
 
 Type B machines hardware details:
-- CPU: 14-core (28 hyperthreads) Intel Xeon E5-2680
-- memory: 128 GB DDR4 2400 MHz
-- motherboard: ASUS X99-E-10G WS
-- storage: Samsung SSD 850 EVO
-- NIC: Intel 10G X550T
+- CPU: 14-core (28 hyperthreads) Intel Xeon E5-2680;
+- memory: 128 GB DDR4 2400 MHz;
+- motherboard: ASUS X99-E-10G WS;
+- storage: Samsung SSD 850 EVO;
+- NIC: Intel 10G X550T.
 
-The machines are connected with a 10 Gbit/s Ethernet network with RTT latency of \~45 microseconds. We used the netem module in the Linux kernel to emulate additional latency in the range of up to \~8 milliseconds in some of the experiments. We also used a 100 Gbit/s Infiniband network (with Mellanox MT27800 ConnectX-5 NICs) for an additional latency data point of \~15 microseconds (which is not very important for the results, thus the use of Infiniband is not necessary).
+The machines are connected with a 10 Gbit/s Ethernet network with RTT latency of \~45 microseconds. We used the `netem` module in the Linux kernel to emulate additional latency in the range of up to \~8 milliseconds in some of the experiments (`run_latency.py`). We also used a 100 Gbit/s Infiniband network (with Mellanox MT27800 ConnectX-5 NICs) for an additional latency data point of \~15 microseconds (which is not very important for the results, thus the use of Infiniband is not necessary).
 
-Relevant software versions (including benchmarks) are as follows: Ubuntu 18.04.2; Linux kernel 4.19.49; Docker 19.03.6; JDK 1.8.0_292; JMeter 3.3; OpenLiberty 19.0; AcmeAir 2.0; MongoDB 4.4.6; DayTrader EE7; DB2 11.5; PetClinic 2.3.0; Spring Boot 2.3.3;
+Relevant software versions (including benchmarks) were as follows: Ubuntu 18.04.2; Linux kernel 4.19.49; Docker 19.03.6; JDK 1.8.0_292; JMeter 3.3; OpenLiberty 19.0; AcmeAir 2.0; MongoDB 4.4.6; DayTrader EE7; DB2 11.5; PetClinic 2.3.0; Spring Boot 2.3.3.
