@@ -26,13 +26,9 @@ jdk_repo_branch="${7}"
 clean=false
 update=false
 generate_keys=false
-jdk_commit_hash=""
 
 for arg in "${@:8}"; do
 	case "${arg}" in
-		"-h" | "--help" )
-			usage
-			;;
 		"-c" | "--clean" )
 			clean=true
 			;;
@@ -54,6 +50,7 @@ mkdir -p "${jdk_dir}"
 
 bootjdk_url="https://api.adoptopenjdk.net/v3/binary/latest/${bootjdk_ver}/\
 ga/linux/x64/jdk/openj9/normal/adoptopenjdk?project=jdk"
+
 bootjdk_dir="${jdk_dir}/bootjdk${jdk_ver}"
 
 if [[ ! -d "${bootjdk_dir}" ]]; then
@@ -62,6 +59,12 @@ if [[ ! -d "${bootjdk_dir}" ]]; then
 	mkdir -p "${bootjdk_dir}"
 	tar -xzf "${archive}" -C "${bootjdk_dir}" --strip-components=1
 	rm -f "${archive}" ~/".wget-hsts"
+fi
+
+
+if [[ "${jdk_repo_url}" == "" ]]; then
+	jdk_repo_url="https://github.com/ibmruntimes/openj9-openjdk-jdk${jdk_ver}"
+	jdk_repo_branch="openj9"
 fi
 
 jdk_src_dir="${jdk_dir}/openj9-openjdk-jdk${jdk_ver}"
