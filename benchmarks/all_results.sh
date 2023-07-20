@@ -41,42 +41,21 @@ else
 fi
 
 
-./run_single.py acmeair -r -n "${runs}" "${args[@]}" &
-./run_single.py daytrader -r -n "${runs}" "${args[@]}" &
-./run_single.py petclinic -r -n "${runs}" "${args[@]}" &
+benchmarks=("acmeair" "daytrader" "petclinic")
 
-./run_single.py acmeair -r -j -n "${runs}" "${args[@]}" &
-./run_single.py daytrader -r -j -n "${runs}" "${args[@]}" &
-./run_single.py petclinic -r -j -n "${runs}" "${args[@]}" &
-
-./run_cdf.py acmeair -r -j -n "${runs}" "${args[@]}" &
-./run_cdf.py daytrader -r -j -n "${runs}" "${args[@]}" &
-./run_cdf.py petclinic -r -j -n "${runs}" "${args[@]}" &
-
-./run_cdf.py acmeair -r -j -e -n "${runs}" "${args[@]}" &
-./run_cdf.py daytrader -r -j -e -n "${runs}" "${args[@]}" &
-./run_cdf.py petclinic -r -j -e -n "${runs}" "${args[@]}" &
-
-./run_scale.py acmeair -r -j -n "${runs}" "${args[@]}" &
-./run_scale.py daytrader -r -j -n "${runs}" "${args[@]}" &
-./run_scale.py petclinic -r -j -n "${runs}" "${args[@]}" &
-
-./run_latency.py acmeair -r -j -n "${runs}" "${args[@]}" &
-./run_latency.py daytrader -r -j -n "${runs}" "${args[@]}" &
-./run_latency.py petclinic -r -j -n "${runs}" "${args[@]}" &
-
-./run_density.py acmeair -r -n "${density_runs}" "${args[@]}" &
-./run_density.py daytrader -r -n "${density_runs}" "${args[@]}" &
-./run_density.py petclinic -r -n "${density_runs}" "${args[@]}" &
-
-./run_density.py acmeair -r -s -n "${density_runs}" "${args[@]}" &
-./run_density.py daytrader -r -s -n "${density_runs}" "${args[@]}" &
-./run_density.py petclinic -r -s -n "${density_runs}" "${args[@]}" &
+for b in "${benchmarks[@]}"; do
+	./run_single.py "${b}" -r -n "${runs}" "${args[@]}" &
+	./run_single.py "${b}" -r -j -n "${runs}" "${args[@]}" &
+	./run_cdf.py "${b}" -r -j -n "${runs}" "${args[@]}" &
+	./run_cdf.py "${b}" -r -j -e -n "${runs}" "${args[@]}" &
+	./run_scale.py "${b}" -r -j -n "${runs}" "${args[@]}" &
+	./run_latency.py "${b}" -r -j -n "${runs}" "${args[@]}" &
+	./run_density.py "${b}" -r -n "${density_runs}" "${args[@]}" &
+	./run_density.py "${b}" -r -s -n "${density_runs}" "${args[@]}" &
+done
 
 wait
 
-
-benchmarks=("acmeair" "daytrader" "petclinic")
 
 plots=(
 	"single_start_cold_start_time" "single_full_cold_warmup_time" "single_full_cold_peak_mem"
