@@ -1,8 +1,8 @@
-FROM ibmjava:8-jre
+FROM ibm-semeru-runtimes:open-8-jre-focal
 
 # Install required packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        time \
+        ca-certificates time wget \
     && rm -rf "/var/lib/apt/lists/"*
 
 # Install jmeter
