@@ -126,8 +126,7 @@ def main():
 			latency_data=False,
 			report_data=False,
 			keep_running=True,
-			keep_scc=True,
-			stop_timeout=2 * 60,# seconds
+			stop_timeout=2 * 60, # seconds
 			scc_extra_duration=None,
 			duration_includes_start=False,
 		),

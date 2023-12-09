@@ -254,22 +254,18 @@ class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 
 
 class JMeterConfig:
-	def __init__(self, *,
-		docker_config, jvm_config, nthreads, duration, summariser_interval,
-		latency_data=False, report_data=False, keep_running=False,
-		keep_scc=False, stop_timeout=None, scc_extra_duration=None,
-		duration_includes_start=False
-	):
+	def __init__(self, *, docker_config, jvm_config, nthreads, duration, summariser_interval,
+	             latency_data=False, report_data=False, keep_running=False, stop_timeout=None,
+	             scc_extra_duration=None, duration_includes_start=False):
 		self.docker_config = docker_config
 		self.jvm_config = jvm_config
 		self.nthreads = nthreads
-		self.duration = duration# seconds
-		self.summariser_interval = summariser_interval# seconds
+		self.duration = duration # seconds
+		self.summariser_interval = summariser_interval # seconds
 		self.latency_data = latency_data
 		self.report_data = report_data
 		self.keep_running = keep_running
-		self.keep_scc = keep_scc
-		self.stop_timeout = stop_timeout# seconds
+		self.stop_timeout = stop_timeout # seconds
 		self.scc_extra_duration = scc_extra_duration or 0
 		self.duration_includes_start = duration_includes_start
 
@@ -299,10 +295,6 @@ class JMeterInstance(docker.ContainerInstance):
 			self.duration += config.summariser_interval
 		self.reserved_cpus = self.get_reserved_cpus(config.docker_config)
 
-	def scc_path(self):
-		return (self.host.scc_path("jmeter", self.instance_id % self.n_instances)
-		        if self.config.keep_scc else None)
-
 	def get_remote_pid(self):
 		pid = util.retry_loop(
 			lambda: self.host.get_host_pid(
@@ -315,14 +307,7 @@ class JMeterInstance(docker.ContainerInstance):
 			raise Exception("No java process started in jmeter container")
 		return pid
 
-	def run(self, experiment, run_id, attempt_id, scc_run=False,
-	        prefix=None, invocation_attempt=None):
-		store_scc = False
-		if self.config.keep_scc:
-			if not self.host.load_scc("jmeter",
-			                          self.instance_id % self.n_instances):
-				store_scc = True
-
+	def run(self, experiment, run_id, attempt_id, scc_run=False, prefix=None, invocation_attempt=None):
 		duration = self.duration
 		if scc_run:
 			duration += self.config.scc_extra_duration
@@ -342,7 +327,6 @@ class JMeterInstance(docker.ContainerInstance):
 			str(self.config.summariser_interval),
 			str(self.config.latency_data).lower(),
 			str(self.config.report_data).lower(),
-			self.scc_path() or "",
 			util.args_str(self.config.jvm_config.jvm_args())
 		] + self.config.docker_config.docker_args(self.host, self.reserved_cpus)
 
@@ -350,14 +334,8 @@ class JMeterInstance(docker.ContainerInstance):
 		           if self.config.stop_timeout is not None else None)
 
 		super().start(cmd, experiment.name.lower(), run_id, attempt_id)
-		exc = self.wait(
-			timeout=timeout, raise_on_failure=False, kill_remote_on_timeout=True,
-			prefix=prefix, invocation_attempt=invocation_attempt
-		)
-
-		if (exc is None) and store_scc:
-			self.host.store_scc("jmeter", self.instance_id % self.n_instances)
-		return exc
+		return self.wait(timeout=timeout, raise_on_failure=False, kill_remote_on_timeout=True,
+		                 prefix=prefix, invocation_attempt=invocation_attempt)
 
 
 class BenchmarkConfig:
@@ -648,7 +626,6 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 
 	def cleanup(self):
 		util.parallelize(JMeterInstance.cleanup, self.jmeter_instances)
-		util.parallelize(BenchmarkHost.scc_cleanup, self.jmeter_hosts, "jmeter")
 		util.parallelize(ApplicationInstance.cleanup, self.application_instances)
 		util.parallelize(BenchmarkHost.scc_cleanup, self.application_hosts,
 		                 self.bench.name())
@@ -923,10 +900,9 @@ def base_config():
 			docker_config=None,
 			jvm_config=openj9.JVMConfig(),
 			nthreads=None,
-			duration=None,# seconds
-			summariser_interval=6,# seconds; minimum is 6
-			keep_scc=True,
-			stop_timeout=60,# seconds
+			duration=None, # seconds
+			summariser_interval=6, # seconds; minimum is 6
+			stop_timeout=60, # seconds
 		),
 		n_jitservers=1,
 		n_dbs=1,

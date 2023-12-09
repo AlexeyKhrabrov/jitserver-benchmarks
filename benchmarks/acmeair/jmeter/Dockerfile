@@ -7,14 +7,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install jmeter
 ENV JMETER_VERSION="3.3"
-RUN mkdir -p "/jmeter" "/output" "/.classCache/" && cd "/jmeter" \
+RUN mkdir -p "/jmeter" "/output" && cd "/jmeter" \
 	&& wget "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-$JMETER_VERSION.tgz" \
 	&& tar -xzf "apache-jmeter-$JMETER_VERSION.tgz" && rm -f "apache-jmeter-$JMETER_VERSION.tgz"
 
-# Set jmeter home, update PATH, set SCC location
+# Set jmeter home and update PATH
 ENV JMETER_HOME="/jmeter/apache-jmeter-$JMETER_VERSION"
 ENV PATH="$JMETER_HOME/bin:$PATH"
-ENV IBM_JAVA_OPTIONS="-Xshareclasses:name=jmeter_acmeair,cacheDir=/.classCache"
 
 # Copy the script to be executed and other needed files
 COPY "AcmeAir-v3.jmx" *.csv "$JMETER_HOME/"
