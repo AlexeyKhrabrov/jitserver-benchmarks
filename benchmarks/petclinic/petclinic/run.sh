@@ -11,7 +11,9 @@ for arg in ${JVM_ARGS}; do
 done
 
 
+cd "/output"
+
 printf "JVM start timestamp: "
 date -u "+%FT%T.%N"
 
-exec "/opt/ibm/java/bin/java" "${args[@]}" -jar "/application.jar"
+exec "/opt/ibm/java/bin/java" "${args[@]}" -jar "/petclinic.jar"
