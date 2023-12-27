@@ -32,7 +32,7 @@ class BenchmarkHost(jitserver.JITServerHost):
 		              output=self.log_path("{}_prereqs".format(self.benchmark)),
 		              check=True)
 
-	def benchmark_setup(self, args=None, *, scripts_only=False, clean=False,
+	def benchmark_setup(self, args=None, *, scripts_only=False, clean=False, prune=False,
 	                    exclude=None, buildkit=False, sudo=False, passwd=None):
 		if clean:
 			self.clean_images()
@@ -57,6 +57,9 @@ class BenchmarkHost(jitserver.JITServerHost):
 
 		print("{} setup on {} took {:.2f} seconds".format(
 		      self.benchmark, self.addr, t1 - t0), flush=True)
+
+		if prune:
+			self.prune_images()
 
 	def scc_path(self, component, instance_id):
 		return os.path.join(self.benchmark, "{}_scc_{}".format(

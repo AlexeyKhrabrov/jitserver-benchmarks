@@ -11,8 +11,10 @@ class DockerHost(remote.RemoteHost):
 		self.n_reserved_cpus = 0
 
 	def clean_images(self):
-		self.run(["docker", "system", "prune", "-a", "-f", "--volumes"],
-		         check=True)
+		self.run(["docker", "system", "prune", "-a", "-f", "--volumes"], check=True)
+
+	def prune_images(self):
+		self.run(["docker", "image", "prune", "-f"], check=True)
 
 	def remove_container(self, name, *, force=False):
 		cmd = ["docker", "rm"]
