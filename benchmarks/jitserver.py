@@ -327,8 +327,7 @@ class JITServerHost(docker.DockerHost, openj9.OpenJ9Host):
 			         env={"DOCKER_BUILDKIT": 1} if buildkit else None)
 		t1 = time.monotonic()
 
-		print("jitserver setup on {} took {:.2f} seconds".format(
-		      self.addr, t1 - t0), flush=True)
+		print("jitserver setup on {} took {:.2f} seconds".format(self.addr, t1 - t0))
 
 
 class JITServerContainerInstance(openj9.OpenJ9ContainerInstance, JITServerInstance):

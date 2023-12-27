@@ -19,7 +19,7 @@ def run(cmd, *, output=None, append=False, **kwargs):
 		kwargs["stdin"] = subprocess.DEVNULL
 
 	if verbose:
-		print("Running {}".format(cmd), flush=True)
+		print("Running {}".format(cmd))
 
 	if output is not None:
 		os.makedirs(os.path.dirname(output), exist_ok=True)
@@ -31,7 +31,7 @@ def run(cmd, *, output=None, append=False, **kwargs):
 		                        stderr=subprocess.PIPE, **kwargs)
 
 	if verbose:
-		print("Finished {} with {}".format(cmd, result.returncode), flush=True)
+		print("Finished {} with {}".format(cmd, result.returncode))
 	return result
 
 #NOTE: stdin is set to DEVNULL by default; use stdin=None to inherit from parent
@@ -49,7 +49,7 @@ def start(cmd, *, output=None, append=False, **kwargs):
 		                        stderr=subprocess.PIPE, **kwargs)
 
 	if verbose:
-		print("Started {} pid {}".format(proc.args, proc.pid), flush=True)
+		print("Started {} pid {}".format(proc.args, proc.pid))
 	return proc
 
 def wait(proc, *, check=False, expect_ret=0, timeout=None, kill_on_timeout=True,
@@ -89,8 +89,7 @@ def wait(proc, *, check=False, expect_ret=0, timeout=None, kill_on_timeout=True,
 		raise subprocess.CalledProcessError(ret, proc.args, out, err)
 
 	if verbose:
-		print("Finished {} pid {} with {}".format(
-		      proc.args, proc.pid, ret), flush=True)
+		print("Finished {} pid {} with {}".format(proc.args, proc.pid, ret))
 	return subprocess.CompletedProcess(proc.args, ret, out, err)
 
 def get_output(cmd):

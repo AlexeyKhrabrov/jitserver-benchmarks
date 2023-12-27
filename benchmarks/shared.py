@@ -55,8 +55,7 @@ class BenchmarkHost(jitserver.JITServerHost):
 			         env={"DOCKER_BUILDKIT": 1} if buildkit else None)
 		t1 = time.monotonic()
 
-		print("{} setup on {} took {:.2f} seconds".format(
-		      self.benchmark, self.addr, t1 - t0), flush=True)
+		print("{} setup on {} took {:.2f} seconds".format(self.benchmark, self.addr, t1 - t0))
 
 		if prune:
 			self.prune_images()
@@ -660,8 +659,8 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 
 	def skip_run(self, experiment, run_id, is_density):
 		if (run_id in self.config.skip_runs):
-			print("Skipping experiment {} {} {} run {}".format(self.bench.name(),
-			      self.config.name, experiment.name, run_id), flush=True)
+			print("Skipping experiment {} {} {} run {}".format(
+			      self.bench.name(), self.config.name, experiment.name, run_id))
 			return True
 
 		if not self.config.skip_complete_runs:
@@ -713,8 +712,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 			return False
 
 		print("Skipping complete experiment {} {} {} run {}".format(
-		      self.bench.name(), self.config.name, experiment.name, run_id),
-		      flush=True)
+		      self.bench.name(), self.config.name, experiment.name, run_id))
 		return True
 
 	def run_experiment(self, experiment):
@@ -724,15 +722,13 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 			shutil.rmtree(self.run_logs_path(experiment, r), ignore_errors=True)
 
 			for i in range(self.config.attempts):
-				print("Running experiment {} {} {} run {}/{} attempt {}/{}...".format(
-				      self.bench.name(), self.config.name, experiment.name, r,
-				      self.config.n_runs, i, self.config.attempts), flush=True)
+				print("Running experiment {} {} {} run {}/{} attempt {}/{}...".format(self.bench.name(),
+				      self.config.name, experiment.name, r, self.config.n_runs, i, self.config.attempts))
 
 				if self.run_single_experiment(experiment, r, i):
 					break
 				if i == self.config.attempts - 1:
-					print("Experiment {} {} {} failed".format(self.bench.name(),
-					      self.config.name, experiment.name), flush=True)
+					print("Experiment {} {} {} failed".format(self.bench.name(), self.config.name, experiment.name))
 					return False
 
 		return True
@@ -740,15 +736,13 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 	def run_all_experiments(self, experiments, *, skip_cleanup=False):
 		if all(self.skip_run(e, r, False)
 		       for e in experiments for r in range(self.config.n_runs)):
-			print("Skipping complete benchmark {} configuration {}".format(
-			      self.bench.name(), self.config.name), flush=True)
+			print("Skipping complete benchmark {} configuration {}".format(self.bench.name(), self.config.name))
 			return
 
 		self.config.save_json(os.path.join(remote.RemoteHost.logs_dir,
 		                      self.bench.name(), self.config.name, "config.json"))
 
-		print("Running benchmark {} configuration {}...".format(
-		      self.bench.name(), self.config.name), flush=True)
+		print("Running benchmark {} configuration {}...".format(self.bench.name(), self.config.name))
 
 		if not skip_cleanup:
 			self.cleanup()
@@ -759,7 +753,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 				self.run_experiment(e)
 
 		except KeyboardInterrupt:
-			print("Interrupting...", flush=True)
+			print("Interrupting...")
 			self.cleanup()
 			raise
 		except:
@@ -832,15 +826,13 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 			shutil.rmtree(self.run_logs_path(experiment, r), ignore_errors=True)
 
 			for i in range(self.config.attempts):
-				print("Running experiment {} {} {} run {}/{} attempt {}/{}...".format(
-				      self.bench.name(), self.config.name, experiment.name, r,
-				      self.config.n_runs, i, self.config.attempts), flush=True)
+				print("Running experiment {} {} {} run {}/{} attempt {}/{}...".format(self.bench.name(),
+				      self.config.name, experiment.name, r, self.config.n_runs, i, self.config.attempts))
 
 				if self.run_single_density_experiment(experiment, r, i):
 					break
 				if i == self.config.attempts - 1:
-					print("Experiment {} {} {} failed".format(self.bench.name(),
-					      self.config.name, experiment.name), flush=True)
+					print("Experiment {} {} {} failed".format(self.bench.name(), self.config.name, experiment.name))
 					return False
 
 		return True
@@ -848,15 +840,13 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 	def run_all_density_experiments(self, experiments):
 		if all(self.skip_run(e, r, True)
 		       for e in experiments for r in range(self.config.n_runs)):
-			print("Skipping complete benchmark {} configuration {}".format(
-			      self.bench.name(), self.config.name), flush=True)
+			print("Skipping complete benchmark {} configuration {}".format(self.bench.name(), self.config.name))
 			return
 
 		self.config.save_json(os.path.join(remote.RemoteHost.logs_dir,
 		                      self.bench.name(), self.config.name, "config.json"))
 
-		print("Running benchmark {} configuration {}...".format(
-		      self.bench.name(), self.config.name), flush=True)
+		print("Running benchmark {} configuration {}...".format(self.bench.name(), self.config.name))
 
 		self.full_cleanup()
 		try:
@@ -866,7 +856,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 				self.run_density_experiment(e)
 
 		except KeyboardInterrupt:
-			print("Interrupting...", flush=True)
+			print("Interrupting...")
 			self.full_cleanup()
 			raise
 		except:

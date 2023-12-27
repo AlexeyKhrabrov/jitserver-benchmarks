@@ -155,8 +155,7 @@ class ContainerInstance(remote.ServerInstance):
 		if self.reserve_cpus and config.pin_cpus and isinstance(config.ncpus, int):
 			cpus = self.host.reserve_cpus(config.ncpus)
 			if util.verbose:
-				print("{} instance {} reserved cpus on {}: {}".format(self.name,
-				      self.instance_id, self.host.addr, cpus), flush=True)
+				print("{} instance {} reserved cpus on {}: {}".format(self.name, self.instance_id, self.host.addr, cpus))
 			return cpus
 		else:
 			return None

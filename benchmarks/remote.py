@@ -91,8 +91,7 @@ class RemoteProcess:
 					raise
 
 				print("Re-sending signal {} to pid {} on {} attempt {}/{}".format(
-				      sig.name, self.remote_pid, self.host.addr, i + 1, attempts),
-				      flush=True)
+				      sig.name, self.remote_pid, self.host.addr, i + 1, attempts))
 
 
 class RemoteHost:
@@ -558,8 +557,7 @@ class ServerInstance:
 				self.start_time = t1 - t0
 
 				print("Started {} instance {} on {} in {:.2f} seconds".format(
-				      self.name, self.instance_id, self.host.addr,
-				      self.start_time), flush=True)
+				      self.name, self.instance_id, self.host.addr, self.start_time))
 				return None
 
 			except Exception as e:
@@ -568,12 +566,8 @@ class ServerInstance:
 				return e
 
 		else:
-			print("Started {} instance {} on {}".format(
-			      self.name, self.instance_id, self.host.addr), flush=True)
-
-	def append_to_log(self, s):
-		self.host.run(["echo", s], remote_output=self.log_path(),
-		              remote_append=True, check=True)
+			print("Started {} instance {} on {}".format(self.name, self.instance_id, self.host.addr))
+			return None
 
 	@staticmethod
 	def result_dir(benchmark, config_name, experiment, run_id,
@@ -648,7 +642,7 @@ class ServerInstance:
 			t1 = time.monotonic()
 
 			print("Stopped {} instance {} on {} in {:.2f} seconds".format(
-			      self.name, self.instance_id, self.host.addr, t1 - t0), flush=True)
+			      self.name, self.instance_id, self.host.addr, t1 - t0))
 			exc = None
 
 		except Exception as e:

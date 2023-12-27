@@ -34,8 +34,7 @@ class OpenJ9Host(remote.RemoteHost):
 		t0 = time.monotonic()
 		self.run(cmd, output=self.log_path("openj9_setup"), check=True)
 		t1 = time.monotonic()
-		print("OpenJ9 setup on {} took {:.2f} seconds".format(
-		      self.addr, t1 - t0), flush=True)
+		print("OpenJ9 setup on {} took {:.2f} seconds".format(self.addr, t1 - t0))
 
 	def jdk_path(self, jdk_ver, debug=False):
 		return "jdk/{}-openjdk-jdk{}/build/{}/images/jdk".format(
