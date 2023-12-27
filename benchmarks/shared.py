@@ -886,6 +886,7 @@ def base_config():
 			stop_timeout=10.0,# seconds
 			stop_attempts=6,
 			kill_remote_on_timeout=True,
+			disable_jit_profiling=True,
 		),
 		jitserver_docker_config=None,
 		db_config=DBConfig(

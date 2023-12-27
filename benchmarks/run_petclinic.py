@@ -70,6 +70,7 @@ def main():
 			stop_attempts=6,
 			kill_remote_on_timeout=False,
 			save_javacore=True,
+			disable_jit_profiling=True,
 		),
 		jitserver_docker_config=None,
 		db_config=shared.DBConfig(docker_config=docker.DockerConfig()),# unused

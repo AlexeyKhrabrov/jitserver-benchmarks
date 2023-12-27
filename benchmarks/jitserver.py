@@ -43,20 +43,15 @@ class Experiment(enum.IntEnum):
 
 class JITServerConfig:
 	def __init__(self, *,
-		server_vlog=False, client_vlog=False, detailed_vlog=False,
-		server_extra_stats=False, client_extra_stats=False,
-		server_resource_stats=False, jdk_ver=8, debug=False,
-		portable_scc=False, forceaot=False, nodelay_aotload=False,
-		svm_at_startup=False, client_threads=None, localjit_memlimit=None,
-		server_threads=None, server_codecache=None, server_memlimit=None,
-		require_jitserver=False, disable_active_thread_thresholds=False,
-		disable_gcr_threshold=False, server_scratch_space_factor=None,
-		reconnect_wait_time=None, client_socket_timeout=None,
-		server_socket_timeout=None, session_purge_time=None,
-		session_purge_interval=None, encryption=False, use_internal_addr=False,
-		share_romclasses=False, romclass_cache_partitions=None,
-		aotcache_name=None, stop_sleep_time=None, stop_timeout=None,
-		stop_attempts=None, kill_remote_on_timeout=False, save_javacore=False
+		server_vlog=False, client_vlog=False, detailed_vlog=False, server_extra_stats=False, client_extra_stats=False,
+		server_resource_stats=False, jdk_ver=8, debug=False, portable_scc=False, forceaot=False, nodelay_aotload=False,
+		svm_at_startup=False, client_threads=None, localjit_memlimit=None, server_threads=None, server_codecache=None,
+		server_memlimit=None, require_jitserver=False, disable_active_thread_thresholds=False,
+		disable_gcr_threshold=False, server_scratch_space_factor=None, reconnect_wait_time=None,
+		client_socket_timeout=None, server_socket_timeout=None, session_purge_time=None, session_purge_interval=None,
+		encryption=False, use_internal_addr=False, share_romclasses=False, romclass_cache_partitions=None,
+		aotcache_name=None, stop_sleep_time=None, stop_timeout=None, stop_attempts=None, kill_remote_on_timeout=False,
+		save_javacore=False, disable_jit_profiling=False
 	):
 		self.server_vlog = server_vlog
 		self.client_vlog = client_vlog
@@ -94,6 +89,7 @@ class JITServerConfig:
 		self.stop_attempts = stop_attempts
 		self.kill_remote_on_timeout = kill_remote_on_timeout
 		self.save_javacore = save_javacore
+		self.disable_jit_profiling = disable_jit_profiling
 
 	def verbose_args(self, vlog_path):
 		tags = ["compilePerformance"]
@@ -147,6 +143,10 @@ class JITServerConfig:
 
 		if experiment.is_aotcache():
 			args.append("-XX:+JITServerUseAOTCache")
+
+		if self.disable_jit_profiling:
+			jit_opts.extend(("disableJProfiling", "disableJProfilingThread",
+			                 "disableProfiling", "disableSamplingJProfiling"))
 
 		if jit_opts:
 			opts = ",".join(jit_opts)
@@ -203,6 +203,10 @@ class JITServerConfig:
 			if self.aotcache_name:
 				args.append("-XX:JITServerAOTCacheName={}".format(
 				            self.aotcache_name))
+
+		if self.disable_jit_profiling:
+			jit_opts.extend(("disableJProfiling", "disableJProfilingThread",
+			                 "disableProfiling", "disableSamplingJProfiling"))
 
 		if jit_opts:
 			opts = ",".join(jit_opts)
