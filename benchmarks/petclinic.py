@@ -45,9 +45,6 @@ class PetClinic:
 	def stop_signal(): return signal.SIGTERM
 
 	@staticmethod
-	def full_init_log_line(): return None
-
-	@staticmethod
 	def start_stop_ts_file(): return "petclinic.log"
 
 	@staticmethod

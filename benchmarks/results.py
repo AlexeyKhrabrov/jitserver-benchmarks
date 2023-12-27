@@ -226,7 +226,7 @@ class ApplicationOutput:
 			s[:-3], "%Y-%m-%dT%H:%M:%S.%f"
 		).replace(tzinfo=datetime.timezone.utc)
 
-	def __init__(self, bench, *args, full_init=False):
+	def __init__(self, bench, *args):
 		self.benchmark = bench.name()
 		self.id = [self.benchmark] + list(args) + [self.benchmark]
 		path = logs_path(*self.id)
@@ -278,8 +278,6 @@ class ApplicationOutput:
 
 		self.bytes_recv = self.bytes_recv or 0
 
-		if full_init:
-			start_log_line = bench.full_init_log_line() or start_log_line
 		stop_log_line = bench.stop_log_line()
 
 		with open(os.path.join(path, bench.start_stop_ts_file()), "r") as f:
@@ -606,14 +604,12 @@ throughput_alpha = 0.33
 
 
 class ApplicationRunResult:
-	def __init__(self, bench, config, experiment, *args,
-	             actual_experiment=None, full_init=False, **kwargs):
+	def __init__(self, bench, config, experiment, *args, actual_experiment=None, **kwargs):
 		self.config = config
 		self.experiment = experiment
 		self.actual_experiment = actual_experiment or experiment
 
-		self.application_output = ApplicationOutput(bench, config, experiment,
-		                                            *args, full_init=full_init)
+		self.application_output = ApplicationOutput(bench, config, experiment, *args)
 		rusage = self.application_output.process_rusage()
 
 		self.start_time = self.application_output.jvm_start_time()
@@ -970,8 +966,7 @@ class SingleInstanceExperimentResult:
 
 
 class SingleInstanceAllExperimentsResult:
-	def __init__(self, experiments, bench, mode, configs, names,
-	             kwargs_list=None, full_init=False):
+	def __init__(self, experiments, bench, mode, configs, names, kwargs_list=None):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.mode = mode
@@ -979,13 +974,9 @@ class SingleInstanceAllExperimentsResult:
 		self.names = names
 		self.jmeter = configs[0].run_jmeter
 
-		self.results = [
-			SingleInstanceExperimentResult(
-				experiments, bench, configs[i], full_init=full_init,
-				**((kwargs_list[i] or {}) if kwargs_list is not None else {})
-			)
-			for i in range(len(configs))
-		]
+		self.results = [SingleInstanceExperimentResult(experiments, bench, configs[i],
+		                                               **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
+		                for i in range(len(configs))]
 
 	def get_df(self, field, suffix):
 		data = {
@@ -1307,20 +1298,14 @@ class ScaleExperimentResult:
 
 
 class ScaleAllExperimentsResult:
-	def __init__(self, experiments, bench, configs,
-	             kwargs_list=None, full_init=False):
+	def __init__(self, experiments, bench, configs, kwargs_list=None):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.jmeter = configs[0].run_jmeter
 
-		self.results = [
-			ScaleExperimentResult(
-				experiments, bench, configs[i],
-				keep_throughput_data=False, full_init=full_init,
-				**((kwargs_list[i] or {}) if kwargs_list is not None else {}),
-			)
-			for i in range(len(configs))
-		]
+		self.results = [ScaleExperimentResult(experiments, bench, configs[i], keep_throughput_data=False,
+		                                      **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
+		                for i in range(len(configs))]
 
 		self.fields = [
 			("start_time", "Start time, sec"),
@@ -1431,19 +1416,14 @@ class LatencyExperimentResult:
 
 
 class LatencyAllExperimentsResult:
-	def __init__(self, experiments, bench, configs,
-	             kwargs_list=None, full_init=False):
+	def __init__(self, experiments, bench, configs, kwargs_list=None):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.jmeter = configs[0].run_jmeter
 
-		self.results = [
-			LatencyExperimentResult(
-				experiments, bench, configs[i], full_init=full_init,
-				**((kwargs_list[i] or {}) if kwargs_list is not None else {})
-			)
-			for i in range(len(configs))
-		]
+		self.results = [LatencyExperimentResult(experiments, bench, configs[i],
+		                                        **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
+		                for i in range(len(configs))]
 
 	def get_df(self, field, suffix, f):
 		data = {
@@ -1665,19 +1645,14 @@ class DensityExperimentResult:
 
 
 class DensityAllExperimentsResult:
-	def __init__(self, experiments, bench, configs,
-	             kwargs_list=None, full_init=False):
+	def __init__(self, experiments, bench, configs, kwargs_list=None):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.configs = configs
 
-		self.results = [
-			DensityExperimentResult(
-				experiments, bench, configs[i], full_init=full_init,
-				**((kwargs_list[i] or {}) if kwargs_list is not None else {})
-			)
-			for i in range(len(configs))
-		]
+		self.results = [DensityExperimentResult(experiments, bench, configs[i],
+		                                        **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
+		                for i in range(len(configs))]
 
 	def get_df(self, field, suffix):
 		data = {

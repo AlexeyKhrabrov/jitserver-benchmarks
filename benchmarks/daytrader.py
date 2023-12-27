@@ -65,9 +65,6 @@ class DayTrader(liberty.Liberty):
 	def new_db_instance(*args, **kwargs): return DB2Instance(*args, **kwargs)
 
 	@staticmethod
-	def full_init_log_line(): return "Settings from daytrader.properties:"
-
-	@staticmethod
 	def base_config():
 		result = shared.base_config()
 		result.application_config.jvm_config = openj9.JVMConfig(

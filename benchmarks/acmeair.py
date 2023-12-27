@@ -53,9 +53,6 @@ class AcmeAir(liberty.Liberty):
 	def new_db_instance(*args, **kwargs): return MongoInstance(*args, **kwargs)
 
 	@staticmethod
-	def full_init_log_line(): return "Complete List : MongoClientOptions"
-
-	@staticmethod
 	def base_config():
 		result = shared.base_config()
 		result.application_config.jvm_config = openj9.JVMConfig(

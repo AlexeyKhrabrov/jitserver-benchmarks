@@ -138,8 +138,7 @@ def main():
 	parser.add_argument("-L", "--logs-path")
 	parser.add_argument("-r", "--result", type=int, nargs="?", const=-1)
 	parser.add_argument("-R", "--results-path")
-	parser.add_argument("-f", "--full-init", action="store_true")
-	parser.add_argument("-F", "--format")
+	parser.add_argument("-f", "--format")
 	parser.add_argument("-d", "--details", action="store_true")
 	parser.add_argument("--single-legend", action="store_true")
 	parser.add_argument("--same-limits", action="store_true")# unused
@@ -157,8 +156,7 @@ def main():
 			c = configs[args.result]
 			results.ScaleExperimentResult(
 				experiments, bench_cls[args.benchmark](),
-				get_config(args.benchmark, c[0], c[1], args.jmeter, args.n_runs),
-				full_init=args.full_init, **(c[-1] or {})
+				get_config(args.benchmark, c[0], c[1], args.jmeter, args.n_runs), **(c[-1] or {})
 			).save_results()
 
 		else:
@@ -170,10 +168,8 @@ def main():
 					cmd.extend(("-L", args.logs_path))
 				if args.results_path is not None:
 					cmd.extend(("-R", args.results_path))
-				if args.full_init:
-					cmd.append("-f")
 				if args.format is not None:
-					cmd.extend(("-F", args.format))
+					cmd.extend(("-f", args.format))
 
 				util.parallelize(
 					lambda i: util.run(cmd + ["-r", str(i)], check=True),
@@ -183,9 +179,8 @@ def main():
 			sorted_configs = sorted(configs, key=lambda c: c[0])
 			results.ScaleAllExperimentsResult(
 				experiments, bench,
-				[get_config(args.benchmark, c[0], c[1], args.jmeter, args.n_runs)
-				 for c in sorted_configs],
-				[c[-1] for c in sorted_configs], full_init=args.full_init
+				[get_config(args.benchmark, c[0], c[1], args.jmeter, args.n_runs) for c in sorted_configs],
+				[c[-1] for c in sorted_configs],
 			).save_results(
 				legends={
 					"full_warmup_time_normalized": args.benchmark == "petclinic"

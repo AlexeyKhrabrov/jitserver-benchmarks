@@ -98,8 +98,7 @@ def main():
 	parser.add_argument("-L", "--logs-path")
 	parser.add_argument("-r", "--result", action="store_true")
 	parser.add_argument("-R", "--results-path")
-	parser.add_argument("-f", "--full-init", action="store_true")
-	parser.add_argument("-F", "--format")
+	parser.add_argument("-f", "--format")
 	parser.add_argument("--single-legend", action="store_true")
 	parser.add_argument("--same-limits", action="store_true")# unused
 
@@ -111,14 +110,9 @@ def main():
 	bench = bench_cls[args.benchmark]()
 
 	if args.result:
-		c = get_config(bench, args.jmeter, result_experiments[0],
-		               args.n_runs, args.equal_resources)
-		results.SingleInstanceExperimentResult(
-			result_experiments, bench, c, full_init=args.full_init,
-		).save_results(
-			legends={
-				"comp_times": False
-			} if args.single_legend else None
+		c = get_config(bench, args.jmeter, result_experiments[0], args.n_runs, args.equal_resources)
+		results.SingleInstanceExperimentResult(result_experiments, bench, c).save_results(
+			legends={"comp_times": False} if args.single_legend else None, cdf_plots=True
 		)
 		return
 

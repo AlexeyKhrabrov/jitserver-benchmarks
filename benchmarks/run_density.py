@@ -117,8 +117,7 @@ def main():
 	parser.add_argument("-L", "--logs-path")
 	parser.add_argument("-r", "--result", type=int, nargs="?", const=-1)
 	parser.add_argument("-R", "--results-path")
-	parser.add_argument("-f", "--full-init", action="store_true")
-	parser.add_argument("-F", "--format")
+	parser.add_argument("-f", "--format")
 	parser.add_argument("--single-legend", action="store_true")
 	parser.add_argument("--same-limits", action="store_true")
 
@@ -134,9 +133,7 @@ def main():
 		if args.result >= 0:
 			c = configs[args.result]
 			results.DensityExperimentResult(
-				experiments, bench,
-				get_config(args.benchmark, *c[:-1], args.scc, args.n_runs),
-				full_init=args.full_init, **c[-1]
+				experiments, bench, get_config(args.benchmark, *c[:-1], args.scc, args.n_runs), **c[-1]
 			).save_results()
 
 		else:
@@ -147,28 +144,23 @@ def main():
 				cmd.extend(("-L", args.logs_path))
 			if args.results_path is not None:
 				cmd.extend(("-R", args.results_path))
-			if args.full_init:
-				cmd.append("-f")
 			if args.format is not None:
-				cmd.extend(("-F", args.format))
+				cmd.extend(("-f", args.format))
 
 			util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True),
 			                 range(len(configs)))
 
 			result = results.DensityAllExperimentsResult(
-				experiments, bench,
-				[get_config(args.benchmark, *c[:-1], args.scc, args.n_runs)
-				 for c in configs],
-				[c[-1] for c in configs], full_init=args.full_init
+				experiments, bench, [get_config(args.benchmark, *c[:-1], args.scc, args.n_runs) for c in configs],
+				[c[-1] for c in configs],
 			)
 
 			limits = None
 			if args.same_limits:
 				other_result = results.DensityAllExperimentsResult(
 					experiments, bench,
-					[get_config(args.benchmark, *c[:-1], not args.scc, args.n_runs)
-					 for c in configs],
-					[c[-1] for c in configs], full_init=args.full_init
+					[get_config(args.benchmark, *c[:-1], not args.scc, args.n_runs) for c in configs],
+					[c[-1] for c in configs],
 				)
 				current_limits = result.save_results(dry_run=True)
 				other_limits = other_result.save_results(dry_run=True)

@@ -157,8 +157,7 @@ def main():
 	parser.add_argument("-L", "--logs-path")
 	parser.add_argument("-r", "--result", type=int, nargs="?", const=-1)
 	parser.add_argument("-R", "--results-path")
-	parser.add_argument("-f", "--full-init", action="store_true")
-	parser.add_argument("-F", "--format")
+	parser.add_argument("-f", "--format")
 	parser.add_argument("-d", "--details", action="store_true")
 	parser.add_argument("-S", "--stdin-passwd", action="store_true")
 	parser.add_argument("--single-legend", action="store_true")
@@ -179,9 +178,7 @@ def main():
 		if args.result >= 0:
 			c = all_configs[args.result]
 			results.LatencyExperimentResult(
-				result_experiments, bench,
-				get_config(args.benchmark, *c[:-1], args.jmeter, args.n_runs),
-				full_init=args.full_init, **c[-1]
+				result_experiments, bench, get_config(args.benchmark, *c[:-1], args.jmeter, args.n_runs), **c[-1]
 			).save_results()
 
 		else:
@@ -193,10 +190,8 @@ def main():
 					cmd.extend(("-L", args.logs_path))
 				if args.results_path is not None:
 					cmd.extend(("-R", args.results_path))
-				if args.full_init:
-					cmd.append("-f")
 				if args.format is not None:
-					cmd.extend(("-F", args.format))
+					cmd.extend(("-f", args.format))
 
 				util.parallelize(
 					lambda i: util.run(cmd + ["-r", str(i)], check=True),
@@ -205,9 +200,8 @@ def main():
 
 			results.LatencyAllExperimentsResult(
 				result_experiments, bench,
-				[get_config(args.benchmark, *c[:-1], args.jmeter, args.n_runs)
-				 for c in all_configs],
-				[c[-1] for c in all_configs], full_init=args.full_init
+				[get_config(args.benchmark, *c[:-1], args.jmeter, args.n_runs) for c in all_configs],
+				[c[-1] for c in all_configs]
 			).save_results(
 				legends={
 					"full_warmup_time": args.benchmark == "petclinic"
