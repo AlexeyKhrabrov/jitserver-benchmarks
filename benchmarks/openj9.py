@@ -98,7 +98,7 @@ class OpenJ9ContainerInstance(docker.ContainerInstance):
 		super().store_output(success, prefix, invocation_attempt)
 
 	def store_openj9_crash_files(self):
-		tmp_path = "_crash_"
+		tmp_path = "_crash_{}_".format(self.name)
 
 		result = self.host.cp_from_container(self.get_name(), "/output/.",
 		                                     tmp_path + "/", mkdir_dst=True)
