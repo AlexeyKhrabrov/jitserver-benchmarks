@@ -610,10 +610,12 @@ class ServerInstance:
 		      self.name, self.instance_id, self.host.addr))
 
 		try:
-			self.remote_proc.wait(check=True, timeout=timeout,
-			                      kill_remote_on_timeout=kill_remote_on_timeout)
-			print("Finished {} instance {} on {}".format(
-			      self.name, self.instance_id, self.host.addr))
+			t0 = time.monotonic()
+			self.remote_proc.wait(check=True, timeout=timeout, kill_remote_on_timeout=kill_remote_on_timeout)
+			t1 = time.monotonic()
+
+			print("Finished {} instance {} on {} in {:.2f} seconds".format(
+			      self.name, self.instance_id, self.host.addr, t1 - t0))
 			exc = None
 
 		except Exception as e:
