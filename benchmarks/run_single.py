@@ -13,7 +13,7 @@ import shared
 import util
 
 
-# size, warm, duration, jitserver_host, db_host, application_host, jmeter_host
+# size, warm, duration, scc_extra_duration
 configurations = {
 	"acmeair": (
 		("XS", False, 7 * 60, 0,      dict()),
@@ -78,12 +78,8 @@ def get_config(bench, jmeter, size, warm, duration, scc_extra_duration,
 
 	config.name = "single_{}_{}".format("full" if jmeter else "start", config.name)
 
-	config.jitserver_config.server_extra_stats = True
-	config.jitserver_config.client_extra_stats = True
-
-	config.application_config.start_interval = float("+inf")# seconds
-	config.application_config.sleep_time = 1.0# seconds
-
+	config.application_config.start_interval = float("+inf") # seconds
+	config.application_config.save_jitdump = (bench.name() == "petclinic")
 	config.jmeter_config.duration = duration
 	config.jmeter_config.scc_extra_duration = scc_extra_duration
 

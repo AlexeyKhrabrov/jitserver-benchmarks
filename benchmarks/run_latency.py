@@ -79,8 +79,8 @@ def get_config(benchmark, local, ib, delay_us, jmeter, n_runs,
 	result.db_config.use_internal_addr = True
 
 	result.application_config.use_internal_addr = True
-	result.application_config.start_interval = float("+inf")# seconds
-	result.application_config.sleep_time = 1.0# seconds
+	result.application_config.start_interval = float("+inf") # seconds
+	result.application_config.save_jitdump = (benchmark == "petclinic")
 
 	result.jmeter_config.duration = jmeter_durations[benchmark]
 

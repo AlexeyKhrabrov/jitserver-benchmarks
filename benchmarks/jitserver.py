@@ -51,7 +51,7 @@ class JITServerConfig:
 		client_socket_timeout=None, server_socket_timeout=None, session_purge_time=None, session_purge_interval=None,
 		encryption=False, use_internal_addr=False, share_romclasses=False, romclass_cache_partitions=None,
 		aotcache_name=None, stop_sleep_time=None, stop_timeout=None, stop_attempts=None, kill_remote_on_timeout=False,
-		save_javacore=False, disable_jit_profiling=False
+		save_jitdump=False, save_javacore=False, disable_jit_profiling=False
 	):
 		self.server_vlog = server_vlog
 		self.client_vlog = client_vlog
@@ -88,6 +88,7 @@ class JITServerConfig:
 		self.stop_timeout = stop_timeout# seconds
 		self.stop_attempts = stop_attempts
 		self.kill_remote_on_timeout = kill_remote_on_timeout
+		self.save_jitdump = save_jitdump
 		self.save_javacore = save_javacore
 		self.disable_jit_profiling = disable_jit_profiling
 
@@ -97,9 +98,8 @@ class JITServerConfig:
 			tags.extend(("failures", "JITServer"))
 		return "verbose={{{}}},vlog={}".format("|".join(tags), vlog_path)
 
-	def jitserver_args(self, experiment, *, vlog_path, jitserver_port=None,
-	                   cert_path=None, key_path=None):
-		args = ["-Xshareclasses:none", "-Xdump:jit:events=user"]
+	def jitserver_args(self, experiment, *, vlog_path, jitserver_port=None, cert_path=None, key_path=None):
+		args = ["-Xshareclasses:none"]
 		jit_opts = []
 
 		if self.server_vlog:
@@ -136,8 +136,9 @@ class JITServerConfig:
 		if self.share_romclasses:
 			args.append("-XX:+JITServerShareROMClasses")
 		if self.romclass_cache_partitions is not None:
-			jit_opts.append("sharedROMClassCacheNumPartitions={}".format(
-			                self.romclass_cache_partitions))
+			jit_opts.append("sharedROMClassCacheNumPartitions={}".format(self.romclass_cache_partitions))
+		if self.save_jitdump:
+			args.append("-Xdump:jit:events=user")
 		if self.save_javacore:
 			args.append("-Xdump:java:events=user,file=javacore.txt")
 
@@ -153,13 +154,9 @@ class JITServerConfig:
 			args.extend(("-Xjit:{}".format(opts), "-Xaot:{}".format(opts)))
 		return args
 
-	def jvm_args(self, experiment, *, vlog_path, jitserver_addr,
-	             jitserver_port=None, cert_path=None, scc_no_aot=False,
-	             save_javacore=False):
-		args = [
-			"-Xdump:jit:events=user",
-			"-XX:{}PortableSharedCache".format("+" if self.portable_scc else "-")
-		]
+	def jvm_args(self, experiment, *, vlog_path, jitserver_addr, jitserver_port=None,
+	             cert_path=None, scc_no_aot=False, save_jitdump=False, save_javacore=False):
+		args = ["-XX:{}PortableSharedCache".format("+" if self.portable_scc else "-")]
 		jit_opts = []
 
 		if self.client_vlog:
@@ -173,6 +170,8 @@ class JITServerConfig:
 
 		if scc_no_aot:
 			jit_opts.append("nostore")
+		if save_jitdump:
+			args.append("-Xdump:jit:events=user")
 		if save_javacore:
 			args.append("-Xdump:java:events=user,file=javacore.txt")
 
@@ -280,9 +279,10 @@ class JITServerInstance(remote.ServerInstance):
 
 	def stop(self, prefix=None, store=True):
 		util.sleep(self.config.stop_sleep_time)
-		# Generate jit dump with jitserver statistics using signal 3
-		self.remote_proc.kill(signal.SIGQUIT)
-		time.sleep(1.0)
+
+		if self.config.save_jitdump or self.config.save_javacore:
+			self.remote_proc.kill(signal.SIGQUIT)
+			time.sleep(1.0)
 
 		exc = super().stop(
 			store=False, timeout=self.config.stop_timeout,

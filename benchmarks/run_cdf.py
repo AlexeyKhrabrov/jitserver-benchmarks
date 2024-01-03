@@ -43,8 +43,8 @@ def get_config(bench, jmeter, experiment, n_runs,
 	result.jitserver_config.server_extra_stats = True
 	result.jitserver_config.client_extra_stats = True
 
-	result.application_config.start_interval = float("+inf")# seconds
-	result.application_config.sleep_time = 1.0# seconds
+	result.application_config.start_interval = float("+inf") # seconds
+	result.application_config.save_jitdump = (bench.name() == "petclinic")
 	result.jmeter_config.duration = jmeter_durations[bench.name()]
 
 	result.n_instances = 1

@@ -92,7 +92,7 @@ def get_config(benchmark, n_instances, n_dbs, jmeter,
 	result.name = "scale_{}_{}".format("full" if jmeter else "start", n_instances)
 
 	result.jitserver_config.server_threads = 128
-	result.application_config.sleep_time = 1.0# seconds
+	result.application_config.save_jitdump = (benchmark == "petclinic")
 	result.jmeter_config.duration = jmeter_durations[benchmark]
 
 	result.n_instances = n_instances

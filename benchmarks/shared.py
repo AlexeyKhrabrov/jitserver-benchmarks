@@ -108,12 +108,10 @@ class DBConfig:
 
 class ApplicationConfig:
 	def __init__(self, *,
-		docker_config, jvm_config, populate_scc=False, populate_scc_no_aot=False,
-		populate_scc_run_jmeter=False, populate_scc_bench=None,
-		use_internal_addr=False, share_scc=False, start_interval=None,
-		start_timeout=None, sleep_time=None, stop_timeout=None,
-		stop_attempts=None, kill_remote_on_timeout=False,
-		javacore_interval=None, save_javacore=False, save_scc_stats=False
+		docker_config, jvm_config, populate_scc=False, populate_scc_no_aot=False, populate_scc_run_jmeter=False,
+		populate_scc_bench=None, use_internal_addr=False, share_scc=False, start_interval=None,
+		start_timeout=None, sleep_time=None, stop_timeout=None, stop_attempts=None, kill_remote_on_timeout=False,
+		javacore_interval=None, save_jitdump=False, save_javacore=False, save_scc_stats=False
 	):
 		self.docker_config = docker_config
 		self.jvm_config = jvm_config
@@ -130,6 +128,7 @@ class ApplicationConfig:
 		self.stop_attempts = stop_attempts
 		self.kill_remote_on_timeout = kill_remote_on_timeout
 		self.javacore_interval = javacore_interval
+		self.save_jitdump = save_jitdump
 		self.save_javacore = save_javacore
 		self.save_scc_stats = save_scc_stats
 
@@ -194,6 +193,7 @@ class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 						jitserver_port=self.jitserver_instance.jitserver_port(),
 						cert_path="/cert.pem",
 						scc_no_aot=self.config.populate_scc_no_aot if scc_run else False,
+						save_jitdump=self.config.save_jitdump,
 						save_javacore=self.config.save_javacore
 					))
 			),
@@ -224,9 +224,9 @@ class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 			self.javacore_proc.stop(signal.SIGINT)
 			self.javacore_proc = None
 
-		# Generate javacore using signal 3
-		self.remote_proc.kill(signal.SIGQUIT)
-		time.sleep(0.5)
+		if self.config.save_jitdump or self.config.save_javacore:
+			self.remote_proc.kill(signal.SIGQUIT)
+			time.sleep(0.5)
 
 		exc = super(openj9.OpenJ9ContainerInstance, self).stop(
 			store=False, timeout=self.config.stop_timeout,
@@ -879,6 +879,7 @@ def base_config():
 			stop_timeout=10.0,# seconds
 			stop_attempts=6,
 			kill_remote_on_timeout=True,
+			save_jitdump=True, # since stats output at shutdown can be truncated
 			disable_jit_profiling=True,
 		),
 		jitserver_docker_config=None,
@@ -888,6 +889,7 @@ def base_config():
 		application_config=ApplicationConfig(
 			docker_config=None,
 			jvm_config=None,
+			sleep_time=1.0,# seconds
 			kill_remote_on_timeout=True,
 		),
 		jmeter_config=JMeterConfig(

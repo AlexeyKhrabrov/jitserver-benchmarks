@@ -69,7 +69,8 @@ def main():
 			stop_timeout=10.0,# seconds
 			stop_attempts=6,
 			kill_remote_on_timeout=False,
-			save_javacore=True,
+			save_jitdump=True, # since stats output at shutdown can be truncated
+			save_javacore=False,
 			disable_jit_profiling=True,
 		),
 		jitserver_docker_config=None,
@@ -100,8 +101,9 @@ def main():
 			stop_attempts=6,
 			kill_remote_on_timeout=False,
 			javacore_interval=None,
-			save_javacore=True,
-			save_scc_stats=True,
+			save_jitdump=True, # since stats output at shutdown can be truncated
+			save_javacore=False,
+			save_scc_stats=False,
 		),
 		jmeter_config=shared.JMeterConfig(
 			docker_config=docker.DockerConfig(

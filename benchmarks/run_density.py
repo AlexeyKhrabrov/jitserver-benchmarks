@@ -65,7 +65,7 @@ def get_config(benchmark, name, interval, duration, n_invocations,
 	result.jitserver_config.session_purge_interval = 10 * 1000# milliseconds
 
 	result.application_config.start_interval = interval
-	result.application_config.sleep_time = 1.0# seconds
+	result.application_config.save_jitdump = (benchmark == "petclinic")
 	if scc:
 		result.application_config.populate_scc = True
 		result.application_config.populate_scc_run_jmeter = False
