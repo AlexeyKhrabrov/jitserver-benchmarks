@@ -212,10 +212,8 @@ class JITServerConfig:
 			args.extend(("-Xjit:{}".format(opts), "-Xaot:{}".format(opts)))
 		return args
 
-	stats_env_vars = (
-		"TR_PrintResourceUsageStats", "TR_PrintCompStats",
-		"TR_PrintCompTime", "TR_PrintJITServerAOTCacheStats"
-	)
+	stats_env_vars = ("TR_silentEnv", "TR_PrintResourceUsageStats", "TR_PrintCompStats",
+	                  "TR_PrintCompTime", "TR_PrintJITServerAOTCacheStats")
 
 	extra_stats_env_vars = (
 		"TR_PrintJITServerMsgStats", "TR_PrintJITServerMallocStats"

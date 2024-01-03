@@ -76,6 +76,7 @@ build_dir="${jdk_dir}/openj9-openjdk-jdk${jdk_ver}/build/${debug_level}"
 jitserver="${build_dir}/images/jdk/bin/jitserver"
 
 
+export TR_silentEnv=1
 export TR_PrintCompStats=1
 export TR_PrintCompTime=1
 export TR_PrintJITServerMsgStats=1

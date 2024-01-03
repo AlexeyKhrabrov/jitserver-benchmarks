@@ -89,6 +89,7 @@ if [[ "${purge_scc}" == true ]]; then
 fi
 
 
+export TR_silentEnv=1
 export TR_PrintCompStats=1
 export TR_PrintCompTime=1
 export TR_PrintJITServerMsgStats=1
