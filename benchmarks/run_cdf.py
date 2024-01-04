@@ -15,9 +15,9 @@ import util
 
 
 jmeter_durations = {
-	"acmeair": 6 * 60,# seconds
-	"daytrader": 15 * 60,# seconds
-	"petclinic": 3 * 60,# seconds
+	"acmeair": 6 * 60, # seconds
+	"daytrader": 15 * 60, # seconds
+	"petclinic": 3 * 60, # seconds
 }
 
 run_experiments = (
@@ -35,8 +35,7 @@ result_experiments = (
 def get_config(bench, jmeter, experiment, n_runs,
                equal_resources, skip_complete_runs=False):
 	result = bench.small_config(False)
-	result.name = "cdf_{}_{}".format("eq" if equal_resources else "ne",
-	                                 "full" if jmeter else "start")
+	result.name = "cdf_{}_{}".format("eq" if equal_resources else "ne", "full" if jmeter else "start")
 
 	result.jitserver_config.server_vlog = True
 	result.jitserver_config.client_vlog = True
@@ -54,10 +53,7 @@ def get_config(bench, jmeter, experiment, n_runs,
 	result.skip_complete_runs = skip_complete_runs
 
 	if equal_resources:
-		result.jitserver_docker_config = docker.DockerConfig(
-			ncpus=1,
-			pin_cpus=True,
-		)
+		result.jitserver_docker_config = docker.DockerConfig(ncpus=1, pin_cpus=True)
 		ncpus = 1 if experiment.is_jitserver() else 2
 		result.application_config.docker_config.ncpus = ncpus
 
@@ -69,17 +65,13 @@ bench_cls = {
 	"petclinic": petclinic.PetClinic
 }
 
-def make_cluster(bench, hosts, subset, jmeter, experiment, n_runs,
-                 equal_resources, skip_complete_runs=False):
+def make_cluster(bench, hosts, subset, jmeter, experiment, n_runs, equal_resources, skip_complete_runs=False):
 	host0 = hosts[(2 * subset) % len(hosts)]
 	host1 = hosts[(2 * subset + 1) % len(hosts)]
 
-	return shared.BenchmarkCluster(
-		get_config(bench, jmeter, experiment, n_runs,
-		           equal_resources, skip_complete_runs),
-		bench, jitserver_hosts=[host0], db_hosts=[host0],
-		application_hosts=[host1], jmeter_hosts=[host0]
-	)
+	return shared.BenchmarkCluster(get_config(bench, jmeter, experiment, n_runs, equal_resources, skip_complete_runs),
+	                               bench, jitserver_hosts=[host0], db_hosts=[host0],
+	                               application_hosts=[host1], jmeter_hosts=[host0])
 
 
 def main():
@@ -100,7 +92,7 @@ def main():
 	parser.add_argument("-R", "--results-path")
 	parser.add_argument("-f", "--format")
 	parser.add_argument("--single-legend", action="store_true")
-	parser.add_argument("--same-limits", action="store_true")# unused
+	parser.add_argument("--same-limits", action="store_true") # unused
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir

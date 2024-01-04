@@ -21,24 +21,20 @@ class BenchmarkHost(jitserver.JITServerHost):
 		self.benchmark = benchmark
 
 	def update_benchmark(self, exclude=None):
-		self.rsync_put(os.path.join(module_dir, self.benchmark + "/"),
-		               self.benchmark + "/", exclude=exclude)
+		self.rsync_put(os.path.join(module_dir, self.benchmark + "/"), self.benchmark + "/", exclude=exclude)
 
 	def benchmark_prereqs(self, *, passwd=None, exclude=None):
 		self.update_benchmark(exclude)
 
 		cmd = [os.path.join(self.benchmark, "prereqs.sh")]
-		self.run_sudo(cmd, passwd=passwd,
-		              output=self.log_path("{}_prereqs".format(self.benchmark)),
-		              check=True)
+		self.run_sudo(cmd, passwd=passwd, output=self.log_path("{}_prereqs".format(self.benchmark)), check=True)
 
 	def benchmark_setup(self, args=None, *, scripts_only=False, clean=False, prune=False,
 	                    exclude=None, buildkit=False, sudo=False, passwd=None):
 		if clean:
 			self.clean_images()
 		self.update_benchmark(exclude)
-		self.jitserver_setup(scripts_only=scripts_only, buildkit=buildkit,
-		                     sudo=sudo, passwd=passwd)
+		self.jitserver_setup(scripts_only=scripts_only, buildkit=buildkit, sudo=sudo, passwd=passwd)
 		if scripts_only:
 			return
 
@@ -51,8 +47,7 @@ class BenchmarkHost(jitserver.JITServerHost):
 		if sudo:
 			self.run_sudo(cmd, output=output_path, check=True, passwd=passwd)
 		else:
-			self.run(cmd, output=output_path, check=True,
-			         env={"DOCKER_BUILDKIT": 1} if buildkit else None)
+			self.run(cmd, output=output_path, check=True, env={"DOCKER_BUILDKIT": 1} if buildkit else None)
 		t1 = time.monotonic()
 
 		print("{} setup on {} took {:.2f} seconds".format(self.benchmark, self.addr, t1 - t0))
@@ -61,8 +56,7 @@ class BenchmarkHost(jitserver.JITServerHost):
 			self.prune_images()
 
 	def scc_path(self, component, instance_id):
-		return os.path.join(self.benchmark, "{}_scc_{}".format(
-		                    component, instance_id))
+		return os.path.join(self.benchmark, "{}_scc_{}".format(component, instance_id))
 
 	def scc_cleanup(self, component):
 		self.run(["rm", "-rf", self.scc_path(component, "*")], globs=True)
@@ -88,11 +82,9 @@ class BenchmarkHost(jitserver.JITServerHost):
 		self.cleanup_process("jitserver")
 		self.run(["killall", "top", "docker"])
 
-		names = ["jitserver", self.benchmark, "jmeter"] + (
-		        [db_name] if db_name is not None else [])
+		names = ["jitserver", self.benchmark, "jmeter"] + ([db_name] if db_name is not None else [])
 		cmd = ["rm", "-rf"]
-		cmd.extend(os.path.join(self.benchmark, "{}_*/".format(name))
-		           for name in names)
+		cmd.extend(os.path.join(self.benchmark, "{}_*/".format(name)) for name in names)
 
 		if passwd is not None:
 			self.run_sudo(cmd, passwd=passwd, globs=True)
@@ -121,10 +113,10 @@ class ApplicationConfig:
 		self.populate_scc_bench = populate_scc_bench
 		self.use_internal_addr = use_internal_addr
 		self.share_scc = share_scc
-		self.start_interval = start_interval# seconds
-		self.start_timeout = start_timeout# seconds
-		self.sleep_time = sleep_time# seconds
-		self.stop_timeout = stop_timeout# seconds
+		self.start_interval = start_interval # seconds
+		self.start_timeout = start_timeout # seconds
+		self.sleep_time = sleep_time # seconds
+		self.stop_timeout = stop_timeout # seconds
 		self.stop_attempts = stop_attempts
 		self.kill_remote_on_timeout = kill_remote_on_timeout
 		self.javacore_interval = javacore_interval
@@ -142,13 +134,10 @@ class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 		self.config = config
 		self.bench = bench
 		self.jitclient_config = jitserver_instance.config
-		self.db_addr = self.host.get_host_addr(
-			db_instance.host, db_instance.config.use_internal_addr
-		)
+		self.db_addr = self.host.get_host_addr(db_instance.host, db_instance.config.use_internal_addr)
 		self.db_port = db_instance.get_port()
-		self.jitserver_addr = self.host.get_host_addr(
-			jitserver_instance.host, jitserver_instance.config.use_internal_addr
-		)
+		self.jitserver_addr = self.host.get_host_addr(jitserver_instance.host,
+		                                              jitserver_instance.config.use_internal_addr)
 		self.jitserver_instance = jitserver_instance
 		self.reserved_cpus = self.get_reserved_cpus(config.docker_config)
 		self.javacore_proc = None
@@ -158,10 +147,7 @@ class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 	def scc_path(self):
 		if not self.config.populate_scc and not self.config.share_scc:
 			return None
-		return self.host.scc_path(
-			self.benchmark,
-			"shared" if self.config.share_scc else self.instance_id
-		)
+		return self.host.scc_path(self.benchmark, "shared" if self.config.share_scc else self.instance_id)
 
 	def store_output(self, success, prefix=None, invocation_attempt=None):
 		vlog = "vlog_client" if self.jitclient_config.client_vlog else None
@@ -169,17 +155,14 @@ class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 
 	def start(self, experiment, run_id, attempt_id, scc_run=False):
 		if self.config.populate_scc and not self.config.share_scc and not scc_run:
-			self.host.load_scc(self.benchmark, self.instance_id,
-			                   src_name="populated", check=True)
+			self.host.load_scc(self.benchmark, self.instance_id, src_name="populated", check=True)
 
 		cmd = [
-			os.path.join(self.bench.name(),
-			             "run_{}.sh".format(self.bench.name())),
+			os.path.join(self.bench.name(), "run_{}.sh".format(self.bench.name())),
 			str(self.instance_id),
 			self.db_addr,
 			str(self.db_port),
-			self.host.jdk_path(self.jitclient_config.jdk_ver,
-			                   self.jitclient_config.debug),
+			self.host.jdk_path(self.jitclient_config.jdk_ver, self.jitclient_config.debug),
 			self.scc_path() or "",
 			util.args_str(
 				self.config.jvm_config.jvm_args() + (
@@ -197,17 +180,12 @@ class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 			self.extra_args or ""
 		] + self.config.docker_config.docker_args(self.host, self.reserved_cpus)
 
-		exc = super().start(
-			cmd, experiment.name.lower(), run_id, attempt_id,
-			timeout=self.config.start_timeout, raise_on_failure=False
-		)
+		exc = super().start(cmd, experiment.name.lower(), run_id, attempt_id,
+		                    timeout=self.config.start_timeout, raise_on_failure=False)
 		if exc is None:
 			if self.config.javacore_interval is not None:
-				cmd = [
-					"scripts/collect_javacore.sh", self.get_name(),
-					str(self.remote_proc.remote_pid),
-					str(self.config.javacore_interval), self.output_dir()
-				]
+				cmd = ["scripts/collect_javacore.sh", self.get_name(), str(self.remote_proc.remote_pid),
+				       str(self.config.javacore_interval), self.output_dir()]
 				self.javacore_proc = self.host.start(cmd)
 			util.sleep(self.config.sleep_time)
 
@@ -274,23 +252,15 @@ class JMeterConfig:
 
 
 class JMeterInstance(docker.ContainerInstance):
-	def __init__(self,
-		config, host, bench, config_name, application_instance,
-		n_instances, n_dbs, *, benchmark=None, extra_duration=0,
-		reserve_cpus=True, collect_stats=False
-	):
-		super().__init__(
-			host, "jmeter", benchmark or bench.name(),
-			config_name, application_instance.instance_id,
-			reserve_cpus=reserve_cpus, collect_stats=collect_stats
-		)
+	def __init__(self, config, host, bench, config_name, application_instance, n_instances, n_dbs, *,
+	             benchmark=None, extra_duration=0, reserve_cpus=True, collect_stats=False):
+		super().__init__(host, "jmeter", benchmark or bench.name(), config_name, application_instance.instance_id,
+		                 reserve_cpus=reserve_cpus, collect_stats=collect_stats)
 		self.config = config
 		self.bench = bench
 		self.application_instance = application_instance
-		self.application_addr = self.host.get_host_addr(
-			application_instance.host,
-			application_instance.config.use_internal_addr
-		)
+		self.application_addr = self.host.get_host_addr(application_instance.host,
+		                                                application_instance.config.use_internal_addr)
 		self.n_instances = n_instances
 		self.n_dbs = n_dbs
 		self.duration = config.duration + extra_duration
@@ -299,13 +269,9 @@ class JMeterInstance(docker.ContainerInstance):
 		self.reserved_cpus = self.get_reserved_cpus(config.docker_config)
 
 	def get_remote_pid(self):
-		pid = util.retry_loop(
-			lambda: self.host.get_host_pid(
-				self.get_name(), "java", check=False,
-				cmd_filter=lambda s: "-version" not in s
-			),
-			attempts=50, sleep_time=0.1
-		)
+		pid = util.retry_loop(lambda: self.host.get_host_pid(self.get_name(), "java", check=False,
+		                                                     cmd_filter=lambda s: "-version" not in s),
+		                      attempts=50, sleep_time=0.1)
 		if pid is None:
 			raise Exception("No java process started in jmeter container")
 		return pid
@@ -316,8 +282,7 @@ class JMeterInstance(docker.ContainerInstance):
 			duration += self.config.scc_extra_duration
 		if self.config.duration_includes_start:
 			duration -= int(self.application_instance.start_time)
-		print("jmeter instance {} duration: {} seconds".format(
-		      self.instance_id, duration))
+		print("jmeter instance {} duration: {} seconds".format(self.instance_id, duration))
 
 		cmd = [
 			os.path.join(self.bench.name(), "run_jmeter.sh"),
@@ -333,8 +298,7 @@ class JMeterInstance(docker.ContainerInstance):
 			util.args_str(self.config.jvm_config.jvm_args())
 		] + self.config.docker_config.docker_args(self.host, self.reserved_cpus)
 
-		timeout = ((duration + self.config.stop_timeout)
-		           if self.config.stop_timeout is not None else None)
+		timeout = ((duration + self.config.stop_timeout) if self.config.stop_timeout is not None else None)
 
 		super().start(cmd, experiment.name.lower(), run_id, attempt_id)
 		return self.wait(timeout=timeout, raise_on_failure=False, kill_remote_on_timeout=True,
@@ -343,12 +307,10 @@ class JMeterInstance(docker.ContainerInstance):
 
 class BenchmarkConfig:
 	def __init__(self, *,
-		name, jitserver_config, jitserver_docker_config, db_config,
-		application_config, jmeter_config, n_jitservers, n_dbs, n_instances,
-		aotcache_extra_instance=False, populate_aotcache_bench=None,
+		name, jitserver_config, jitserver_docker_config, db_config, application_config, jmeter_config,
+		n_jitservers, n_dbs, n_instances, aotcache_extra_instance=False, populate_aotcache_bench=None,
 		run_jmeter, n_runs, attempts, skip_runs=None, skip_complete_runs=False,
-		n_invocations=None, idle_time=None, invocation_attempts=None,
-		collect_stats=False
+		n_invocations=None, idle_time=None, invocation_attempts=None, collect_stats=False
 	):
 		self.name = name
 		self.jitserver_config = jitserver_config
@@ -381,8 +343,7 @@ class BenchmarkConfig:
 		if (self.run_jmeter and self.jmeter_config.keep_running and
 		    (self.application_config.start_interval != float("+inf"))
 		):
-			return math.ceil((self.application_config.start_interval or 0.0) *
-			                 (self.n_instances - instance_id - 1))
+			return math.ceil((self.application_config.start_interval or 0.0) * (self.n_instances - instance_id - 1))
 		else:
 			return 0
 
@@ -406,17 +367,13 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		self.for_each(docker.DockerHost.reset_reserved_cpus)
 
 		self.jitserver_instances = [
-			jitserver.jitserver_instance(
-				config.jitserver_docker_config, config.jitserver_config,
-				jitserver_hosts[i], bench.name(), config.name, i,
-				collect_stats=config.collect_stats
-			)
+			jitserver.jitserver_instance(config.jitserver_docker_config, config.jitserver_config, jitserver_hosts[i],
+			                             bench.name(), config.name, i, collect_stats=config.collect_stats)
 			for i in range(config.n_jitservers)
 		]
 
 		self.db_instances = [
-			bench.new_db_instance(config.db_config, h, bench.name(), config.name,
-			                      i, collect_stats=config.collect_stats)
+			bench.new_db_instance(config.db_config, h, bench.name(), config.name, i, collect_stats=config.collect_stats)
 			for i, h in zip(
 				range(config.n_dbs),
 				itertools.cycle(db_hosts)
@@ -435,12 +392,8 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		]
 
 		self.jmeter_instances = [
-			JMeterInstance(
-				config.jmeter_config, h, bench, config.name,
-				l, config.get_n_instances(True), config.n_dbs,
-				extra_duration=self.config.jmeter_extra_duration(i),
-				collect_stats=config.collect_stats
-			)
+			JMeterInstance(config.jmeter_config, h, bench, config.name, l, config.get_n_instances(True), config.n_dbs,
+			               extra_duration=self.config.jmeter_extra_duration(i), collect_stats=config.collect_stats)
 			for i, h, l in zip(
 				range(config.get_n_instances(True)),
 				itertools.cycle(jmeter_hosts),
@@ -471,89 +424,67 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		bench = self.config.application_config.populate_scc_bench or self.bench
 
 		application_host = self.application_hosts[host_id]
-		db_host = (application_host
-		           if (len(self.application_hosts) > len(self.db_hosts))
-		           else self.db_hosts[host_id])
-		jmeter_host = (application_host
-		               if (len(self.application_hosts) > len(self.jmeter_hosts))
+		db_host = (application_host if len(self.application_hosts) > len(self.db_hosts) else self.db_hosts[host_id])
+		jmeter_host = (application_host if len(self.application_hosts) > len(self.jmeter_hosts)
 		               else self.jmeter_hosts[host_id])
 
 		#NOTE: unused
 		jitserver_instance = jitserver.jitserver_instance(
-			self.config.jitserver_docker_config, self.config.jitserver_config,
-			application_host, self.bench.name(), self.config.name,
-			0, reserve_cpus=False, collect_stats=self.config.collect_stats
+			self.config.jitserver_docker_config, self.config.jitserver_config, application_host, self.bench.name(),
+			self.config.name, 0, reserve_cpus=False, collect_stats=self.config.collect_stats
 		)
-		db_instance = bench.new_db_instance(
-			self.config.db_config, db_host, self.bench.name(), self.config.name,
-			host_id, reserve_cpus=False, collect_stats=self.config.collect_stats
-		)
+		db_instance = bench.new_db_instance(self.config.db_config, db_host, self.bench.name(), self.config.name,
+		                                    host_id, reserve_cpus=False, collect_stats=self.config.collect_stats)
 		db_instance.start(jitserver.Experiment.LocalJIT, 0, 0)
 
 		application_instance = ApplicationInstance(
-			self.config.application_config, application_host, bench,
-			self.config.name, host_id, db_instance, jitserver_instance,
-			benchmark=self.bench.name(), reserve_cpus=False,
-			collect_stats=self.config.collect_stats
+			self.config.application_config, application_host, bench, self.config.name, host_id, db_instance,
+			jitserver_instance, benchmark=self.bench.name(), reserve_cpus=False, collect_stats=self.config.collect_stats
 		)
 		jmeter_instance = JMeterInstance(
 			self.config.jmeter_config, jmeter_host, bench, self.config.name,
-			application_instance, len(self.application_hosts), 1,
-			benchmark=self.bench.name(), reserve_cpus=False,
-			collect_stats=self.config.collect_stats
+			application_instance, len(self.application_hosts), 1, benchmark=self.bench.name(),
+			reserve_cpus=False, collect_stats=self.config.collect_stats
 		)
-		success = self.run_application_and_jmeter(
-			jmeter_instance, jitserver.Experiment.LocalJIT,
-			self.config.application_config.populate_scc_run_jmeter,
-			0, 0, scc_run=True, prefix="scc"
-		)
+		success = self.run_application_and_jmeter(jmeter_instance, jitserver.Experiment.LocalJIT,
+		                                          self.config.application_config.populate_scc_run_jmeter,
+		                                          0, 0, scc_run=True, prefix="scc")
 
 		db_instance.stop(prefix="scc")
 		if success:
-			application_host.store_scc(self.bench.name(), host_id,
-			                           dst_name="populated")
+			application_host.store_scc(self.bench.name(), host_id, dst_name="populated")
 		return success
 
 	def populate_all_application_scc(self):
 		print("Populating {} scc...".format(self.bench.name()))
-		results = util.parallelize(self.populate_application_scc,
-		                           range(len(self.application_hosts)))
+		results = util.parallelize(self.populate_application_scc, range(len(self.application_hosts)))
 		success = all(r for r in results)
 
 		if not success:
-			remote.ServerInstance.rename_failed_run(
-				self.hosts[0], self.bench.name(), self.config.name,
-				"localjit", 0, 0, "scc"
-			)
-			raise Exception("Failed to populate {} scc".format(
-			                self.bench.name()))
+			remote.ServerInstance.rename_failed_run(self.hosts[0], self.bench.name(), self.config.name,
+			                                        "localjit", 0, 0, "scc")
+			raise Exception("Failed to populate {} scc".format(self.bench.name()))
 
 	def populate_aotcache(self, instance_id, experiment, run_id, attempt_id):
 		bench = self.config.populate_aotcache_bench or self.bench
 
-		db_instance = bench.new_db_instance(
-			self.config.db_config, self.db_hosts[instance_id],
-			self.bench.name(), self.config.name, instance_id,
-			reserve_cpus=False, collect_stats=self.config.collect_stats
-		)
+		db_instance = bench.new_db_instance(self.config.db_config, self.db_hosts[instance_id], self.bench.name(),
+		                                    self.config.name, instance_id, reserve_cpus=False,
+		                                    collect_stats=self.config.collect_stats)
 		db_instance.start(experiment, run_id, attempt_id)
 
 		application_instance = ApplicationInstance(
-			self.config.application_config, self.application_hosts[instance_id],
-			bench, self.config.name, instance_id, db_instance,
-			self.jitserver_instances[instance_id], benchmark=self.bench.name(),
+			self.config.application_config, self.application_hosts[instance_id], bench, self.config.name,
+			instance_id, db_instance, self.jitserver_instances[instance_id], benchmark=self.bench.name(),
 			reserve_cpus=False, collect_stats=self.config.collect_stats
 		)
 		jmeter_instance = JMeterInstance(
-			self.config.jmeter_config, self.jmeter_hosts[instance_id],
-			self.bench, self.config.name, application_instance,
-			len(self.jitserver_hosts), 1, benchmark=self.bench.name(),
+			self.config.jmeter_config, self.jmeter_hosts[instance_id], self.bench, self.config.name,
+			application_instance, len(self.jitserver_hosts), 1, benchmark=self.bench.name(),
 			reserve_cpus=False, collect_stats=self.config.collect_stats
 		)
-		success = self.run_application_and_jmeter(
-			jmeter_instance, experiment, self.config.run_jmeter,
-			run_id, attempt_id, prefix="aotcache"
-		)
+		success = self.run_application_and_jmeter(jmeter_instance, experiment, self.config.run_jmeter,
+		                                          run_id, attempt_id, prefix="aotcache")
 
 		db_instance.stop(prefix="aotcache")
 		return success
@@ -561,74 +492,55 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 	def populate_all_aotcache(self, experiment, run_id, attempt_id):
 		print("Populating aotcache...")
 
-		results = util.parallelize(
-			self.populate_aotcache, range(len(self.jitserver_hosts)),
-			experiment, run_id, attempt_id
-		)
+		results = util.parallelize(self.populate_aotcache, range(len(self.jitserver_hosts)),
+		                           experiment, run_id, attempt_id)
 		success = all(r for r in results)
 
 		if not success:
-			util.parallelize(lambda i: i.stop(prefix="aotcache"),
-			                 self.jitserver_instances)
-			remote.ServerInstance.rename_failed_run(
-				self.hosts[0], self.bench.name(), self.config.name,
-				experiment.name.lower(), run_id, attempt_id, "aotcache"
-			)
+			util.parallelize(lambda i: i.stop(prefix="aotcache"), self.jitserver_instances)
+			remote.ServerInstance.rename_failed_run(self.hosts[0], self.bench.name(), self.config.name,
+			                                        experiment.name.lower(), run_id, attempt_id, "aotcache")
 
 		return success
 
 	def run_single_experiment(self, experiment, run_id, attempt_id):
 		if experiment.is_jitserver():
-			util.parallelize(lambda i: i.start(experiment, run_id, attempt_id),
-			                 self.jitserver_instances)
+			util.parallelize(lambda i: i.start(experiment, run_id, attempt_id), self.jitserver_instances)
 
-			if experiment.is_warm_aotcache():
-				if not self.populate_all_aotcache(experiment, run_id,
-				                                  attempt_id):
-					return False
+			if experiment.is_warm_aotcache() and not self.populate_all_aotcache(experiment, run_id, attempt_id):
+				return False
 
-		util.parallelize(lambda i: i.start(experiment, run_id, attempt_id),
-		                 self.db_instances)
+		util.parallelize(lambda i: i.start(experiment, run_id, attempt_id), self.db_instances)
 
 		if self.config.application_config.share_scc:
 			if self.config.application_config.populate_scc:
-				util.parallelize(
-					BenchmarkHost.load_scc, self.application_hosts,
-					self.bench.name(), "shared", src_name="populated"
-				)
+				util.parallelize(BenchmarkHost.load_scc, self.application_hosts,
+				                 self.bench.name(), "shared", src_name="populated")
 			else:
-				util.parallelize(BenchmarkHost.scc_cleanup,
-				                 self.application_hosts, self.bench.name())
+				util.parallelize(BenchmarkHost.scc_cleanup, self.application_hosts, self.bench.name())
 
 		n_instances = self.config.get_n_instances(experiment.is_aotcache())
-		results = util.parallelize(
-			self.run_application_and_jmeter,
-			self.jmeter_instances[0:n_instances], experiment,
-			self.config.run_jmeter, run_id, attempt_id,
-			sleep_time=self.config.application_config.start_interval
-		)
+		results = util.parallelize(self.run_application_and_jmeter, self.jmeter_instances[0:n_instances],
+		                           experiment, self.config.run_jmeter, run_id, attempt_id,
+		                           sleep_time=self.config.application_config.start_interval)
 		success = all(r for r in results)
 
 		util.parallelize(lambda i: i.stop(), self.db_instances)
 
 		if experiment.is_jitserver():
-			results = util.parallelize(lambda i: i.stop(),
-			                           self.jitserver_instances)
+			results = util.parallelize(lambda i: i.stop(), self.jitserver_instances)
 			success = success and all(r is None for r in results)
 
 		if not success:
-			remote.ServerInstance.rename_failed_run(
-				self.hosts[0], self.bench.name(), self.config.name,
-				experiment.name.lower(), run_id, attempt_id
-			)
+			remote.ServerInstance.rename_failed_run(self.hosts[0], self.bench.name(), self.config.name,
+			                                        experiment.name.lower(), run_id, attempt_id)
 
 		return success
 
 	def cleanup(self):
 		util.parallelize(JMeterInstance.cleanup, self.jmeter_instances)
 		util.parallelize(ApplicationInstance.cleanup, self.application_instances)
-		util.parallelize(BenchmarkHost.scc_cleanup, self.application_hosts,
-		                 self.bench.name())
+		util.parallelize(BenchmarkHost.scc_cleanup, self.application_hosts, self.bench.name())
 		util.parallelize(lambda i: i.cleanup(), self.db_instances)
 		util.parallelize(lambda i: i.cleanup(), self.jitserver_instances)
 		self.for_each(remote.RemoteHost.run, ["killall", "top", "docker"])
@@ -637,18 +549,14 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		self.for_each(lambda h: h.full_cleanup(passwd=passwd), parallel=True)
 
 	def run_logs_path(self, experiment, run_id):
-		return os.path.join(
-			remote.RemoteHost.logs_dir, self.bench.name(), self.config.name,
-			experiment.name.lower(), "run_{}".format(run_id)
-		)
+		return os.path.join(remote.RemoteHost.logs_dir, self.bench.name(), self.config.name,
+		                    experiment.name.lower(), "run_{}".format(run_id))
 
-	def is_complete_run(self, experiment, run_id, components,
-	                    nums_of_instances, files):
+	def is_complete_run(self, experiment, run_id, components, nums_of_instances, files):
 		for c in range(len(components)):
 			for i in range(nums_of_instances[c]):
 				for f in files[c]:
-					path = os.path.join(self.run_logs_path(experiment, run_id),
-					                    "{}_{}".format(components[c], i), f)
+					path = os.path.join(self.run_logs_path(experiment, run_id), "{}_{}".format(components[c], i), f)
 					if not os.path.isfile(path):
 						print("Missing output file {}".format(path))
 						return False
@@ -728,8 +636,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		return True
 
 	def run_all_experiments(self, experiments, *, skip_cleanup=False):
-		if all(self.skip_run(e, r, False)
-		       for e in experiments for r in range(self.config.n_runs)):
+		if all(self.skip_run(e, r, False) for e in experiments for r in range(self.config.n_runs)):
 			print("Skipping complete benchmark {} configuration {}".format(self.bench.name(), self.config.name))
 			return
 
@@ -757,8 +664,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		if not skip_cleanup:
 			self.cleanup()
 
-	def run_invocation(self, invocation_id, instance_id,
-	                   experiment, run_id, attempt_id):
+	def run_invocation(self, invocation_id, instance_id, experiment, run_id, attempt_id):
 		current_id = invocation_id * self.config.n_instances + instance_id
 		jmeter_instance = self.jmeter_instances[instance_id]
 		jmeter_instance.instance_id = current_id
@@ -766,10 +672,8 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		application_instance.instance_id = current_id
 
 		for i in range(self.config.invocation_attempts):
-			success = self.run_application_and_jmeter(
-				jmeter_instance, experiment, self.config.run_jmeter,
-				run_id, attempt_id, invocation_attempt=i
-			)
+			success = self.run_application_and_jmeter(jmeter_instance, experiment, self.config.run_jmeter,
+			                                          run_id, attempt_id, invocation_attempt=i)
 			if success:
 				util.sleep(self.config.idle_time)
 				return True
@@ -778,38 +682,29 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 
 	def run_instance(self, instance_id, experiment, run_id, attempt_id):
 		for i in range(self.config.n_invocations):
-			if not self.run_invocation(i, instance_id, experiment,
-			                           run_id, attempt_id):
+			if not self.run_invocation(i, instance_id, experiment, run_id, attempt_id):
 				return False
 		return True
 
 	def run_single_density_experiment(self, experiment, run_id, attempt_id):
 		if experiment.is_jitserver():
-			util.parallelize(lambda i: i.start(experiment, run_id, attempt_id),
-			                 self.jitserver_instances)
+			util.parallelize(lambda i: i.start(experiment, run_id, attempt_id), self.jitserver_instances)
 
-		util.parallelize(lambda i: i.start(experiment, run_id, attempt_id),
-		                 self.db_instances)
+		util.parallelize(lambda i: i.start(experiment, run_id, attempt_id), self.db_instances)
 
-		results = util.parallelize(
-			self.run_instance, range(self.config.n_instances),
-			experiment, run_id, attempt_id,
-			sleep_time=self.config.application_config.start_interval
-		)
+		results = util.parallelize(self.run_instance, range(self.config.n_instances), experiment, run_id, attempt_id,
+		                           sleep_time=self.config.application_config.start_interval)
 		success = all(r for r in results)
 
 		util.parallelize(lambda i: i.stop(), self.db_instances)
 
 		if experiment.is_jitserver():
-			results = util.parallelize(lambda i: i.stop(),
-			                           self.jitserver_instances)
+			results = util.parallelize(lambda i: i.stop(), self.jitserver_instances)
 			success = success and all(r is None for r in results)
 
 		if not success:
-			remote.ServerInstance.rename_failed_run(
-				self.hosts[0], self.bench.name(), self.config.name,
-				experiment.name.lower(), run_id, attempt_id
-			)
+			remote.ServerInstance.rename_failed_run(self.hosts[0], self.bench.name(), self.config.name,
+			                                        experiment.name.lower(), run_id, attempt_id)
 
 		return success
 
@@ -832,8 +727,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		return True
 
 	def run_all_density_experiments(self, experiments):
-		if all(self.skip_run(e, r, True)
-		       for e in experiments for r in range(self.config.n_runs)):
+		if all(self.skip_run(e, r, True) for e in experiments for r in range(self.config.n_runs)):
 			print("Skipping complete benchmark {} configuration {}".format(self.bench.name(), self.config.name))
 			return
 
@@ -880,17 +774,15 @@ def base_config():
 			disable_active_thread_thresholds=True,
 			server_scratch_space_factor=1,
 			share_romclasses=True,
-			stop_sleep_time=2.0,# seconds
-			stop_timeout=10.0,# seconds
+			stop_sleep_time=2.0, # seconds
+			stop_timeout=10.0, # seconds
 			stop_attempts=6,
 			kill_remote_on_timeout=True,
 			save_jitdump=True, # since stats output at shutdown can be truncated
 			disable_jit_profiling=True,
 		),
 		jitserver_docker_config=None,
-		db_config=DBConfig(
-			docker_config=docker.DockerConfig(),
-		),
+		db_config=DBConfig(docker_config=docker.DockerConfig()),
 		application_config=ApplicationConfig(
 			docker_config=None,
 			jvm_config=None,
@@ -916,39 +808,28 @@ def base_config():
 def update_config(config, name, application_cpus, application_mem, jmeter_cpus,
                   jmeter_mem, jmeter_threads, jmeter_pin_cpus=False):
 	config.name = name
-	config.application_config.docker_config = docker.DockerConfig(
-		ncpus=application_cpus,
-		memory=application_mem,
-		pin_cpus=True,
-	)
-	config.jmeter_config.docker_config = docker.DockerConfig(
-		ncpus=jmeter_cpus,
-		memory=jmeter_mem,
-		pin_cpus=jmeter_pin_cpus,
-	)
+	config.application_config.docker_config = docker.DockerConfig(ncpus=application_cpus, memory=application_mem,
+	                                                              pin_cpus=True)
+	config.jmeter_config.docker_config = docker.DockerConfig(ncpus=jmeter_cpus, memory=jmeter_mem,
+	                                                         pin_cpus=jmeter_pin_cpus)
 	config.jmeter_config.nthreads = jmeter_threads
 	return config
 
 
 def xxsmall_config(config, jmeter_threads, jmeter_cpus=1, jmeter_pin_cpus=False):
-	return update_config(config, "xxsmall", 0.5, "256m", jmeter_cpus, "4g",
-	                     jmeter_threads, jmeter_pin_cpus)
+	return update_config(config, "xxsmall", 0.5, "256m", jmeter_cpus, "4g", jmeter_threads, jmeter_pin_cpus)
 
 def xsmall_config(config, jmeter_threads, jmeter_cpus=1, jmeter_pin_cpus=False):
-	return update_config(config, "xsmall", 0.5, "512m", jmeter_cpus, "4g",
-	                     jmeter_threads, jmeter_pin_cpus)
+	return update_config(config, "xsmall", 0.5, "512m", jmeter_cpus, "4g", jmeter_threads, jmeter_pin_cpus)
 
 def small_config(config, jmeter_threads, jmeter_cpus=1, jmeter_pin_cpus=False):
-	return update_config(config, "small", 1, "1g", jmeter_cpus, "4g",
-	                     jmeter_threads, jmeter_pin_cpus)
+	return update_config(config, "small", 1, "1g", jmeter_cpus, "4g", jmeter_threads, jmeter_pin_cpus)
 
 def medium_config(config, jmeter_threads, jmeter_cpus=2, jmeter_pin_cpus=False):
-	return update_config(config, "medium", 2, "2g", jmeter_cpus, "4g",
-	                     jmeter_threads, jmeter_pin_cpus)
+	return update_config(config, "medium", 2, "2g", jmeter_cpus, "4g", jmeter_threads, jmeter_pin_cpus)
 
 def large_config(config, jmeter_threads, jmeter_cpus=4, jmeter_pin_cpus=False):
-	return update_config(config, "large", 4, "4g", jmeter_cpus, "4g",
-	                     jmeter_threads, jmeter_pin_cpus)
+	return update_config(config, "large", 4, "4g", jmeter_cpus, "4g", jmeter_threads, jmeter_pin_cpus)
 
 
 def cold_config(config, name=None):
@@ -956,16 +837,12 @@ def cold_config(config, name=None):
 	return config
 
 def warm_start_config(config, portable=False, name=None):
-	config = cold_config(
-		config, name or ("_warm_start" + ("_portable" if portable else ""))
-	)
+	config = cold_config(config, name or ("_warm_start" + ("_portable" if portable else "")))
 	config.jitserver_config.portable_scc = portable
 	config.application_config.populate_scc = True
 	return config
 
 def warm_full_config(config, portable=False):
-	config = warm_start_config(
-		config, portable, "_warm_full" + ("_portable" if portable else "")
-	)
+	config = warm_start_config(config, portable, "_warm_full" + ("_portable" if portable else ""))
 	config.application_config.populate_scc_run_jmeter = True
 	return config

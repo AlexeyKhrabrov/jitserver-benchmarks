@@ -38,9 +38,9 @@ configurations = ((
 )
 
 jmeter_durations = {
-	"acmeair": 6 * 60,# seconds
-	"daytrader": 15 * 60,# seconds
-	"petclinic": 3 * 60,# seconds
+	"acmeair": 4 * 60, # seconds
+	"daytrader": 10 * 60, # seconds
+	"petclinic": 2 * 60, # seconds
 }
 
 
@@ -66,9 +66,7 @@ def get_config(benchmark, local, ib, delay_us, jmeter, n_runs,
 	result = bench_cls[benchmark]().small_config(False)
 	result.name = "latency_{}_{}".format(
 		"full" if jmeter else "start",
-		"localjit" if localjit else "{}_{}_{}".format(
-			"tcp", "local" if local else ("ib" if ib else "eth"), delay_us
-		)
+		"localjit" if localjit else "{}_{}_{}".format("tcp", "local" if local else ("ib" if ib else "eth"), delay_us)
 	)
 
 	result.jitserver_config.server_extra_stats = True
@@ -105,35 +103,30 @@ def make_cluster(benchmark, local, ib, delay_us, jmeter, n_runs, hosts,
 		jitserver_hosts = [host0]
 
 	return shared.BenchmarkCluster(
-		get_config(benchmark, local, ib, delay_us, jmeter,
-		           n_runs, localjit, skip_complete_runs),
+		get_config(benchmark, local, ib, delay_us, jmeter, n_runs, localjit, skip_complete_runs),
 		bench_cls[benchmark](), jitserver_hosts=jitserver_hosts,
 		db_hosts=[host0], application_hosts=[host1], jmeter_hosts=[host0]
 	)
 
 def measure_latency(benchmark, local, ib, cluster, *, passwd=None):
-	path = os.path.join(remote.RemoteHost.logs_dir, benchmark,
-	                    cluster.config.name, "latency.log")
+	path = os.path.join(remote.RemoteHost.logs_dir, benchmark, cluster.config.name, "latency.log")
 	if cluster.config.skip_complete_runs and os.path.isfile(path):
 		return
 
-	latency = cluster.application_hosts[0].get_latency(
-		cluster.jitserver_hosts[0], use_internal_addr=local or ib, passwd=passwd
-	)
+	latency = cluster.application_hosts[0].get_latency(cluster.jitserver_hosts[0],
+	                                                   use_internal_addr=local or ib, passwd=passwd)
 
 	os.makedirs(os.path.dirname(path), exist_ok=True)
 	with open(path, "w") as f:
 		print("{}".format(latency), file=f)
 
 def measure_tcp_bandwidth(benchmark, local, ib, cluster, *, passwd=None):
-	path = os.path.join(remote.RemoteHost.logs_dir, benchmark,
-	                    cluster.config.name, "bandwidth.log")
+	path = os.path.join(remote.RemoteHost.logs_dir, benchmark, cluster.config.name, "bandwidth.log")
 	if cluster.config.skip_complete_runs and os.path.isfile(path):
 		return
 
-	bandwidth = cluster.application_hosts[0].get_tcp_bandwidth(
-		cluster.jitserver_hosts[0], use_internal_addr=local or ib
-	)
+	bandwidth = cluster.application_hosts[0].get_tcp_bandwidth(cluster.jitserver_hosts[0],
+	                                                           use_internal_addr=local or ib)
 
 	os.makedirs(os.path.dirname(path), exist_ok=True)
 	with open(path, "w") as f:
@@ -161,7 +154,7 @@ def main():
 	parser.add_argument("-d", "--details", action="store_true")
 	parser.add_argument("-S", "--stdin-passwd", action="store_true")
 	parser.add_argument("--single-legend", action="store_true")
-	parser.add_argument("--same-limits", action="store_true")# unused
+	parser.add_argument("--same-limits", action="store_true") # unused
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
@@ -171,9 +164,7 @@ def main():
 	bench = bench_cls[args.benchmark]()
 
 	if args.result is not None:
-		all_configs = list(
-			c for c in itertools.chain.from_iterable(configurations) if args.ib or not c[1]
-		)
+		all_configs = list(c for c in itertools.chain.from_iterable(configurations) if args.ib or not c[1])
 
 		if args.result >= 0:
 			c = all_configs[args.result]
@@ -193,10 +184,7 @@ def main():
 				if args.format is not None:
 					cmd.extend(("-f", args.format))
 
-				util.parallelize(
-					lambda i: util.run(cmd + ["-r", str(i)], check=True),
-					range(len(all_configs))
-				)
+				util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True), range(len(all_configs)))
 
 			results.LatencyAllExperimentsResult(
 				result_experiments, bench,
@@ -223,8 +211,7 @@ def main():
 
 	if args.cleanup:
 		c = configurations[args.subset][0]
-		cluster = make_cluster(args.benchmark, *c[:-1], args.jmeter,
-		                       args.n_runs, hosts, args.subset)
+		cluster = make_cluster(args.benchmark, *c[:-1], args.jmeter, args.n_runs, hosts, args.subset)
 		cluster.check_sudo_passwd(passwd)
 		cluster.full_cleanup(passwd=passwd)
 		cluster.application_hosts[0].reset_net_delay("eth0", passwd=passwd)
@@ -245,10 +232,8 @@ def main():
 		                       hosts, args.subset, False, args.skip_complete_runs)
 		cluster.check_sudo_passwd(passwd)
 
-		src = "../latency_{}_localjit/localjit".format("full" if args.jmeter
-		                                               else "start")
-		dst_dir = os.path.join(remote.RemoteHost.logs_dir, args.benchmark,
-		                       cluster.config.name)
+		src = "../latency_{}_localjit/localjit".format("full" if args.jmeter else "start")
+		dst_dir = os.path.join(remote.RemoteHost.logs_dir, args.benchmark, cluster.config.name)
 		os.makedirs(dst_dir, exist_ok=True)
 		dst = os.path.join(dst_dir, "localjit")
 		if not os.path.islink(dst):

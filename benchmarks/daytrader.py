@@ -11,8 +11,7 @@ class DayTraderHost(shared.BenchmarkHost):
 	def benchmark_prereqs(self, *, passwd=None):
 		super().benchmark_prereqs(passwd=passwd, exclude="docker-copyedit.py")
 
-	def benchmark_setup(self, db2_path=None, *,
-	                    build_db2=False, tune=False, **kwargs):
+	def benchmark_setup(self, db2_path=None, *, build_db2=False, tune=False, **kwargs):
 		args = []
 		if build_db2:
 			args.append("--db2")
@@ -31,11 +30,9 @@ class DayTraderHost(shared.BenchmarkHost):
 class DB2Instance(docker.ContainerInstance):
 	def __init__(self, config, host, benchmark, config_name, instance_id, *,
 	             reserve_cpus=True, collect_stats=False):
-		super().__init__(
-			host, "db2", benchmark, config_name, instance_id,
-			start_log_line="The ACTIVATE DATABASE command completed successfully",
-			reserve_cpus=reserve_cpus, collect_stats=collect_stats
-		)
+		super().__init__(host, "db2", benchmark, config_name, instance_id,
+		                 start_log_line="The ACTIVATE DATABASE command completed successfully",
+		                 reserve_cpus=reserve_cpus, collect_stats=collect_stats)
 		self.config = config
 		self.reserved_cpus = self.get_reserved_cpus(config.docker_config)
 
@@ -43,12 +40,10 @@ class DB2Instance(docker.ContainerInstance):
 		return 50000 + self.instance_id
 
 	def start(self, experiment, run_id, attempt_id):
-		cmd = [
-			"daytrader/run_db2.sh", str(self.instance_id)
-		] + self.config.docker_config.docker_args(self.host, self.reserved_cpus)
+		cmd = (["daytrader/run_db2.sh", str(self.instance_id)] +
+		       self.config.docker_config.docker_args(self.host, self.reserved_cpus))
 
-		super().start(cmd, experiment.name.lower(), run_id, attempt_id,
-		              timeout=30.0)
+		super().start(cmd, experiment.name.lower(), run_id, attempt_id, timeout=30.0)
 
 
 class DayTrader(liberty.Liberty):
@@ -70,8 +65,8 @@ class DayTrader(liberty.Liberty):
 		result.application_config.jvm_config = openj9.JVMConfig(
 			scc_size="192m",
 		)
-		result.application_config.start_timeout = 2 * 60.0# seconds
-		result.application_config.stop_timeout = 20.0# seconds
+		result.application_config.start_timeout = 2 * 60.0 # seconds
+		result.application_config.stop_timeout = 20.0 # seconds
 		result.application_config.stop_attempts = 6
 		return result
 

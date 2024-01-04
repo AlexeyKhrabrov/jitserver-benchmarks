@@ -44,8 +44,7 @@ class RemoteProcess:
 	def wait(self, *, check=False, timeout=None, kill_remote_on_timeout=False,
 	         try_terminate=False, term_timeout=None, term_attempts=None):
 		try:
-			return util.wait(self.ssh_proc, check=check, timeout=timeout,
-			                 kill_on_timeout=False)
+			return util.wait(self.ssh_proc, check=check, timeout=timeout, kill_on_timeout=False)
 
 		except subprocess.TimeoutExpired:
 			if kill_remote_on_timeout:
@@ -55,8 +54,7 @@ class RemoteProcess:
 					for i in range(term_attempts):
 						self.kill(signal.SIGTERM)
 						try:
-							util.wait(self.ssh_proc, timeout=term_timeout,
-							          kill_on_timeout=False)
+							util.wait(self.ssh_proc, timeout=term_timeout, kill_on_timeout=False)
 						except subprocess.TimeoutExpired:
 							if i == term_attempts - 1:
 								self.kill(signal.SIGKILL)
@@ -70,17 +68,14 @@ class RemoteProcess:
 			util.wait(self.ssh_proc)
 			raise
 
-	def stop(self, sig, *, check=False, timeout=None, attempts=None,
-	         kill_remote_on_timeout=False):
+	def stop(self, sig, *, check=False, timeout=None, attempts=None, kill_remote_on_timeout=False):
 		attempts = attempts or 1
 		for i in range(attempts):
 			self.kill(sig)
 
 			try:
-				return util.wait(
-					self.ssh_proc, check=check, expect_ret=128 + sig.value,
-					timeout=timeout, kill_on_timeout=False
-				)
+				return util.wait(self.ssh_proc, check=check, expect_ret=128 + sig.value,
+				                 timeout=timeout, kill_on_timeout=False)
 
 			except subprocess.TimeoutExpired:
 				if i == attempts - 1:
@@ -95,8 +90,7 @@ class RemoteProcess:
 
 
 class RemoteHost:
-	def __init__(self, addr, user=None, internal_addr=None,
-	             directory=None, use_storage=False):
+	def __init__(self, addr, user=None, internal_addr=None, directory=None, use_storage=False):
 		self.addr = addr
 		self.user = user
 		self.internal_addr = internal_addr or addr
@@ -120,19 +114,15 @@ class RemoteHost:
 		cmd = []
 		if passwd is not None:
 			cmd.append("sshpass")
-		cmd.extend(("ssh-copy-id", "-o", "StrictHostKeyChecking=accept-new",
-		            self.host()))
+		cmd.extend(("ssh-copy-id", "-o", "StrictHostKeyChecking=accept-new", self.host()))
 
 		input_bytes = passwd.encode() if passwd is not None else None
-		util.run(cmd, input=input_bytes, check=True,
-		         output=self.log_path("ssh_setup"))
+		util.run(cmd, input=input_bytes, check=True, output=self.log_path("ssh_setup"))
 
 	def get_path(self, path):
 		return os.path.join(self.directory or "", path or "")
 
-	shell_operators = (
-		"|", "|&", ";", "&", "!", "&&", "||", "(", ")", ">", ">>", "&>", "&>>"
-	)
+	shell_operators = ("|", "|&", ";", "&", "!", "&&", "||", "(", ")", ">", ">>", "&>", "&>>")
 
 	@classmethod
 	def has_operators(cls, cmd):
@@ -152,8 +142,7 @@ class RemoteHost:
 
 		if env:
 			c.append("export")
-			c.extend("{}={}".format(k, shlex.quote(str(v)))
-			         for k, v in env.items())
+			c.extend("{}={}".format(k, shlex.quote(str(v))) for k, v in env.items())
 			c.append("&&")
 
 		operators = self.has_operators(cmd)
@@ -162,8 +151,7 @@ class RemoteHost:
 		else:
 			c.append("exec")
 
-		c.extend((s if (s in self.shell_operators) or (globs and ('*' in s))
-		          else shlex.quote(s)) for s in cmd)
+		c.extend((s if (s in self.shell_operators) or (globs and ('*' in s)) else shlex.quote(s)) for s in cmd)
 
 		if operators:
 			c.append(")")
@@ -174,15 +162,12 @@ class RemoteHost:
 
 	def run(self, cmd, *, tty=False, remote_cwd=None, env=None, globs=False,
 	        remote_output=None, remote_append=False, **kwargs):
-		c = self.ssh_cmd(cmd, tty, False, remote_cwd, env, globs,
-		                 remote_output, remote_append)
+		c = self.ssh_cmd(cmd, tty, False, remote_cwd, env, globs, remote_output, remote_append)
 		return util.run(c, **kwargs)
 
-	def start(self, cmd, *, tty=False, remote_cwd=None, env=None, globs=False,
-	          remote_output=None, remote_append=False, output=None, append=False,
-	          attempts=100, sleep_time=0.001, **kwargs):
-		c = self.ssh_cmd(cmd, tty, True, remote_cwd, env, globs,
-		                 remote_output, remote_append)
+	def start(self, cmd, *, tty=False, remote_cwd=None, env=None, globs=False, remote_output=None,
+	          remote_append=False, output=None, append=False, attempts=100, sleep_time=0.001, **kwargs):
+		c = self.ssh_cmd(cmd, tty, True, remote_cwd, env, globs, remote_output, remote_append)
 
 		if output is None:
 			proc = util.start(c, universal_newlines=True, **kwargs)
@@ -191,15 +176,14 @@ class RemoteHost:
 		proc = util.start(c, output=output, append=append, **kwargs)
 		# Wait until the remote shell executing the command outputs its pid
 		with open(output, "r") as f:
-			line = util.retry_loop(lambda: f.readline or None,
-			                       attempts, sleep_time)
+			line = util.retry_loop(lambda: f.readline or None, attempts, sleep_time)
 			if not line:
 				raise Exception("Failed to start {} on {}".format(cmd, self.addr))
 			return RemoteProcess(self, proc, int(line.strip()))
 
 	#NOTE: cannot use shell operators or env vars
 	def run_sudo(self, cmd, *, passwd=None, universal_newlines=False, **kwargs):
-		assert(not self.has_operators(cmd) and "env" not in kwargs)
+		assert not self.has_operators(cmd) and "env" not in kwargs
 
 		c = ["sudo"]
 		if passwd is not None:
@@ -208,15 +192,13 @@ class RemoteHost:
 
 		p = (passwd + "\n\n") if passwd is not None else None
 		input_bytes = p if universal_newlines or (p is None) else p.encode()
-		return self.run(c, tty=passwd is None, input=input_bytes,
-		                universal_newlines=universal_newlines, **kwargs)
+		return self.run(c, tty=passwd is None, input=input_bytes, universal_newlines=universal_newlines, **kwargs)
 
 	def check_sudo_passwd(self, passwd):
 		self.run_sudo(["true"], passwd=passwd, check=True)
 
 	@staticmethod
-	def rsync_cmd(exclude=None, delete_excluded=False, keep_perms=False,
-	              keep_executable=True):
+	def rsync_cmd(exclude=None, delete_excluded=False, keep_perms=False, keep_executable=True):
 		cmd = ["rsync", "-lrt", "--delete"]
 		if keep_perms:
 			cmd.append("-p")
@@ -264,8 +246,7 @@ class RemoteHost:
 
 	def get_output(self, cmd, *, sudo=False, passwd=None, check=True):
 		if sudo:
-			result = self.run_sudo(cmd, passwd=passwd, check=check,
-			                       universal_newlines=True)
+			result = self.run_sudo(cmd, passwd=passwd, check=check, universal_newlines=True)
 		else:
 			result = self.run(cmd, check=check, universal_newlines=True)
 
@@ -296,26 +277,22 @@ class RemoteHost:
 
 	def storage_setup(self, storage_addr, persist=True, *, passwd=None):
 		cmd = ["mount", storage_addr, self.storage_root]
-		self.run_sudo(cmd, passwd=passwd, check=True,
-		              output=self.log_path("storage_setup"))
+		self.run_sudo(cmd, passwd=passwd, check=True, output=self.log_path("storage_setup"))
 
 		if persist:
 			path = "/etc/fstab"
-			line = "{} {} nfs defaults,nofail 0 0".format(
-			       storage_addr, self.storage_root)
+			line = "{} {} nfs defaults,nofail 0 0".format(storage_addr, self.storage_root)
 
 			cmd = ["grep", "-F", "-m", "1", "-q", line, path]
 			if self.run(cmd).returncode != 0:
 				cmd = ["bash", "-c", "echo {} >> {}".format(line, path)]
-				self.run_sudo(cmd, passwd=passwd, check=True,
-				              output=self.log_path("storage_setup"), append=True)
+				self.run_sudo(cmd, passwd=passwd, check=True, output=self.log_path("storage_setup"), append=True)
 
 	def storage_path(self, path):
 		return os.path.join(self.storage_root, path)
 
 	#NOTE: when storing a directory, both src_path and dst_path must end with /
-	def store(self, src_path, dst_path, *,
-	          delete_orig=False, keep_perms=False, check=True):
+	def store(self, src_path, dst_path, *, delete_orig=False, keep_perms=False, check=True):
 		if self.use_storage:
 			src = src_path + "." if src_path[-1] == '/' else src_path
 			dst = self.storage_path(dst_path)
@@ -340,8 +317,7 @@ class RemoteHost:
 		if self.use_storage:
 			src = self.storage_path(src_path)
 			dst = self.storage_path(dst_path)
-			self.run(["mkdir", "-p", os.path.dirname(dst), "&&",
-			          "rm", "-rf", dst, "&&", "mv", src, dst], check=True)
+			self.run(["mkdir", "-p", os.path.dirname(dst), "&&", "rm", "-rf", dst, "&&", "mv", src, dst], check=True)
 		else:
 			src = self.local_output_path(src_path)
 			dst = self.local_output_path(dst_path)
@@ -355,8 +331,7 @@ class RemoteHost:
 		self.run(cmd, check=True)
 
 	# Returns RTT in microseconds
-	def get_latency(self, host, *, use_internal_addr=False,
-	                count=1000, interval=0.001, passwd=None):
+	def get_latency(self, host, *, use_internal_addr=False, count=1000, interval=0.001, passwd=None):
 		addr = host.internal_addr if use_internal_addr else host.addr
 		cmd = ["ping", "-c", str(count), "-i", str(interval), "-q", addr]
 		s = self.get_output(cmd, sudo=(interval < 0.2), passwd=passwd)
@@ -373,8 +348,7 @@ class RemoteHost:
 			proc.stop(signal.SIGINT, timeout=1.0, kill_remote_on_timeout=True)
 
 	def set_net_delay(self, dev, delay_us, *, passwd=None):
-		cmd = ["tc", "qdisc", "add", "dev", dev, "root",
-		       "netem", "delay", "{}us".format(delay_us)]
+		cmd = ["tc", "qdisc", "add", "dev", dev, "root", "netem", "delay", "{}us".format(delay_us)]
 		self.run_sudo(cmd, passwd=passwd, check=True)
 
 	def reset_net_delay(self, dev, *, check=False, passwd=None):
@@ -417,21 +391,18 @@ class RemoteCluster:
 		        else [fn(h, *args, **kwargs) for h in self.hosts])
 
 	def ssh_setup(self, *, passwd=None):
-		self.for_each(RemoteHost.ssh_setup, passwd=passwd,
-		              parallel=passwd is not None)
+		self.for_each(RemoteHost.ssh_setup, passwd=passwd, parallel=passwd is not None)
 
 	def check_sudo_passwd(self, passwd):
 		self.for_each(RemoteHost.check_sudo_passwd, passwd, parallel=True)
 
 	def storage_setup(self, storage_addr, *, passwd=None):
-		self.for_each(RemoteHost.storage_setup, storage_addr,
-		              passwd=passwd, parallel=passwd is not None)
+		self.for_each(RemoteHost.storage_setup, storage_addr, passwd=passwd, parallel=passwd is not None)
 
 
 class ServerInstance:
-	def __init__(self, host, name, benchmark, config_name, instance_id, *,
-	             start_log_line=None, error_log_line=None, stop_signal=None,
-	             reserve_cpus=True, collect_stats=False):
+	def __init__(self, host, name, benchmark, config_name, instance_id, *, start_log_line=None,
+	             error_log_line=None, stop_signal=None, reserve_cpus=True, collect_stats=False):
 		self.host = host
 		self.name = name
 		self.benchmark = benchmark
@@ -439,8 +410,7 @@ class ServerInstance:
 		self.instance_id = instance_id
 		self.start_log_line = start_log_line
 		self.error_log_line = error_log_line
-		self.stop_signal = (stop_signal if stop_signal is not None
-		                    else signal.SIGINT)
+		self.stop_signal = stop_signal if stop_signal is not None else signal.SIGINT
 		self.reserve_cpus = reserve_cpus
 		self.collect_stats = collect_stats
 		self.experiment = None
@@ -469,33 +439,23 @@ class ServerInstance:
 		cmd = []
 		if timeout is not None:
 			cmd.extend(("timeout", str(timeout)))
-		cmd.extend(("tail", "-F", "-n", "+1", self.log_path(), "|",
-		            "grep", "-F", "-m", "1", "-q", self.start_log_line))
+		cmd.extend(("tail", "-F", "-n", "+1", self.log_path(), "|", "grep", "-F", "-m", "1", "-q", self.start_log_line))
 
 		result = self.host.run(cmd)
 		if result.returncode != 0:
-			raise Exception(
-				"Failed to start {} instance {} on {}:\nstdout: {}\nstderr: {}".format(
-					self.name, self.instance_id, self.host.addr,
-					result.stdout, result.stderr
-				))
+			raise Exception("Failed to start {} instance {} on {}:\nstdout: {}\nstderr: {}".format(
+			                self.name, self.instance_id, self.host.addr, result.stdout, result.stderr))
 
 		if self.error_log_line is not None:
-			cmd = ["grep", "-F", "-m", "1", "-q",
-			       self.error_log_line, self.log_path()]
+			cmd = ["grep", "-F", "-m", "1", "-q", self.error_log_line, self.log_path()]
 			if self.host.run(cmd).returncode == 0:
 				raise Exception("{} instance {} on {} started with errors".format(
-					self.name, self.instance_id, self.host.addr
-				))
+				                self.name, self.instance_id, self.host.addr))
 
-	def kill(self, *, sig=None, check=False, timeout=None,
-	         attempts=None, kill_remote_on_timeout=False):
+	def kill(self, *, sig=None, check=False, timeout=None, attempts=None, kill_remote_on_timeout=False):
 		if self.remote_proc is not None:
-			self.remote_proc.stop(
-				sig if sig is not None else self.stop_signal,
-				check=check, timeout=timeout, attempts=attempts,
-				kill_remote_on_timeout=kill_remote_on_timeout
-			)
+			self.remote_proc.stop(sig if sig is not None else self.stop_signal, check=check, timeout=timeout,
+			                      attempts=attempts, kill_remote_on_timeout=kill_remote_on_timeout)
 			self.remote_proc = None
 
 	def cleanup(self):
@@ -519,8 +479,7 @@ class ServerInstance:
 
 	def start_stats_proc(self):
 		#NOTE: 0.5s update period to match docker stats; 1st update at ~0.5s
-		cmd = ["top", "-b", "-p", str(self.get_remote_pid()),
-		       "-d", "0.5", "|", "sed", "-n", "-u", "7p;8~9p"]
+		cmd = ["top", "-b", "-p", str(self.get_remote_pid()), "-d", "0.5", "|", "sed", "-n", "-u", "7p;8~9p"]
 		self.stats_proc = self.host.start(
 			cmd, remote_output=self.output_path("stats.log")
 		)
@@ -538,14 +497,11 @@ class ServerInstance:
 		util.print_exception()
 		return True
 
-	def start(self, cmd, experiment, run_id, attempt_id, *,
-	          env=None, timeout=None, raise_on_failure=True):
+	def start(self, cmd, experiment, run_id, attempt_id, *, env=None, timeout=None, raise_on_failure=True):
 		self.init(experiment, run_id, attempt_id)
-		print("Starting {} instance {} on {}...".format(
-		      self.name, self.instance_id, self.host.addr))
+		print("Starting {} instance {} on {}...".format(self.name, self.instance_id, self.host.addr))
 
-		self.remote_proc = self.host.start(cmd, env=env,
-		                                   remote_output=self.log_path())
+		self.remote_proc = self.host.start(cmd, env=env, remote_output=self.log_path())
 		if self.collect_stats:
 			self.start_stats_proc()
 
@@ -570,14 +526,12 @@ class ServerInstance:
 			return None
 
 	@staticmethod
-	def result_dir(benchmark, config_name, experiment, run_id,
-	               attempt_id, run_success, prefix=None):
+	def result_dir(benchmark, config_name, experiment, run_id, attempt_id, run_success, prefix=None):
 		prefix = (prefix + "_") if prefix else ""
 		if run_success:
 			run_name = "{}run_{}".format(prefix, run_id)
 		else:
-			run_name = "failed_{}run_{}_attempt_{}".format(prefix, run_id,
-			                                               attempt_id)
+			run_name = "failed_{}run_{}_attempt_{}".format(prefix, run_id, attempt_id)
 		return os.path.join(benchmark, config_name, experiment, run_name)
 
 	def result_path(self, success, prefix=None, invocation_attempt=None):
@@ -585,20 +539,15 @@ class ServerInstance:
 			self.result_dir(self.benchmark, self.config_name, self.experiment,
 			                self.run_id, self.attempt_id, True, prefix),
 			("" if success else "failed_") + self.get_name() +
-			("" if success or (invocation_attempt is None)
-			 else "_attempt_{}".format(invocation_attempt))
+			("" if success or (invocation_attempt is None) else "_attempt_{}".format(invocation_attempt))
 		)
 
 	def store_output(self, success, prefix=None, invocation_attempt=None):
-		self.host.store(
-			self.output_dir() + "/",
-			self.result_path(success, prefix, invocation_attempt) + "/",
-			delete_orig=True, check=True
-		)
+		self.host.store(self.output_dir() + "/", self.result_path(success, prefix, invocation_attempt) + "/",
+		                delete_orig=True, check=True)
 
 	@staticmethod
-	def rename_failed_run(host, benchmark, config_name, experiment,
-	                      run_id, attempt_id, prefix=None):
+	def rename_failed_run(host, benchmark, config_name, experiment, run_id, attempt_id, prefix=None):
 		args = (benchmark, config_name, experiment, run_id, attempt_id)
 		src = ServerInstance.result_dir(*args, True, prefix)
 		dst = ServerInstance.result_dir(*args, False, prefix)
@@ -606,8 +555,7 @@ class ServerInstance:
 
 	def wait(self, *, store=True, timeout=None, raise_on_failure=True,
 	         kill_remote_on_timeout=False, prefix=None, invocation_attempt=None):
-		print("Waiting for {} instance {} on {}...".format(
-		      self.name, self.instance_id, self.host.addr))
+		print("Waiting for {} instance {} on {}...".format(self.name, self.instance_id, self.host.addr))
 
 		try:
 			t0 = time.monotonic()
@@ -630,17 +578,14 @@ class ServerInstance:
 			self.store_output(exc is None, prefix, invocation_attempt)
 		return exc
 
-	def stop(self, *, store=True, timeout=None, attempts=None,
-	         raise_on_failure=True, kill_remote_on_timeout=False,
-	         prefix=None, invocation_attempt=None):
+	def stop(self, *, store=True, timeout=None, attempts=None, raise_on_failure=True,
+	         kill_remote_on_timeout=False, prefix=None, invocation_attempt=None):
 		self.start_time = None
-		print("Stopping {} instance {} on {}...".format(
-		      self.name, self.instance_id, self.host.addr))
+		print("Stopping {} instance {} on {}...".format(self.name, self.instance_id, self.host.addr))
 
 		try:
 			t0 = time.monotonic()
-			self.kill(check=True, timeout=timeout, attempts=attempts,
-			          kill_remote_on_timeout=kill_remote_on_timeout)
+			self.kill(check=True, timeout=timeout, attempts=attempts, kill_remote_on_timeout=kill_remote_on_timeout)
 			t1 = time.monotonic()
 
 			print("Stopped {} instance {} on {} in {:.2f} seconds".format(
@@ -659,19 +604,14 @@ class ServerInstance:
 			self.store_output(exc is None, prefix, invocation_attempt)
 		return exc
 
-	def run(
-		self, cmd, experiment, run_id, attempt_id, *, env=None, store=True,
-		timeout=None, raise_on_failure=True, prefix=None, invocation_attempt=None
-	):
+	def run(self, cmd, experiment, run_id, attempt_id, *, env=None, store=True,
+	        timeout=None, raise_on_failure=True, prefix=None, invocation_attempt=None):
 		self.init(experiment, run_id, attempt_id)
-		print("Running {} instance {} on {}...".format(
-		      self.name, self.instance_id, self.host.addr))
+		print("Running {} instance {} on {}...".format(self.name, self.instance_id, self.host.addr))
 
 		try:
-			self.host.run(cmd, env=env, remote_output=self.log_path(),
-			              timeout=timeout, check=True)
-			print("Finished {} instance {} on {}".format(
-			      self.name, self.instance_id, self.host.addr))
+			self.host.run(cmd, env=env, remote_output=self.log_path(), timeout=timeout, check=True)
+			print("Finished {} instance {} on {}".format(self.name, self.instance_id, self.host.addr))
 			exc = None
 
 		except Exception as e:
@@ -691,15 +631,12 @@ class ServerInstance:
 			self.host.run(cmd, globs=True)
 
 		if keep_patterns:
-			dst_path = os.path.join(
-				self.benchmark, "crash_{}_{}_run_{}_attempt_{}_{}_{}".format(
-					self.config_name, self.experiment, self.run_id,
-					self.attempt_id, self.name, self.instance_id
-				)
-			)
+			dst_path = os.path.join(self.benchmark, "crash_{}_{}_run_{}_attempt_{}_{}_{}".format(
+			                        self.config_name, self.experiment, self.run_id,
+			                        self.attempt_id, self.name, self.instance_id))
 
 			cmd = ["mkdir", "-p", dst_path, "&&", "("]
 			for p in keep_patterns:
 				cmd.extend(("mv", os.path.join(src_path, p), dst_path, ";"))
-			cmd.extend((")", ";", "rmdir", dst_path))# remove directory if empty
+			cmd.extend((")", ";", "rmdir", dst_path)) # remove directory if empty
 			self.host.run(cmd, globs=True)

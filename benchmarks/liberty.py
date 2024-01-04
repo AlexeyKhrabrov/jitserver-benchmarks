@@ -21,7 +21,5 @@ class Liberty:
 	@staticmethod
 	def parse_start_stop_ts(line):
 		#[0/00/00 00:00:00:000 GMT] ...
-		return datetime.datetime.strptime(
-			" ".join(line[1:].split(maxsplit=2)[:-1]) + "000",
-			"%m/%d/%y %H:%M:%S:%f"
-		).replace(tzinfo=datetime.timezone.utc)
+		return datetime.datetime.strptime(" ".join(line[1:].split(maxsplit=2)[:-1]) + "000",
+		                                  "%m/%d/%y %H:%M:%S:%f").replace(tzinfo=datetime.timezone.utc)

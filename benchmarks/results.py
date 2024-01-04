@@ -36,8 +36,7 @@ import util
 #TODO: factor out common code
 
 
-def logs_path(benchmark, config, experiment=None,
-              instance_id=None, run_id=None, component=None):
+def logs_path(benchmark, config, experiment=None, instance_id=None, run_id=None, component=None):
 	return os.path.join(
 		remote.RemoteHost.logs_dir, benchmark, config.name,
 		experiment.name.lower() if experiment is not None else "",
@@ -47,8 +46,7 @@ def logs_path(benchmark, config, experiment=None,
 
 results_dir = "results"
 
-def results_path(benchmark, config=None, experiment=None,
-                 instance_id=None, run_id=None, component=None):
+def results_path(benchmark, config=None, experiment=None, instance_id=None, run_id=None, component=None):
 	return os.path.join(
 		results_dir, benchmark or "", config.name if config is not None else "",
 		experiment.name.lower() if experiment is not None else "",
@@ -79,11 +77,9 @@ class ProcessStats:
 	def parse(line):
 		# PID USER PR NI VIRT RES SHR S %CPU %MEM TIME+ COMMAND
 		s = line.split(maxsplit=9)
-		return (float(s[8]),
-		        util.size_to_bytes(s[5], 'k', float) / (1024 * 1024))
+		return (float(s[8]), util.size_to_bytes(s[5], 'k', float) / (1024 * 1024))
 
-	def __init__(self, *args, file_name="stats.log",
-	             period=0.5, start=1, skip_lines=1):
+	def __init__(self, *args, file_name="stats.log", period=0.5, start=1, skip_lines=1):
 		self.id = args
 
 		self.period = period
@@ -115,14 +111,10 @@ class ProcessStats:
 		save_plot(ax, "{}_{}".format(name, self.kind()), *self.id)
 
 	def save_cpu_plot(self):
-		self.save_plot(self.cpu_df().plot(
-			legend=False, xlim=(0, None), ylim=(0, None)
-		), "cpu", "CPU usage, %")
+		self.save_plot(self.cpu_df().plot(legend=False, xlim=(0, None), ylim=(0, None)), "cpu", "CPU usage, %")
 
 	def save_mem_plot(self):
-		self.save_plot(self.mem_df().plot(
-			legend=False, xlim=(0, None), ylim=(0, None)
-		), "mem", "Memory usage, MB")
+		self.save_plot(self.mem_df().plot(legend=False, xlim=(0, None), ylim=(0, None)), "mem", "Memory usage, MB")
 
 	def save_plots(self):
 		self.save_cpu_plot()
@@ -137,12 +129,10 @@ class ContainerStats(ProcessStats):
 	def parse(line):
 		# 0.0% 0.0MiB / 0GiB
 		s = line.split(maxsplit=2)
-		return (float(s[0][:-1]),
-		        util.size_to_bytes(s[1][:-2], 'b', float) / (1024 * 1024))
+		return (float(s[0][:-1]), util.size_to_bytes(s[1][:-2], 'b', float) / (1024 * 1024))
 
 	def __init__(self, *args):
-		super().__init__(*args, file_name="docker_stats.log",
-		                 period=0.5, start=3, skip_lines=0)
+		super().__init__(*args, file_name="docker_stats.log", period=0.5, start=3, skip_lines=0)
 
 
 def parse_first_token(val, line, prefix, parse_fn, use_last=False):
@@ -165,22 +155,16 @@ class ProcessRUsage:
 		path = os.path.join(logs_path(*args), file_name)
 		with open(path, "r") as f:
 			for line in f:
-				self.user_time, parsed = parse_first_token(
-					self.user_time, line, "User time (seconds):",
-					float, use_last
-				)
+				self.user_time, parsed = parse_first_token(self.user_time, line, "User time (seconds):",
+				                                           float, use_last)
 				if parsed: continue
 
-				self.kernel_time, parsed = parse_first_token(
-					self.kernel_time, line, "System time (seconds):",
-					float, use_last
-				)
+				self.kernel_time, parsed = parse_first_token(self.kernel_time, line, "System time (seconds):",
+				                                             float, use_last)
 				if parsed: continue
 
-				self.peak_mem, parsed = parse_first_token(
-					self.peak_mem, line, "Maximum resident set size (kbytes):",
-					lambda s: float(s) / 1024, use_last
-				)
+				self.peak_mem, parsed = parse_first_token(self.peak_mem, line, "Maximum resident set size (kbytes):",
+				                                          lambda s: float(s) / 1024, use_last)
 
 		if not self.is_valid():
 			raise Exception("Failed to parse rusage in {}".format(path))
@@ -260,9 +244,7 @@ class VLog:
 class ApplicationOutput:
 	@staticmethod
 	def parse_log_ts(s):
-		return datetime.datetime.strptime(
-			s[:-3], "%Y-%m-%dT%H:%M:%S.%f"
-		).replace(tzinfo=datetime.timezone.utc)
+		return datetime.datetime.strptime(s[:-3], "%Y-%m-%dT%H:%M:%S.%f").replace(tzinfo=datetime.timezone.utc)
 
 	def __init__(self, bench, *args):
 		self.benchmark = bench.name()
@@ -443,9 +425,8 @@ class JITServerOutput:
 		path = os.path.join(logs_path(*self.id), "jitserver.log")
 		with open(path, "r") as f:
 			for line in f:
-				self.bytes_recv, parsed = parse_first_token(
-					self.bytes_recv, line, "Total amount of data received: ", int
-				)
+				self.bytes_recv, parsed = parse_first_token(self.bytes_recv, line,
+				                                            "Total amount of data received: ", int)
 				if parsed: break
 
 		self.bytes_recv = self.bytes_recv or 0
@@ -487,8 +468,7 @@ def mean(data):
 	return statistics.mean(d for d in data if d is not None)
 
 def stdev(data):
-	return (statistics.stdev(d for d in data if d is not None)
-	        if len(data) > 1 else 0.0)
+	return statistics.stdev(d for d in data if d is not None) if len(data) > 1 else 0.0
 
 def rel_change(x, x_ref):
 	return ((x - x_ref) / x_ref) if x_ref else 0.0
@@ -498,12 +478,10 @@ def rel_change_p(x, x_ref):
 
 
 def get_list(results, field, in_values=False):
-	return [(r.values[field] if in_values else getattr(r, field))
-	        if r is not None else None for r in results]
+	return [(r.values[field] if in_values else getattr(r, field)) if r is not None else None for r in results]
 
 def get_totals(results, field, in_values=False):
-	return [sum(get_list((r[run_id] for r in results), field, in_values))
-	        for run_id in range(len(results[0]))]
+	return [sum(get_list((r[run_id] for r in results), field, in_values)) for run_id in range(len(results[0]))]
 
 
 def add_mean_stdev(result, results, field, in_values=False):
@@ -528,16 +506,11 @@ def add_min_max_lists(result, results, field, in_values=False):
 
 # results: [[[RunResult for all runs] for all instances] for all experiments]
 def add_total_mean_stdev_lists(result, results, field, in_values=False):
-	vals = [get_totals(r, field, in_values)
-	        if r is not None else None for r in results]
-	result.values["total_{}_means".format(field)] = [
-		mean(vals[i]) if results[i] is not None else None
-		for i in range(len(results))
-	]
-	result.values["total_{}_stdevs".format(field)] = [
-		stdev(vals[i]) if results[i] is not None else None
-		for i in range(len(results))
-	]
+	vals = [get_totals(r, field, in_values) if r is not None else None for r in results]
+	result.values["total_{}_means".format(field)] = [mean(vals[i]) if results[i] is not None else None
+	                                                 for i in range(len(results))]
+	result.values["total_{}_stdevs".format(field)] = [stdev(vals[i]) if results[i] is not None else None
+	                                                  for i in range(len(results))]
 	return vals
 
 
@@ -644,15 +617,11 @@ class ApplicationRunResult:
 	def plot_run_throughput(self, ax):
 		c = "C{}".format(self.actual_experiment.value)
 
-		self.throughput_df().plot(
-			ax=ax, color=c, marker=experiment_markers[self.actual_experiment],
-			markevery=throughput_marker_interval
-		)
+		self.throughput_df().plot(ax=ax, color=c, marker=experiment_markers[self.actual_experiment],
+		                          markevery=throughput_marker_interval)
 
-		ax.hlines(self.peak_throughput, 0, 1, transform=ax.get_yaxis_transform(),
-		          colors=c)
-		ax.vlines(self.warmup_time, 0, 1, transform=ax.get_xaxis_transform(),
-		          colors=c)
+		ax.hlines(self.peak_throughput, 0, 1, transform=ax.get_yaxis_transform(), colors=c)
+		ax.vlines(self.warmup_time, 0, 1, transform=ax.get_xaxis_transform(), colors=c)
 
 	def save_stats_plots(self):
 		self.application_output.process_stats().save_plots()
@@ -673,7 +642,7 @@ class JITServerRunResult:
 		self.jit_cpu_time = self.cpu_time
 		self.jitserver_mem = self.peak_mem
 		self.jitserver_cpu = self.cpu_time
-		self.data_transferred = self.jitserver_output.bytes_recv / (1024 * 1024)# MB
+		self.data_transferred = self.jitserver_output.bytes_recv / (1024 * 1024) # MB
 
 	def save_stats_plots(self):
 		self.jitserver_output.process_stats().save_plots()
@@ -722,17 +691,14 @@ vlog_cdf_fields = (
 
 
 class ApplicationInstanceResult:
-	def __init__(self, bench, config, experiment, instance_id,
-	             actual_experiment=None, **kwargs):
+	def __init__(self, bench, config, experiment, instance_id, actual_experiment=None, **kwargs):
 		self.config = config
 		self.experiment = experiment
 		self.actual_experiment = actual_experiment or experiment
 
-		self.results = [
-			ApplicationRunResult(bench, config, experiment, instance_id, r,
-			                     actual_experiment=actual_experiment, **kwargs)
-			for r in range(config.n_runs)
-		]
+		self.results = [ApplicationRunResult(bench, config, experiment, instance_id, r,
+		                                     actual_experiment=actual_experiment, **kwargs)
+		                for r in range(config.n_runs)]
 
 		self.values = {}
 		for f in result_fields(config):
@@ -749,9 +715,7 @@ class ApplicationInstanceResult:
 		                    columns=[experiment_names[self.actual_experiment]])
 
 	def avg_throughput_df_groups(self):
-		return pd.concat(
-			self.aligned_throughput_df(r) for r in range(self.config.n_runs)
-		).groupby(level=0)
+		return pd.concat(self.aligned_throughput_df(r) for r in range(self.config.n_runs)).groupby(level=0)
 
 	def plot_peak_throughput_warmup_time(self, ax):
 		c = "C{}".format(self.actual_experiment.value)
@@ -769,10 +733,8 @@ class ApplicationInstanceResult:
 	def plot_all_throughput(self, ax):
 		for r in range(self.config.n_runs):
 			self.results[r].throughput_df().plot(
-				ax=ax, color="C{}".format(self.actual_experiment.value),
-				alpha=throughput_alpha, legend=False,
-				marker=experiment_markers[self.actual_experiment],
-				markevery=throughput_marker_interval
+				ax=ax, color="C{}".format(self.actual_experiment.value), alpha=throughput_alpha, legend=False,
+				marker=experiment_markers[self.actual_experiment], markevery=throughput_marker_interval
 			)
 
 		self.plot_peak_throughput_warmup_time(ax)
@@ -787,8 +749,7 @@ class ApplicationInstanceResult:
 		          marker=experiment_markers[self.actual_experiment])
 
 		name = experiment_names[self.actual_experiment]
-		ax.fill_between(x_df.index, (x_df - yerr_df)[name],
-		                (x_df + yerr_df)[name], color=c, alpha=throughput_alpha)
+		ax.fill_between(x_df.index, (x_df - yerr_df)[name], (x_df + yerr_df)[name], color=c, alpha=throughput_alpha)
 
 		self.plot_peak_throughput_warmup_time(ax)
 
@@ -802,19 +763,16 @@ class ApplicationInstanceResult:
 		if cut is not None:
 			s = s[:math.floor(len(s) * cut)]
 		e = self.actual_experiment.cdf_report_experiment()
-		df = pd.DataFrame(np.linspace(0.0, 1.0, len(s)), index=s,
-		                  columns=[experiment_names[e]])
+		df = pd.DataFrame(np.linspace(0.0, 1.0, len(s)), index=s, columns=[experiment_names[e]])
 		df.plot(ax=ax, logx=log, legend=False, color="C{}".format(e.value))
 
 
 class JITServerInstanceResult:
 	def __init__(self, benchmark, config, *args):
-		self.results = [JITServerRunResult(benchmark, config, *args, r)
-		                for r in range(config.n_runs)]
+		self.results = [JITServerRunResult(benchmark, config, *args, r) for r in range(config.n_runs)]
 
 		self.values = {}
-		for f in ("peak_mem", "cpu_time", "jit_cpu_time",
-		          "jitserver_mem", "jitserver_cpu"):
+		for f in ("peak_mem", "cpu_time", "jit_cpu_time", "jitserver_mem", "jitserver_cpu"):
 			add_mean_stdev(self, self.results, f)
 		add_min_max(self, self.results, "peak_mem")
 
@@ -825,8 +783,7 @@ class JITServerInstanceResult:
 
 class DBInstanceResult:
 	def __init__(self, bench, config, *args):
-		self.results = [DBRunResult(bench, config, *args, r)
-		                for r in range(config.n_runs)]
+		self.results = [DBRunResult(bench, config, *args, r) for r in range(config.n_runs)]
 
 		self.values = {}
 		for f in ("peak_mem", "cpu_time"):
@@ -839,8 +796,7 @@ class DBInstanceResult:
 
 
 def bar_plot_df(result, field):
-	return pd.DataFrame({experiment_names[e]: [result.values[field][e]]
-	                     for e in result.experiments}).iloc[0]
+	return pd.DataFrame({experiment_names[e]: [result.values[field][e]] for e in result.experiments}).iloc[0]
 
 
 class SingleInstanceExperimentResult:
@@ -849,23 +805,16 @@ class SingleInstanceExperimentResult:
 		self.benchmark = bench.name()
 		self.config = config
 
-		self.application_results = [
-			ApplicationInstanceResult(bench, config, *e.to_single_instance(),
-			                          actual_experiment=e, **kwargs)
-			if e in experiments else None for e in Experiment
-		]
+		self.application_results = [ApplicationInstanceResult(bench, config, *e.to_single_instance(),
+		                                                      actual_experiment=e, **kwargs)
+		                            if e in experiments else None for e in Experiment]
 
-		self.jitserver_results = [
-			JITServerInstanceResult(self.benchmark, config,
-			                        e.to_single_instance()[0], 0)
-			if (e.is_jitserver() and e in experiments) else None
-			for e in Experiment
-		]
+		self.jitserver_results = [JITServerInstanceResult(self.benchmark, config, e.to_single_instance()[0], 0)
+		                          if (e.is_jitserver() and e in experiments) else None for e in Experiment]
 
-		self.db_results = [
-			DBInstanceResult(bench, config, e.to_single_instance()[0], 0)
-			if e in experiments else None for e in Experiment
-		] if bench.db_name() is not None else []
+		self.db_results = ([DBInstanceResult(bench, config, e.to_single_instance()[0], 0)
+		                    if e in experiments else None for e in Experiment]
+		                   if bench.db_name() is not None else [])
 
 		self.fields = result_fields(config)
 		self.values = {}
@@ -876,16 +825,13 @@ class SingleInstanceExperimentResult:
 	def save_summary(self):
 		s = ""
 		for f in self.fields:
-			s += "{}:\n{}\n".format(
-				f[1], summary(self.values[f[0] + "_means"],
-				              self.values[f[0] + "_stdevs"], self.experiments)
-			)
+			s += "{}:\n{}\n".format(f[1], summary(self.values[f[0] + "_means"], self.values[f[0] + "_stdevs"],
+			                                      self.experiments))
 		save_summary(s, self.benchmark, self.config)
 
 	def save_bar_plot(self, field, ymax=None):
-		ax = bar_plot_df(self, field[0] + "_means").plot.bar(
-			yerr=bar_plot_df(self, field[0] + "_stdevs"), rot=0, ylim=(0, ymax)
-		)
+		ax = bar_plot_df(self, field[0] + "_means").plot.bar(yerr=bar_plot_df(self, field[0] + "_stdevs"),
+		                 rot=0, ylim=(0, ymax))
 		ax.set(ylabel=field[1])
 		save_plot(ax, field[0], self.benchmark, self.config)
 
@@ -911,11 +857,8 @@ class SingleInstanceExperimentResult:
 		for e in self.experiments:
 			self.application_results[e].plot_all_throughput(ax)
 
-		ax.legend(
-			(matplotlib.lines.Line2D([0], [0], color="C{}".format(e.value))
-			 for e in self.experiments),
-			(experiment_names[e] for e in self.experiments)
-		)
+		ax.legend((matplotlib.lines.Line2D([0], [0], color="C{}".format(e.value)) for e in self.experiments),
+		          (experiment_names[e] for e in self.experiments))
 		self.save_throughput_plot(ax, "all", ymax)
 
 	def save_avg_throughput_plot(self, ymax=None):
@@ -925,8 +868,7 @@ class SingleInstanceExperimentResult:
 		self.save_throughput_plot(ax, "avg", ymax)
 
 	def save_stats_plots(self):
-		for r in (self.application_results + self.jitserver_results +
-		          self.db_results):
+		for r in (self.application_results + self.jitserver_results + self.db_results):
 			if r is not None:
 				r.save_stats_plots()
 
@@ -937,12 +879,8 @@ class SingleInstanceExperimentResult:
 		ax.set(xlabel=label + (" (log scale)" if log else ""), ylabel="CDF", title="")
 
 		if (legends or {}).get(field, True):
-			ax.legend(
-				(matplotlib.lines.Line2D(
-					[0], [0], color="C{}".format(e.cdf_report_experiment().value)
-				) for e in self.experiments),
-				(experiment_names_single[e] for e in self.experiments)
-			)
+			ax.legend((matplotlib.lines.Line2D([0], [0], color="C{}".format(e.cdf_report_experiment().value))
+			          for e in self.experiments), (experiment_names_single[e] for e in self.experiments))
 
 		name = field + ("_log" if log else "") + ("_cut" if cut is not None else "")
 		save_plot(ax, name, self.benchmark, self.config)
@@ -994,24 +932,15 @@ class SingleInstanceAllExperimentsResult:
 
 	def get_df(self, field, suffix):
 		data = {
-			experiment_names_single[e]: [
-				self.results[i].values[field[0] + suffix][e]
-				for i in range(len(self.configs))
-			]
+			experiment_names_single[e]: [self.results[i].values[field[0] + suffix][e] for i in range(len(self.configs))]
 			for e in self.experiments
 		}
 		return pd.DataFrame(data, index=self.names)
 
 	def save_bar_plot(self, field, ymax=None, legend=True, dry_run=False):
-		ax = self.get_df(field, "_means").plot.bar(
-			yerr=self.get_df(field, "_stdevs"),
-			rot=0, ylim=(0, ymax), legend=legend
-		)
-		ax.set(
-			xlabel="{} {}: Container size".format(
-			       benchmark_full_names[self.benchmark], self.mode),
-			ylabel=field[1]
-		)
+		ax = self.get_df(field, "_means").plot.bar(yerr=self.get_df(field, "_stdevs"),
+		                 rot=0, ylim=(0, ymax), legend=legend)
+		ax.set(xlabel="{} {}: Container size".format(benchmark_full_names[self.benchmark], self.mode), ylabel=field[1])
 		result = ax.get_ylim()[1]
 
 		if dry_run:
@@ -1024,10 +953,7 @@ class SingleInstanceAllExperimentsResult:
 	def save_all_bar_plots(self, limits=None, legends=None, dry_run=False):
 		result = {}
 		for f in self.results[0].fields:
-			result[f[0]] = self.save_bar_plot(
-				f, (limits or {}).get(f[0]), (legends or {}).get(f[0], True),
-				dry_run
-			)
+			result[f[0]] = self.save_bar_plot(f, (limits or {}).get(f[0]), (legends or {}).get(f[0], True), dry_run)
 		return result
 
 	def save_results(self, limits=None, legends=None, dry_run=False):
@@ -1039,11 +965,8 @@ class ApplicationAllInstancesResult:
 		self.config = config
 		self.experiment = experiment
 
-		self.results = [[
-				ApplicationRunResult(bench, config, experiment, i, r, **kwargs)
-				for r in range(config.n_runs)
-			] for i in range(n_instances or config.n_instances)
-		]
+		self.results = [[ApplicationRunResult(bench, config, experiment, i, r, **kwargs)
+		                 for r in range(config.n_runs)] for i in range(n_instances or config.n_instances)]
 		self.all_results = list(itertools.chain.from_iterable(self.results))
 
 		self.fields = result_fields(config)
@@ -1062,11 +985,8 @@ class ApplicationAllInstancesResult:
 		                    columns=[experiment_names[self.experiment]])
 
 	def avg_throughput_df_groups(self):
-		return pd.concat(
-			self.aligned_throughput_df(i, r)
-			for i in range(self.config.n_instances)
-			for r in range(self.config.n_runs)
-		).groupby(level=0)
+		return pd.concat(self.aligned_throughput_df(i, r) for i in range(self.config.n_instances)
+		                 for r in range(self.config.n_runs)).groupby(level=0)
 
 	def plot_peak_throughput_warmup_time(self, ax):
 		c = "C{}".format(self.experiment.value)
@@ -1085,10 +1005,8 @@ class ApplicationAllInstancesResult:
 		for i in range(self.config.n_instances):
 			for r in range(self.config.n_runs):
 				self.results[i][r].throughput_df().plot(
-					ax=ax, color="C{}".format(self.experiment.value),
-					alpha=throughput_alpha, legend=False,
-					marker=experiment_markers[self.experiment],
-					markevery=throughput_marker_interval
+					ax=ax, color="C{}".format(self.experiment.value), alpha=throughput_alpha, legend=False,
+					marker=experiment_markers[self.experiment], markevery=throughput_marker_interval
 				)
 
 		self.plot_peak_throughput_warmup_time(ax)
@@ -1099,11 +1017,9 @@ class ApplicationAllInstancesResult:
 		yerr_df = groups.std()
 		c = "C{}".format(self.experiment.value)
 
-		x_df.plot(ax=ax, color=c, markevery=throughput_marker_interval,
-		          marker=experiment_markers[self.experiment])
+		x_df.plot(ax=ax, color=c, markevery=throughput_marker_interval, marker=experiment_markers[self.experiment])
 		name = experiment_names[self.experiment]
-		ax.fill_between(x_df.index, (x_df - yerr_df)[name],
-		                (x_df + yerr_df)[name], color=c, alpha=throughput_alpha)
+		ax.fill_between(x_df.index, (x_df - yerr_df)[name], (x_df + yerr_df)[name], color=c, alpha=throughput_alpha)
 
 		self.plot_peak_throughput_warmup_time(ax)
 
@@ -1112,24 +1028,18 @@ class ApplicationAllInstancesResult:
 		s = pd.Series(data).sort_values()
 		if cut is not None:
 			s = s[:math.floor(len(s) * cut)]
-		df = pd.DataFrame(np.linspace(0.0, 1.0, len(s)), index=s,
-		                  columns=[experiment_names[self.experiment]])
-		df.plot(ax=ax, logx=log, legend=False,
-		        color="C{}".format(self.experiment.value))
+		df = pd.DataFrame(np.linspace(0.0, 1.0, len(s)), index=s, columns=[experiment_names[self.experiment]])
+		df.plot(ax=ax, logx=log, legend=False, color="C{}".format(self.experiment.value))
 
 
 class JITServerAllInstancesResult:
 	def __init__(self, benchmark, config, experiment):
-		self.results = [[
-				JITServerRunResult(benchmark, config, experiment, i, r)
-				for r in range(config.n_runs)
-			] for i in range(config.n_jitservers)
-		]
+		self.results = [[JITServerRunResult(benchmark, config, experiment, i, r)
+		                 for r in range(config.n_runs)] for i in range(config.n_jitservers)]
 		self.all_results = list(itertools.chain.from_iterable(self.results))
 
 		self.values = {}
-		for f in ("peak_mem", "cpu_time", "jit_cpu_time",
-		          "jitserver_mem", "jitserver_cpu"):
+		for f in ("peak_mem", "cpu_time", "jit_cpu_time", "jitserver_mem", "jitserver_cpu"):
 			add_mean_stdev(self, self.all_results, f)
 		add_min_max(self, self.all_results, "peak_mem")
 
@@ -1140,11 +1050,8 @@ class JITServerAllInstancesResult:
 
 class DBAllInstancesResult:
 	def __init__(self, bench, config, experiment):
-		self.results = [[
-				DBRunResult(bench, config, experiment, i, r)
-				for r in range(config.n_runs)
-			] for i in range(config.n_dbs)
-		]
+		self.results = [[DBRunResult(bench, config, experiment, i, r)
+		                 for r in range(config.n_runs)] for i in range(config.n_dbs)]
 		self.all_results = list(itertools.chain.from_iterable(self.results))
 
 		self.values = {}
@@ -1163,47 +1070,32 @@ class ScaleExperimentResult:
 		self.benchmark = bench.name()
 		self.config = config
 
-		self.application_results = [
-			ApplicationAllInstancesResult(bench, config, e, **kwargs)
-			if e in experiments else None for e in Experiment
-		]
+		self.application_results = [ApplicationAllInstancesResult(bench, config, e, **kwargs)
+		                            if e in experiments else None for e in Experiment]
 
-		self.jitserver_results = [
-			JITServerAllInstancesResult(self.benchmark, config, e)
-			if (e.is_jitserver() and e in experiments) else None
-			for e in Experiment
-		]
+		self.jitserver_results = [JITServerAllInstancesResult(self.benchmark, config, e)
+		                          if (e.is_jitserver() and e in experiments) else None for e in Experiment]
 
-		self.db_results = [
-			DBAllInstancesResult(bench, config, e)
-			if e in experiments else None for e in Experiment
-		] if bench.db_name() is not None else []
+		self.db_results = ([DBAllInstancesResult(bench, config, e) if e in experiments else None for e in Experiment]
+		                   if bench.db_name() is not None else [])
 
 		self.fields = result_fields(config)
 		self.values = {}
 
 		if config.run_jmeter and (Experiment.LocalJIT in experiments):
-			self.fields.append((
-				"full_warmup_time_normalized", "Full warm-up time"
-			))
+			self.fields.append(("full_warmup_time_normalized", "Full warm-up time"))
 			for e in experiments:
 				r = self.application_results
 				x = r[Experiment.LocalJIT].values["full_warmup_time_mean"]
-				r[e].values["full_warmup_time_normalized_mean"] = (
-					r[e].values["full_warmup_time_mean"] / x
-				)
-				r[e].values["full_warmup_time_normalized_stdev"] = (
-					r[e].values["full_warmup_time_stdev"] / x
-				)
+				r[e].values["full_warmup_time_normalized_mean"] = (r[e].values["full_warmup_time_mean"] / x)
+				r[e].values["full_warmup_time_normalized_stdev"] = (r[e].values["full_warmup_time_stdev"] / x)
 
 		for f in self.fields:
 			add_mean_stdev_lists(self, self.application_results, f[0], True)
 		add_min_max_lists(self, self.application_results, "peak_mem", True)
 
-		all_results = [(
-			self.application_results[e].results + (
-				self.jitserver_results[e].results if e.is_jitserver() else []
-			))
+		all_results = [
+			(self.application_results[e].results + (self.jitserver_results[e].results if e.is_jitserver() else []))
 			if e in experiments else None for e in Experiment
 		]
 
@@ -1223,16 +1115,13 @@ class ScaleExperimentResult:
 	def save_summary(self):
 		s = ""
 		for f in self.fields:
-			s += "{}:\n{}\n".format(
-				f[1], summary(self.values[f[0] + "_means"],
-				              self.values[f[0] + "_stdevs"], self.experiments)
-			)
+			s += "{}:\n{}\n".format(f[1], summary(self.values[f[0] + "_means"], self.values[f[0] + "_stdevs"],
+			                                      self.experiments))
 		save_summary(s, self.benchmark, self.config)
 
 	def save_bar_plot(self, field, ymax=None):
-		ax = bar_plot_df(self, field[0] + "_means").plot.bar(
-			yerr=bar_plot_df(self, field[0] + "_stdevs"), rot=0, ylim=(0, ymax)
-		)
+		ax = bar_plot_df(self, field[0] + "_means").plot.bar(yerr=bar_plot_df(self, field[0] + "_stdevs"),
+		                                                     rot=0, ylim=(0, ymax))
 		ax.set(ylabel=field[1])
 		save_plot(ax, field[0], self.benchmark, self.config)
 
@@ -1251,11 +1140,8 @@ class ScaleExperimentResult:
 		for e in self.experiments:
 			self.application_results[e].plot_all_throughput(ax)
 
-		ax.legend(
-			(matplotlib.lines.Line2D([0], [0], color="C{}".format(e.value))
-			 for e in self.experiments),
-			(experiment_names[e] for e in self.experiments)
-		)
+		ax.legend((matplotlib.lines.Line2D([0], [0], color="C{}".format(e.value)) for e in self.experiments),
+		          (experiment_names[e] for e in self.experiments))
 		self.save_throughput_plot(ax, "all", ymax)
 
 	def save_avg_throughput_plot(self, ymax=None):
@@ -1271,11 +1157,8 @@ class ScaleExperimentResult:
 		ax.set(xlabel=label + (" (log scale)" if log else ""), ylabel="CDF", title="")
 
 		if (legends or {}).get(field, True):
-			ax.legend(
-				(matplotlib.lines.Line2D([0], [0], color="C{}".format(e.value))
-				 for e in self.experiments),
-				(experiment_names_multi[e] for e in self.experiments)
-			)
+			ax.legend((matplotlib.lines.Line2D([0], [0], color="C{}".format(e.value)) for e in self.experiments),
+			          (experiment_names_multi[e] for e in self.experiments))
 
 		name = field + ("_log" if log else "") + ("_cut" if cut is not None else "")
 		save_plot(ax, name, self.benchmark, self.config)
@@ -1329,35 +1212,23 @@ class ScaleAllExperimentsResult:
 				("peak_throughput", "Peak throughput, req/sec"),
 			))
 			if Experiment.LocalJIT in experiments:
-				self.fields.append((
-					"full_warmup_time_normalized", "Full warm-up time"
-				))
+				self.fields.append(("full_warmup_time_normalized", "Full warm-up time"))
 		else:
-			self.fields.extend((
-				("total_cpu_time", "Total CPU time, sec"),
-			))
+			self.fields.extend((("total_cpu_time", "Total CPU time, sec")))
 
 	def get_df(self, results, field, suffix, name_suffix=None):
-		return pd.DataFrame(
-			{experiment_names_multi[e] + (name_suffix or ""):
-			 [r.values[field[0] + suffix][e] for r in results]
-			 for e in self.experiments},
-			index=[r.config.n_instances for r in results]
-		)
+		return pd.DataFrame({experiment_names_multi[e] + (name_suffix or ""):
+		                     [r.values[field[0] + suffix][e] for r in results] for e in self.experiments},
+		                    index=[r.config.n_instances for r in results])
 
 	def save_line_plot(self, field, ymax=None, legend=True):
-		name = "scale_{}_{}".format("full" if self.jmeter else "start", field[0])
-		ax = self.get_df(self.results, field, "_means").plot(
-			yerr=self.get_df(self.results, field, "_stdevs"),
-			ylim=(0, ymax), xlim=(0, None), legend=legend
-		)
+		name = "scale_{}_{}".format("full" if self.warmup else "start", field[0])
+		ax = self.get_df(self.results, field, "_means").plot(yerr=self.get_df(self.results, field, "_stdevs"),
+		                                                     ylim=(0, ymax), xlim=(0, None), legend=legend)
 
 		if field[0] == "full_warmup_time_normalized":
-			ax.yaxis.set_major_locator(
-				matplotlib.ticker.MultipleLocator(base=0.25)
-			)
-		ax.set(xlabel="{}: Number of instances".format(
-		       benchmark_full_names[self.benchmark]), ylabel=field[1])
+			ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=0.25))
+		ax.set(xlabel="{}: Number of instances".format(benchmark_full_names[self.benchmark]), ylabel=field[1])
 		for i, line in enumerate(ax.get_lines()):
 			line.set_marker(experiment_markers[i])
 		if legend:
@@ -1367,8 +1238,7 @@ class ScaleAllExperimentsResult:
 
 	def save_all_line_plots(self, limits=None, legends=None):
 		for f in self.fields:
-			self.save_line_plot(f, (limits or {}).get(f[0]),
-			                    (legends or {}).get(f[0], True))
+			self.save_line_plot(f, (limits or {}).get(f[0]), (legends or {}).get(f[0], True))
 
 	def save_results(self, limits=None, legends=None):
 		self.save_all_line_plots(limits, legends)
@@ -1380,8 +1250,7 @@ class LatencyExperimentResult:
 		self.benchmark = bench.name()
 		self.config = config
 
-		self.result = SingleInstanceExperimentResult(experiments, bench,
-		                                             config, **kwargs)
+		self.result = SingleInstanceExperimentResult(experiments, bench, config, **kwargs)
 
 		self.fields = [
 			("start_time", "Start time, sec"),
@@ -1410,10 +1279,8 @@ class LatencyExperimentResult:
 	def save_summary(self):
 		s = "Latency: {} us\n\n".format(self.latency)
 		for f in self.fields:
-			s += "{}:\n{}\n".format(
-				f[1], summary(self.values[f[0] + "_means"],
-				              self.values[f[0] + "_stdevs"], self.experiments)
-			)
+			s += "{}:\n{}\n".format(f[1], summary(self.values[f[0] + "_means"], self.values[f[0] + "_stdevs"],
+			                                      self.experiments))
 		save_summary(s, self.benchmark, self.config)
 
 	def save_results(self):
@@ -1432,43 +1299,31 @@ class LatencyAllExperimentsResult:
 		                for i in range(len(configs))]
 
 	def get_df(self, field, suffix, f):
-		data = {
-			experiment_names_single[e]: [r.values[field[0] + suffix][e]
-			                      for r in self.results]
-			for e in self.experiments
-		}
+		data = {experiment_names_single[e]: [r.values[field[0] + suffix][e] for r in self.results]
+		        for e in self.experiments}
 
-		experiment = Experiment.LocalJIT
-		if experiment in self.experiments:
-			values = [
-				getattr(r.result.application_results[experiment].results[i],
-				        field[0])
-				for r in self.results for i in range(r.config.n_runs)
-			]
+		if Experiment.LocalJIT in self.experiments:
+			values = [getattr(r.result.application_results[Experiment.LocalJIT].results[i], field[0])
+			          for r in self.results for i in range(r.config.n_runs)]
 			val = f(values)
-			data[experiment_names_single[experiment]] = [val for r in self.results]
+			data[experiment_names_single[Experiment.LocalJIT]] = [val for r in self.results]
 
 		return pd.DataFrame(data, index=[r.latency for r in self.results])
 
 	def save_line_plot(self, field, ymax=None, legend=True):
-		ax = self.get_df(field, "_means", mean).plot(
-			yerr=self.get_df(field, "_stdevs", stdev),
-			ylim=(0, ymax), xlim=(0, None), legend=legend
-		)
-		ax.set(xlabel="{}: Latency, microsec".format(
-		       benchmark_full_names[self.benchmark]), ylabel=field[1])
+		ax = self.get_df(field, "_means", mean).plot(yerr=self.get_df(field, "_stdevs", stdev),
+		                                             ylim=(0, ymax), xlim=(0, None), legend=legend)
+		ax.set(xlabel="{}: Latency, microsec".format(benchmark_full_names[self.benchmark]), ylabel=field[1])
 		for i, line in enumerate(ax.get_lines()):
 			line.set_marker(experiment_markers[i])
 		if legend:
 			ax.legend()
-		name = "latency_{}_{}".format("full" if self.jmeter else "start",
-		                              field[0])
+		name = "latency_{}_{}".format("full" if self.warmup else "start", field[0])
 		save_plot(ax, name, self.benchmark)
 
 	def save_all_line_plots(self, limits=None, legends=None):
 		for f in self.results[0].fields:
-			self.save_line_plot(f, (limits or {}).get(f[0]),
-			                    (legends or {}).get(f[0], True))
+			self.save_line_plot(f, (limits or {}).get(f[0]), (legends or {}).get(f[0], True))
 
 	def save_results(self, limits=None, legends=None):
 		self.save_all_line_plots(limits, legends)
@@ -1492,13 +1347,12 @@ class DensityExperimentResult:
 		for t in timestamps:
 			total += t[1] * t[2]
 			max_total = max(max_total, total)
-		return max_total / 1024.0# GB
+
+		return max_total / 1024.0 # GB
 
 	def jitserver_peak_mem(self, experiment, run_id):
-		return (
-			sum(self.jitserver_results[experiment].results[i][run_id].peak_mem
-			for i in range(self.config.n_jitservers)
-		) if experiment.is_jitserver() else 0.0) / 1024.0# GB
+		return (sum(self.jitserver_results[experiment].results[i][run_id].peak_mem
+		        for i in range(self.config.n_jitservers)) if experiment.is_jitserver() else 0.0) / 1024.0 # GB
 
 	def __init__(self, experiments, bench, config, **kwargs):
 		self.experiments = experiments
@@ -1506,34 +1360,20 @@ class DensityExperimentResult:
 		self.config = config
 		self.total_instances = config.n_instances * config.n_invocations
 
-		self.application_results = [
-			ApplicationAllInstancesResult(
-				bench, config, e, n_instances=self.total_instances,
-				keep_throughput_data=False, **kwargs
-			)
-			if e in experiments else None for e in Experiment
-		]
+		self.application_results = [ApplicationAllInstancesResult(bench, config, e, n_instances=self.total_instances,
+		                                                          keep_throughput_data=False, **kwargs)
+		                            if e in experiments else None for e in Experiment]
 
-		self.jitserver_results = [
-			JITServerAllInstancesResult(self.benchmark, config, e)
-			if (e.is_jitserver() and e in experiments) else None
-			for e in Experiment
-		]
+		self.jitserver_results = [JITServerAllInstancesResult(self.benchmark, config, e)
+		                          if (e.is_jitserver() and e in experiments) else None for e in Experiment]
 
-		self.db_results = [
-			DBAllInstancesResult(bench, config, e)
-			if e in experiments else None for e in Experiment
-		] if bench.db_name() is not None else []
+		self.db_results = ([DBAllInstancesResult(bench, config, e) if e in experiments else None for e in Experiment]
+		                   if bench.db_name() is not None else [])
 
-		req_results = [
-			self.application_results[e].results
-			if e in experiments else None for e in Experiment
-		]
+		req_results = [self.application_results[e].results if e in experiments else None for e in Experiment]
 
 		all_results = [
-			(self.application_results[e].results + (
-				self.jitserver_results[e].results if e.is_jitserver() else []
-			))
+			(self.application_results[e].results + (self.jitserver_results[e].results if e.is_jitserver() else []))
 			if e in experiments else None for e in Experiment
 		]
 
@@ -1565,78 +1405,47 @@ class DensityExperimentResult:
 		cpu_vals = add_total_mean_stdev_lists(self, all_results, "cpu_time")
 		add_total_mean_stdev_lists(self, all_results, "jit_cpu_time")
 
-		total_jvm_peak_mem_vals = [
-			[self.total_jvm_peak_mem(e, r) for r in range(config.n_runs)]
-			if e in experiments else None for e in Experiment
-		]
-		jitserver_peak_mem_vals = [
-			[self.jitserver_peak_mem(e, r) for r in range(config.n_runs)]
-			if e in experiments else None for e in Experiment
-		]
+		total_jvm_peak_mem_vals = [[self.total_jvm_peak_mem(e, r) for r in range(config.n_runs)]
+		                           if e in experiments else None for e in Experiment]
+		jitserver_peak_mem_vals = [[self.jitserver_peak_mem(e, r) for r in range(config.n_runs)]
+		                           if e in experiments else None for e in Experiment]
 		total_peak_mem_vals = [
-			[total_jvm_peak_mem_vals[e][r] + jitserver_peak_mem_vals[e][r]
-			 for r in range(config.n_runs)]
+			[total_jvm_peak_mem_vals[e][r] + jitserver_peak_mem_vals[e][r] for r in range(config.n_runs)]
 			if e in experiments else None for e in Experiment
 		]
 
-		self.values["total_jvm_peak_mem_means"] = [
-			mean([total_jvm_peak_mem_vals[e][r] for r in range(config.n_runs)])
-			if e in experiments else None for e in Experiment
-		]
-		self.values["total_jvm_peak_mem_stdevs"] = [
-			stdev([total_jvm_peak_mem_vals[e][r] for r in range(config.n_runs)])
-			if e in experiments else None for e in Experiment
-		]
-		self.values["jitserver_peak_mem_means"] = [
-			mean([jitserver_peak_mem_vals[e][r] for r in range(config.n_runs)])
-			if e in experiments else None for e in Experiment
-		]
-		self.values["jitserver_peak_mem_stdevs"] = [
-			stdev([jitserver_peak_mem_vals[e][r] for r in range(config.n_runs)])
-			if e in experiments else None for e in Experiment
-		]
-		self.values["total_peak_mem_means"] = [
-			mean([total_peak_mem_vals[e][r] for r in range(config.n_runs)])
-			if e in experiments else None for e in Experiment
-		]
-		self.values["total_peak_mem_stdevs"] = [
-			stdev([total_peak_mem_vals[e][r] for r in range(config.n_runs)])
-			if e in experiments else None for e in Experiment
-		]
+		self.values["total_jvm_peak_mem_means"] = [mean([total_jvm_peak_mem_vals[e][r] for r in range(config.n_runs)])
+		                                           if e in experiments else None for e in Experiment]
+		self.values["total_jvm_peak_mem_stdevs"] = [stdev([total_jvm_peak_mem_vals[e][r] for r in range(config.n_runs)])
+		                                            if e in experiments else None for e in Experiment]
+		self.values["jitserver_peak_mem_means"] = [mean([jitserver_peak_mem_vals[e][r] for r in range(config.n_runs)])
+		                                           if e in experiments else None for e in Experiment]
+		self.values["jitserver_peak_mem_stdevs"] = [stdev([jitserver_peak_mem_vals[e][r] for r in range(config.n_runs)])
+		                                            if e in experiments else None for e in Experiment]
+		self.values["total_peak_mem_means"] = [mean([total_peak_mem_vals[e][r] for r in range(config.n_runs)])
+		                                       if e in experiments else None for e in Experiment]
+		self.values["total_peak_mem_stdevs"] = [stdev([total_peak_mem_vals[e][r] for r in range(config.n_runs)])
+		                                        if e in experiments else None for e in Experiment]
 
-		req_per_cpu_time_vals = [
-			[req_vals[e][r] / cpu_vals[e][r] for r in range(config.n_runs)]
-			if e in experiments else None for e in Experiment
-		]
-		self.values["req_per_cpu_time_means"] = [
-			mean([req_per_cpu_time_vals[e][r] for r in range(config.n_runs)])
-			if e in experiments else None for e in Experiment
-		]
-		self.values["req_per_cpu_time_stdevs"] = [
-			stdev([req_per_cpu_time_vals[e][r] for r in range(config.n_runs)])
-			if e in experiments else None for e in Experiment
-		]
+		req_per_cpu_time_vals = [[req_vals[e][r] / cpu_vals[e][r] for r in range(config.n_runs)]
+		                         if e in experiments else None for e in Experiment]
+		self.values["req_per_cpu_time_means"] = [mean([req_per_cpu_time_vals[e][r] for r in range(config.n_runs)])
+		                                         if e in experiments else None for e in Experiment]
+		self.values["req_per_cpu_time_stdevs"] = [stdev([req_per_cpu_time_vals[e][r] for r in range(config.n_runs)])
+		                                          if e in experiments else None for e in Experiment]
 
-		cpu_time_per_req_vals = [
-			[1000 * cpu_vals[e][r] / req_vals[e][r] for r in range(config.n_runs)]# msec/req
-			if e in experiments else None for e in Experiment
-		]
-		self.values["cpu_time_per_req_means"] = [
-			mean([cpu_time_per_req_vals[e][r] for r in range(config.n_runs)])
-			if e in experiments else None for e in Experiment
-		]
-		self.values["cpu_time_per_req_stdevs"] = [
-			stdev([cpu_time_per_req_vals[e][r] for r in range(config.n_runs)])
-			if e in experiments else None for e in Experiment
-		]
+		cpu_time_per_req_vals = [[1000 * cpu_vals[e][r] / req_vals[e][r] for r in range(config.n_runs)] # msec/req
+		                         if e in experiments else None for e in Experiment]
+		self.values["cpu_time_per_req_means"] = [mean([cpu_time_per_req_vals[e][r] for r in range(config.n_runs)])
+		                                         if e in experiments else None for e in Experiment]
+		self.values["cpu_time_per_req_stdevs"] = [stdev([cpu_time_per_req_vals[e][r] for r in range(config.n_runs)])
+		                                          if e in experiments else None for e in Experiment]
 
 	def save_summary(self):
 		s = ""
 		for f in self.fields:
-			s += "{}:\n{}\n".format(
-				f[1], summary(self.values[f[0] + "_means"],
-				              self.values[f[0] + "_stdevs"], self.experiments)
-			)
+			s += "{}:\n{}\n".format(f[1], summary(self.values[f[0] + "_means"], self.values[f[0] + "_stdevs"],
+			                                      self.experiments))
 		save_summary(s, self.benchmark, self.config)
 
 	def save_stats_plots(self):
@@ -1662,40 +1471,29 @@ class DensityAllExperimentsResult:
 
 	def get_df(self, field, suffix):
 		data = {
-			experiment_names_multi[e]: [
-				self.results[i].values[field[0] + suffix][e]
-				for i in range(len(self.configs))
-			]
+			experiment_names_multi[e]: [self.results[i].values[field[0] + suffix][e] for i in range(len(self.configs))]
 			for e in self.experiments
 		}
-		index = ["{:g} min".format(c.jmeter_config.duration / 60)
-		         for c in self.configs]
+		index = ["{:g} min".format(c.jmeter_config.duration / 60) for c in self.configs]
 		return pd.DataFrame(data, index=index)
 
 	def save_bar_plot(self, field, ymax=None, legend=True, dry_run=False):
-		ax = self.get_df(field, "_means").plot.bar(
-			yerr=self.get_df(field, "_stdevs"),
-			rot=0, ylim=(0, ymax), legend=legend
-		)
-		ax.set(xlabel="{}: Application lifespan".format(
-		       benchmark_full_names[self.benchmark]), ylabel=field[1])
+		ax = self.get_df(field, "_means").plot.bar(yerr=self.get_df(field, "_stdevs"),
+		                                           rot=0, ylim=(0, ymax), legend=legend)
+		ax.set(xlabel="{}: Application lifespan".format(benchmark_full_names[self.benchmark]), ylabel=field[1])
 		result = ax.get_ylim()[1]
 
 		if dry_run:
 			plt.close(ax.get_figure())
 		else:
-			save_plot(ax, "density_{}_{}".format(
-			          "scc" if self.configs[0].application_config.populate_scc
+			save_plot(ax, "density_{}_{}".format("scc" if self.configs[0].application_config.populate_scc
 			          else "noscc", field[0]), self.benchmark)
 		return result
 
 	def save_all_bar_plots(self, limits=None, legends=None, dry_run=False):
 		result = {}
 		for f in self.results[0].fields:
-			result[f[0]] = self.save_bar_plot(
-				f, (limits or {}).get(f[0]), (legends or {}).get(f[0], True),
-				dry_run
-			)
+			result[f[0]] = self.save_bar_plot(f, (limits or {}).get(f[0]), (legends or {}).get(f[0], True), dry_run)
 		return result
 
 	def save_results(self, limits=None, legends=None, dry_run=False):

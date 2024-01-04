@@ -31,17 +31,14 @@ class DockerHost(remote.RemoteHost):
 		cmd = ["docker", "cp", host_src, self.container_path(name, container_dst)]
 		return self.run(cmd, check=check)
 
-	def cp_from_container(self, name, container_src, host_dst, *,
-	                      mkdir_dst=False, check=False):
+	def cp_from_container(self, name, container_src, host_dst, *, mkdir_dst=False, check=False):
 		cmd = []
 		if mkdir_dst:
 			cmd.extend(("mkdir", "-p", host_dst, "&&"))
-		cmd.extend(("docker", "cp", self.container_path(name, container_src),
-		           host_dst))
+		cmd.extend(("docker", "cp", self.container_path(name, container_src), host_dst))
 		return self.run(cmd, check=check)
 
-	def get_host_pid(self, container_name, proc_name=None, *,
-	                 cmd_filter=None, check=True):
+	def get_host_pid(self, container_name, proc_name=None, *, cmd_filter=None, check=True):
 		if proc_name is None:
 			cmd = ["docker", "inspect", "-f", "{{.State.Pid}}", container_name]
 			s = self.get_output(cmd, check=check)
@@ -61,8 +58,7 @@ class DockerHost(remote.RemoteHost):
 			return pids[0]
 
 		if check:
-			raise Exception("No unique {} process in container {} on {}".format(
-			                proc_name, container_name, self.addr))
+			raise Exception("No unique {} process in container {} on {}".format(proc_name, container_name, self.addr))
 		return None
 
 	def reserve_cpus(self, num_cpus):
@@ -90,8 +86,7 @@ class DockerConfig:
 
 		if self.ncpus is not None:
 			if reserved_cpus is not None:
-				args.append("--cpuset-cpus={}".format(",".join(
-				            str(c) for c in reserved_cpus)))
+				args.append("--cpuset-cpus={}".format(",".join(str(c) for c in reserved_cpus)))
 			else:
 				args.append("--cpus={}".format(self.ncpus))
 
@@ -119,9 +114,7 @@ class ContainerInstance(remote.ServerInstance):
 			#NOTE: 0.5s update period; 1st update at ~2s
 			cmd = ["docker", "stats", "--format={{.CPUPerc}} {{.MemUsage}}",
 			       self.get_name(), "|", "sed", "-r", "-u", "s/^.{7}//"]
-			self.docker_stats_proc = self.host.start(
-				cmd, remote_output=self.output_path("docker_stats.log")
-			)
+			self.docker_stats_proc = self.host.start(cmd, remote_output=self.output_path("docker_stats.log"))
 
 		super().start_stats_proc()
 
@@ -137,17 +130,13 @@ class ContainerInstance(remote.ServerInstance):
 		return os.path.join("/sys/fs/cgroup", cgroup, "docker", cid, file)
 
 	def stop(self, *args, **kwargs):
-		cmd = ["docker", "ps", "-q", "--no-trunc", "-f",
-		       "name=^{}$".format(self.get_name())]
+		cmd = ["docker", "ps", "-q", "--no-trunc", "-f", "name=^{}$".format(self.get_name())]
 		cid = (self.host.get_output(cmd, check=False) or "").strip()
 
 		if cid:
-			files = [
-				self.cgroup_path(cid, "cpuacct", "cpuacct.stat"),
-				self.cgroup_path(cid, "memory", "memory.max_usage_in_bytes"),
-			]
-			self.host.run(["cat"] + files,
-			              remote_output=self.output_path("cgroup_rusage.log"))
+			files = [self.cgroup_path(cid, "cpuacct", "cpuacct.stat"),
+			         self.cgroup_path(cid, "memory", "memory.max_usage_in_bytes")]
+			self.host.run(["cat"] + files, remote_output=self.output_path("cgroup_rusage.log"))
 
 		return super().stop(*args, **kwargs)
 

@@ -74,16 +74,16 @@ def main():
 			disable_active_thread_thresholds=True,
 			disable_gcr_threshold=False,
 			server_scratch_space_factor=1,
-			reconnect_wait_time=None,
-			client_socket_timeout=None,
-			server_socket_timeout=None,
+			reconnect_wait_time=None, # milliseconds
+			client_socket_timeout=None, # milliseconds
+			server_socket_timeout=None, # milliseconds
 			encryption=False,
 			use_internal_addr=False,
 			share_romclasses=True,
 			romclass_cache_partitions=None,
 			aotcache_name=None,
-			stop_sleep_time=2.0,# seconds
-			stop_timeout=10.0,# seconds
+			stop_sleep_time=2.0, # seconds
+			stop_timeout=10.0, # seconds
 			stop_attempts=6,
 			kill_remote_on_timeout=False,
 			save_jitdump=True, # since stats output at shutdown can be truncated
@@ -119,10 +119,10 @@ def main():
 			populate_scc_bench=None,
 			use_internal_addr=False,
 			share_scc=False,
-			start_interval=None,# seconds
-			start_timeout=60.0,# seconds
-			sleep_time=1.0,# seconds
-			stop_timeout=10.0,# seconds
+			start_interval=None, # seconds
+			start_timeout=60.0, # seconds
+			sleep_time=1.0, # seconds
+			stop_timeout=10.0, # seconds
 			stop_attempts=6,
 			kill_remote_on_timeout=False,
 			javacore_interval=None,
@@ -137,12 +137,10 @@ def main():
 				pin_cpus=True,
 				network="host",
 			),
-			jvm_config=openj9.JVMConfig(
-				# defaults
-			),
+			jvm_config=openj9.JVMConfig(), # defaults
 			nthreads=4,
-			duration=3 * 60,# seconds
-			summariser_interval=6,# seconds; minimum is 6
+			duration=3 * 60, # seconds
+			summariser_interval=6, # seconds; minimum is 6
 			latency_data=False,
 			report_data=False,
 			keep_running=True,

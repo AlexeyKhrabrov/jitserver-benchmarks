@@ -60,8 +60,7 @@ result_experiments = (
 )
 
 
-def get_config(bench, jmeter, size, warm, duration, scc_extra_duration,
-               n_runs, skip_complete_runs=False):
+def get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs, skip_complete_runs=False):
 	if size == "XS":
 		c = bench.xsmall_config(False)
 	elif size == "S":
@@ -103,10 +102,8 @@ def make_cluster(bench, hosts, subset, jmeter, size, warm, duration,
 	host1 = hosts[(subset + (1 if (subset % 2 == 0) else -1)) % len(hosts)]
 
 	return shared.BenchmarkCluster(
-		get_config(bench, jmeter, size, warm, duration,
-		           scc_extra_duration, n_runs, skip_complete_runs),
-		bench, jitserver_hosts=[host0], db_hosts=[host0],
-		application_hosts=[host1], jmeter_hosts=[host0]
+		get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs, skip_complete_runs),
+		bench, jitserver_hosts=[host0], db_hosts=[host0], application_hosts=[host1], jmeter_hosts=[host0]
 	)
 
 
@@ -160,22 +157,19 @@ def main():
 			if args.details:
 				cmd.append("-d")
 
-			util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True),
-			                 range(len(configs)))
+			util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True), range(len(configs)))
 
 			cold_configs = configs[0::2]
 			warm_configs = configs[1::2]
 
 			cold_result = results.SingleInstanceAllExperimentsResult(
 				result_experiments, bench, "cold",
-				[get_config(bench, args.jmeter, *c[:-1], args.n_runs)
-				 for c in cold_configs],
+				[get_config(bench, args.jmeter, *c[:-1], args.n_runs) for c in cold_configs],
 				["XS", "S", "M", "L"], [c[-1] for c in cold_configs],
 			)
 			warm_result = results.SingleInstanceAllExperimentsResult(
 				result_experiments, bench, "warm",
-				[get_config(bench, args.jmeter, *c[:-1], args.n_runs)
-				 for c in warm_configs],
+				[get_config(bench, args.jmeter, *c[:-1], args.n_runs) for c in warm_configs],
 				["XS", "S", "M", "L"], [c[-1] for c in warm_configs]
 			)
 
@@ -183,22 +177,15 @@ def main():
 			if args.same_limits:
 				cold_limits = cold_result.save_results(dry_run=True)
 				warm_limits = warm_result.save_results(dry_run=True)
-				limits = {f: max(cold_limits[f], warm_limits[f])
-				          for f in cold_limits.keys()}
+				limits = {f: max(cold_limits[f], warm_limits[f]) for f in cold_limits.keys()}
 
 			cold_result.save_results(
-				limits=limits, legends={
-					"start_time": False,
-					"warmup_time": False,
-					"peak_mem": False,
-				} if args.single_legend else None
+				limits=limits,
+				legends={"start_time": False, "warmup_time": False, "peak_mem": False} if args.single_legend else None
 			)
 			warm_result.save_results(
-				limits=limits, legends={
-					"start_time": True,
-					"warmup_time": False,
-					"peak_mem": False
-				} if args.single_legend else None
+				limits=limits,
+				legends={"start_time": True, "warmup_time": False, "peak_mem": False} if args.single_legend else None
 			)
 
 		return
@@ -210,16 +197,14 @@ def main():
 	util.set_sigint_handler()
 
 	if args.cleanup:
-		cluster = make_cluster(bench, hosts, args.subset,
-		                       args.jmeter, *c[:-1], args.n_runs)
+		cluster = make_cluster(bench, hosts, args.subset, args.jmeter, *c[:-1], args.n_runs)
 		#NOTE: assuming same credentials for all hosts
 		passwd = getpass.getpass()
 		cluster.check_sudo_passwd(passwd)
 		cluster.full_cleanup(passwd=passwd)
 		return
 
-	cluster = make_cluster(bench, hosts, args.subset, args.jmeter,
-	                       *c[:-1], args.n_runs, args.skip_complete_runs)
+	cluster = make_cluster(bench, hosts, args.subset, args.jmeter, *c[:-1], args.n_runs, args.skip_complete_runs)
 	cluster.run_all_experiments(run_experiments, skip_cleanup=True)
 
 

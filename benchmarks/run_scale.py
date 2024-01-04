@@ -67,9 +67,9 @@ configurations = {
 }
 
 jmeter_durations = {
-	"acmeair": 6 * 60,# seconds
-	"daytrader": 15 * 60,# seconds
-	"petclinic": 2 * 60# seconds
+	"acmeair": 6 * 60, # seconds
+	"daytrader": 15 * 60, # seconds
+	"petclinic": 2 * 60 # seconds
 }
 
 
@@ -86,8 +86,7 @@ bench_cls = {
 	"petclinic": petclinic.PetClinic
 }
 
-def get_config(benchmark, n_instances, n_dbs, jmeter,
-               n_runs, skip_complete_runs=False):
+def get_config(benchmark, n_instances, n_dbs, jmeter, n_runs, skip_complete_runs=False):
 	result = bench_cls[benchmark]().small_config(False)
 	result.name = "scale_{}_{}".format("full" if jmeter else "start", n_instances)
 
@@ -103,16 +102,12 @@ def get_config(benchmark, n_instances, n_dbs, jmeter,
 
 	return result
 
-def make_cluster(benchmark, hosts, n_instances, n_dbs,
-                 jitserver_hosts, db_hosts, application_hosts, jmeter_hosts,
-                 jmeter, n_runs, skip_complete_runs=False):
-	config = get_config(benchmark, n_instances, n_dbs,
-	                    jmeter, n_runs, skip_complete_runs)
+def make_cluster(benchmark, hosts, n_instances, n_dbs, jitserver_hosts, db_hosts,
+                 application_hosts, jmeter_hosts, jmeter, n_runs, skip_complete_runs=False):
+	config = get_config(benchmark, n_instances, n_dbs, jmeter, n_runs, skip_complete_runs)
 	if config.n_dbs > len(db_hosts):
 		#NOTE: assuming db hosts are homogeneous
-		config.db_config.docker_config.ncpus = (
-			hosts[db_hosts[0]].get_ncpus() // (config.n_dbs // len(db_hosts))
-		)
+		config.db_config.docker_config.ncpus = hosts[db_hosts[0]].get_ncpus() // (config.n_dbs // len(db_hosts))
 
 	return shared.BenchmarkCluster(
 		config, bench_cls[benchmark](),
@@ -141,7 +136,7 @@ def main():
 	parser.add_argument("-f", "--format")
 	parser.add_argument("-d", "--details", action="store_true")
 	parser.add_argument("--single-legend", action="store_true")
-	parser.add_argument("--same-limits", action="store_true")# unused
+	parser.add_argument("--same-limits", action="store_true") # unused
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
@@ -171,10 +166,7 @@ def main():
 				if args.format is not None:
 					cmd.extend(("-f", args.format))
 
-				util.parallelize(
-					lambda i: util.run(cmd + ["-r", str(i)], check=True),
-					range(len(configs))
-				)
+				util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True), range(len(configs)))
 
 			sorted_configs = sorted(configs, key=lambda c: c[0])
 			results.ScaleAllExperimentsResult(
@@ -196,16 +188,14 @@ def main():
 	util.set_sigint_handler()
 
 	if args.cleanup:
-		cluster = make_cluster(args.benchmark, hosts, *c[:-1],
-		                       args.jmeter, args.n_runs)
+		cluster = make_cluster(args.benchmark, hosts, *c[:-1], args.jmeter, args.n_runs)
 		#NOTE: assuming same credentials for all hosts
 		passwd = getpass.getpass()
 		cluster.check_sudo_passwd(passwd)
 		cluster.full_cleanup(passwd=passwd)
 		return
 
-	cluster = make_cluster(args.benchmark, hosts, *c[:-1], args.jmeter,
-	                       args.n_runs, args.skip_complete_runs)
+	cluster = make_cluster(args.benchmark, hosts, *c[:-1], args.jmeter, args.n_runs, args.skip_complete_runs)
 	cluster.run_all_experiments(experiments, skip_cleanup=True)
 
 

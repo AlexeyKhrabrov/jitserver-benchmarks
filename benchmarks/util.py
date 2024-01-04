@@ -24,11 +24,9 @@ def run(cmd, *, output=None, append=False, **kwargs):
 	if output is not None:
 		os.makedirs(os.path.dirname(output), exist_ok=True)
 		with open(output, "a" if append else "w") as f:
-			result = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT,
-			                        **kwargs)
+			result = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, **kwargs)
 	else:
-		result = subprocess.run(cmd, stdout=subprocess.PIPE,
-		                        stderr=subprocess.PIPE, **kwargs)
+		result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
 
 	if verbose:
 		print("Finished {} with {}".format(cmd, result.returncode))
@@ -42,11 +40,9 @@ def start(cmd, *, output=None, append=False, **kwargs):
 	if output is not None:
 		os.makedirs(os.path.dirname(output), exist_ok=True)
 		with open(output, "a" if append else "w") as f:
-			proc = subprocess.Popen(cmd, stdout=f, stderr=subprocess.STDOUT,
-			                        **kwargs)
+			proc = subprocess.Popen(cmd, stdout=f, stderr=subprocess.STDOUT, **kwargs)
 	else:
-		proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-		                        stderr=subprocess.PIPE, **kwargs)
+		proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
 
 	if verbose:
 		print("Started {} pid {}".format(proc.args, proc.pid))
@@ -70,7 +66,7 @@ def wait(proc, *, check=False, expect_ret=0, timeout=None, kill_on_timeout=True,
 			proc.wait()
 		raise
 
-	#NOTE: this is a workaround for https://bugs.python.org/issue35182
+	#NOTE: This is a workaround for https://bugs.python.org/issue35182
 	except ValueError as e:
 		proc.kill()
 		proc.wait()
@@ -122,8 +118,7 @@ def retry_loop(fn, attempts=None, sleep_time=None, pass_i_to_fn=False):
 	return None
 
 
-def parallelize(fn, objs, *args, sleep_time=None, result_timeout=None,
-                n_workers=None, multiprocess=False, **kwargs):
+def parallelize(fn, objs, *args, sleep_time=None, result_timeout=None, n_workers=None, multiprocess=False, **kwargs):
 	if len(objs) == 0:
 		return []
 	if (len(objs) == 1) or (sleep_time == float("+inf")):

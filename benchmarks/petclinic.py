@@ -40,9 +40,8 @@ class PetClinic:
 
 	@staticmethod
 	def parse_start_stop_ts(line):
-		return datetime.datetime.strptime(
-			" ".join(line.split(maxsplit=2)[:-1]) + "000", "%Y-%m-%d %H:%M:%S.%f"
-		).replace(tzinfo=datetime.timezone.utc)
+		return datetime.datetime.strptime(" ".join(line.split(maxsplit=2)[:-1]) + "000",
+		                                  "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=datetime.timezone.utc)
 
 	@staticmethod
 	def base_config():
@@ -50,8 +49,8 @@ class PetClinic:
 		result.application_config.jvm_config = openj9.JVMConfig(
 			scc_size="80m",
 		)
-		result.application_config.start_timeout = 2 * 60.0# seconds
-		result.application_config.stop_timeout = 10.0# seconds
+		result.application_config.start_timeout = 2 * 60.0 # seconds
+		result.application_config.stop_timeout = 10.0 # seconds
 		result.application_config.stop_attempts = 6
 		return result
 

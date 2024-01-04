@@ -12,13 +12,11 @@ class OpenJ9Host(remote.RemoteHost):
 		super().__init__(*args, **kwargs)
 
 	def update_scripts(self):
-		self.rsync_put(os.path.join(module_dir, "../scripts/"), "scripts/",
-		               exclude="/vlog_*", delete_excluded=True)
+		self.rsync_put(os.path.join(module_dir, "../scripts/"), "scripts/", exclude="/vlog_*", delete_excluded=True)
 
 	def openj9_prereqs(self, *, passwd=None):
 		self.update_scripts()
-		self.run_sudo(["scripts/openj9_prereqs.sh"], passwd=passwd,
-		              output=self.log_path("openj9_prereqs"), check=True)
+		self.run_sudo(["scripts/openj9_prereqs.sh"], passwd=passwd, output=self.log_path("openj9_prereqs"), check=True)
 
 	def openj9_setup(self, jdk_dir, jdk_ver, *, configure=False, debug=False):
 		exclude = ("/openj9-openjdk-jdk*/build/")
@@ -37,9 +35,7 @@ class OpenJ9Host(remote.RemoteHost):
 		print("OpenJ9 setup on {} took {:.2f} seconds".format(self.addr, t1 - t0))
 
 	def jdk_path(self, jdk_ver, debug=False):
-		return "jdk/{}-openjdk-jdk{}/build/{}/images/jdk".format(
-			"openj9", jdk_ver, "slowdebug" if debug else "release"
-		)
+		return "jdk/{}-openjdk-jdk{}/build/{}/images/jdk".format("openj9", jdk_ver, "slowdebug" if debug else "release")
 
 
 class OpenJ9Cluster(remote.RemoteCluster):
@@ -47,17 +43,14 @@ class OpenJ9Cluster(remote.RemoteCluster):
 		super().__init__(*args, **kwargs)
 
 	def openj9_prereqs(self, *, passwd=None):
-		self.for_each(OpenJ9Host.openj9_prereqs, passwd=passwd,
-		              parallel=passwd is not None)
+		self.for_each(OpenJ9Host.openj9_prereqs, passwd=passwd, parallel=passwd is not None)
 
 	def openj9_setup(self, jdk_dir, jdk_ver, *, configure=False, debug=False):
-		self.for_each(OpenJ9Host.openj9_setup, jdk_dir, jdk_ver,
-		              configure=configure, debug=debug, parallel=True)
+		self.for_each(OpenJ9Host.openj9_setup, jdk_dir, jdk_ver, configure=configure, debug=debug, parallel=True)
 
 
 class JVMConfig:
-	def __init__(self, *, heap_size=None, virtualized=False,
-	             scc_size=None, nojit=False):
+	def __init__(self, *, heap_size=None, virtualized=False, scc_size=None, nojit=False):
 		self.heap_size = heap_size
 		self.virtualized = virtualized
 		self.scc_size = scc_size
@@ -67,8 +60,7 @@ class JVMConfig:
 		args = []
 
 		if self.heap_size is not None:
-			args.extend(("-Xms{}".format(self.heap_size),
-			             "-Xmx{}".format(self.heap_size)))
+			args.extend(("-Xms{}".format(self.heap_size), "-Xmx{}".format(self.heap_size)))
 		if self.virtualized:
 			args.append("-Xtune:virtualized")
 		if self.scc_size is not None:
@@ -86,8 +78,7 @@ class OpenJ9ContainerInstance(docker.ContainerInstance):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
-	def store_output(self, success, prefix=None, invocation_attempt=None, *,
-	                 vlog=None):
+	def store_output(self, success, prefix=None, invocation_attempt=None, *, vlog=None):
 		cmd = []
 		if vlog is not None:
 			cmd.extend(("mv", self.output_path(os.path.join("vlogs", vlog + "*")),
@@ -100,11 +91,9 @@ class OpenJ9ContainerInstance(docker.ContainerInstance):
 	def store_openj9_crash_files(self):
 		tmp_path = "_crash_{}_".format(self.name)
 
-		result = self.host.cp_from_container(self.get_name(), "/output/.",
-		                                     tmp_path + "/", mkdir_dst=True)
+		result = self.host.cp_from_container(self.get_name(), "/output/.", tmp_path + "/", mkdir_dst=True)
 		if result.returncode == 0:
-			self.store_crash_files(tmp_path, store_patterns=crash_store_patterns,
-			                       keep_patterns=crash_keep_patterns)
+			self.store_crash_files(tmp_path, store_patterns=crash_store_patterns, keep_patterns=crash_keep_patterns)
 
 		self.host.run(["rm", "-rf", tmp_path])
 

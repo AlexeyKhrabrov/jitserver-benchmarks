@@ -13,7 +13,7 @@ def main():
 
 	parser.add_argument("hosts_file")
 	parser.add_argument("jdk_dir")
-	parser.add_argument("jdk_ver")
+	parser.add_argument("jdk_ver", type=int)
 
 	parser.add_argument("-p", "--prereqs", action="store_true")
 	parser.add_argument("-c", "--configure", action="store_true")
@@ -32,8 +32,7 @@ def main():
 		cluster.check_sudo_passwd(passwd)
 		cluster.openj9_prereqs(passwd=passwd)
 
-	cluster.openj9_setup(args.jdk_dir, args.jdk_ver, configure=args.configure,
-	                     debug=args.debug)
+	cluster.openj9_setup(args.jdk_dir, args.jdk_ver, configure=args.configure, debug=args.debug)
 
 
 if __name__ == "__main__":

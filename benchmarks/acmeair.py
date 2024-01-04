@@ -13,13 +13,9 @@ class AcmeAirHost(shared.BenchmarkHost):
 
 
 class MongoInstance(docker.ContainerInstance):
-	def __init__(self, config, host, benchmark, config_name, instance_id, *,
-	             reserve_cpus=True, collect_stats=False):
-		super().__init__(
-			host, "mongo", benchmark, config_name, instance_id,
-			start_log_line="Waiting for connections",
-			reserve_cpus=reserve_cpus, collect_stats=collect_stats
-		)
+	def __init__(self, config, host, benchmark, config_name, instance_id, *, reserve_cpus=True, collect_stats=False):
+		super().__init__(host, "mongo", benchmark, config_name, instance_id, start_log_line="Waiting for connections",
+		                 reserve_cpus=reserve_cpus, collect_stats=collect_stats)
 		self.config = config
 		self.reserved_cpus = self.get_reserved_cpus(config.docker_config)
 
@@ -27,16 +23,13 @@ class MongoInstance(docker.ContainerInstance):
 		return 27017 + self.instance_id
 
 	def start(self, experiment, run_id, attempt_id):
-		cmd = [
-			"acmeair/run_mongo.sh", str(self.instance_id)
-		] + self.config.docker_config.docker_args(self.host, self.reserved_cpus)
+		cmd = (["acmeair/run_mongo.sh", str(self.instance_id)] +
+		       self.config.docker_config.docker_args(self.host, self.reserved_cpus))
 
-		super().start(cmd, experiment.name.lower(), run_id, attempt_id,
-		              timeout=5.0)
+		super().start(cmd, experiment.name.lower(), run_id, attempt_id, timeout=5.0)
 
 		cmd = ["acmeair/mongo_init.sh", str(self.instance_id)]
-		self.host.run(cmd, remote_output=self.output_path("mongo_init.log"),
-		              check=True)
+		self.host.run(cmd, remote_output=self.output_path("mongo_init.log"), check=True)
 
 
 class AcmeAir(liberty.Liberty):
@@ -58,8 +51,8 @@ class AcmeAir(liberty.Liberty):
 		result.application_config.jvm_config = openj9.JVMConfig(
 			scc_size="96m",
 		)
-		result.application_config.start_timeout = 60.0# seconds
-		result.application_config.stop_timeout = 10.0# seconds
+		result.application_config.start_timeout = 60.0 # seconds
+		result.application_config.stop_timeout = 10.0 # seconds
 		result.application_config.stop_attempts = 6
 		return result
 

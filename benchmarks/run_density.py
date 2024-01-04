@@ -55,14 +55,13 @@ hosts_lists = {
 	"petclinic": ([0], [0], [1, 2, 3, 4], [8, 9, 10]),
 }
 
-def get_config(benchmark, name, interval, duration, n_invocations,
-               idle_time, scc, n_runs, skip_complete_runs=False):
+def get_config(benchmark, name, interval, duration, n_invocations, idle_time, scc, n_runs, skip_complete_runs=False):
 	result = bench_cls[benchmark]().small_config(False)
 	result.name = "density_{}_{}".format("scc" if scc else "noscc", name)
 
 	result.jitserver_config.server_threads = 128
-	result.jitserver_config.session_purge_time = (duration + 10) * 1000# milliseconds
-	result.jitserver_config.session_purge_interval = 10 * 1000# milliseconds
+	result.jitserver_config.session_purge_time = (duration + 10) * 1000 # milliseconds
+	result.jitserver_config.session_purge_interval = 10 * 1000 # milliseconds
 
 	result.application_config.start_interval = interval
 	result.application_config.save_jitdump = (benchmark == "petclinic")
@@ -71,7 +70,7 @@ def get_config(benchmark, name, interval, duration, n_invocations,
 		result.application_config.populate_scc_run_jmeter = False
 
 	result.jmeter_config.duration = duration
-	result.jmeter_config.stop_timeout = 3 * 60# seconds
+	result.jmeter_config.stop_timeout = 3 * 60 # seconds
 	result.jmeter_config.duration_includes_start = True
 
 	result.n_dbs = len(hosts_lists[benchmark][1]) * dbs_per_host[benchmark]
@@ -90,9 +89,7 @@ def make_cluster(benchmark, hosts, *args):
 	db_hosts = hosts_lists[benchmark][1]
 	if config.n_dbs > len(db_hosts):
 		#NOTE: assuming db hosts are homogeneous
-		config.db_config.docker_config.ncpus = (
-			hosts[db_hosts[0]].get_ncpus() // (config.n_dbs // len(db_hosts))
-		)
+		config.db_config.docker_config.ncpus = hosts[db_hosts[0]].get_ncpus() // (config.n_dbs // len(db_hosts))
 
 	return shared.BenchmarkCluster(
 		config, bench_cls[benchmark](),
@@ -147,8 +144,7 @@ def main():
 			if args.format is not None:
 				cmd.extend(("-f", args.format))
 
-			util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True),
-			                 range(len(configs)))
+			util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True), range(len(configs)))
 
 			result = results.DensityAllExperimentsResult(
 				experiments, bench, [get_config(args.benchmark, *c[:-1], args.scc, args.n_runs) for c in configs],
@@ -164,8 +160,7 @@ def main():
 				)
 				current_limits = result.save_results(dry_run=True)
 				other_limits = other_result.save_results(dry_run=True)
-				limits = {f: max(current_limits[f], other_limits[f])
-				          for f in current_limits.keys()}
+				limits = {f: max(current_limits[f], other_limits[f]) for f in current_limits.keys()}
 
 			result.save_results(
 				limits=limits, legends={
@@ -183,8 +178,7 @@ def main():
 	util.set_sigint_handler()
 
 	if args.cleanup:
-		cluster = make_cluster(args.benchmark, hosts, *configs[0][:-1],
-		                       args.scc, args.n_runs)
+		cluster = make_cluster(args.benchmark, hosts, *configs[0][:-1], args.scc, args.n_runs)
 		#NOTE: assuming same credentials for all hosts
 		passwd = getpass.getpass()
 		cluster.check_sudo_passwd(passwd)
@@ -192,8 +186,7 @@ def main():
 		return
 
 	for c in configs:
-		cluster = make_cluster(args.benchmark, hosts, *c[:-1], args.scc,
-		                       args.n_runs, args.skip_complete_runs)
+		cluster = make_cluster(args.benchmark, hosts, *c[:-1], args.scc, args.n_runs, args.skip_complete_runs)
 		cluster.run_all_density_experiments(experiments)
 
 

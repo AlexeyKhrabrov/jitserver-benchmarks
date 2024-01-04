@@ -75,18 +75,18 @@ class JITServerConfig:
 		self.disable_active_thread_thresholds = disable_active_thread_thresholds
 		self.disable_gcr_threshold = disable_gcr_threshold
 		self.server_scratch_space_factor = server_scratch_space_factor
-		self.reconnect_wait_time = reconnect_wait_time# milliseconds
-		self.client_socket_timeout = client_socket_timeout# milliseconds
-		self.server_socket_timeout = server_socket_timeout# milliseconds
-		self.session_purge_time = session_purge_time# milliseconds
-		self.session_purge_interval = session_purge_interval# milliseconds
+		self.reconnect_wait_time = reconnect_wait_time # milliseconds
+		self.client_socket_timeout = client_socket_timeout # milliseconds
+		self.server_socket_timeout = server_socket_timeout # milliseconds
+		self.session_purge_time = session_purge_time # milliseconds
+		self.session_purge_interval = session_purge_interval # milliseconds
 		self.encryption = encryption
 		self.use_internal_addr = use_internal_addr
 		self.share_romclasses = share_romclasses
 		self.romclass_cache_partitions = romclass_cache_partitions
 		self.aotcache_name = aotcache_name
-		self.stop_sleep_time = stop_sleep_time# seconds
-		self.stop_timeout = stop_timeout# seconds
+		self.stop_sleep_time = stop_sleep_time # seconds
+		self.stop_timeout = stop_timeout # seconds
 		self.stop_attempts = stop_attempts
 		self.kill_remote_on_timeout = kill_remote_on_timeout
 		self.save_jitdump = save_jitdump
@@ -115,25 +115,18 @@ class JITServerConfig:
 			jit_opts.append("scratchSpaceLimit={}".format(
 			                util.size_to_bytes(self.server_memlimit) // 1024))
 		if self.disable_active_thread_thresholds:
-			jit_opts.extend(("highActiveThreadThreshold=1000000000",
-			                 "veryHighActiveThreadThreshold=1000000000"))
+			jit_opts.extend(("highActiveThreadThreshold=1000000000", "veryHighActiveThreadThreshold=1000000000"))
 		if self.server_scratch_space_factor is not None:
-			jit_opts.append("scratchSpaceFactorWhenJITServerWorkload={}".format(
-			                self.server_scratch_space_factor))
+			jit_opts.append("scratchSpaceFactorWhenJITServerWorkload={}".format(self.server_scratch_space_factor))
 		if self.server_socket_timeout is not None:
-			args.append("-XX:JITServerTimeout={}".format(
-			            self.server_socket_timeout))
+			args.append("-XX:JITServerTimeout={}".format(self.server_socket_timeout))
 		if self.session_purge_time is not None:
-			jit_opts.extend((
-				"oldAge={}".format(self.session_purge_time),
-				"oldAgeUnderLowMemory={}".format(self.session_purge_time)
-			))
+			jit_opts.extend(("oldAge={}".format(self.session_purge_time),
+			                 "oldAgeUnderLowMemory={}".format(self.session_purge_time)))
 		if self.session_purge_interval is not None:
-			jit_opts.append("timeBetweenPurges={}".format(
-			                self.session_purge_interval))
+			jit_opts.append("timeBetweenPurges={}".format(self.session_purge_interval))
 		if self.encryption:
-			args.extend(("-XX:JITServerSSLCert={}".format(cert_path),
-			             "-XX:JITServerSSLKey={}".format(key_path)))
+			args.extend(("-XX:JITServerSSLCert={}".format(cert_path), "-XX:JITServerSSLKey={}".format(key_path)))
 		if self.share_romclasses:
 			args.append("-XX:+JITServerShareROMClasses")
 		if self.romclass_cache_partitions is not None:
@@ -176,8 +169,7 @@ class JITServerConfig:
 			args.append("-Xdump:java:events=user,file=javacore.txt")
 
 		if experiment.is_jitserver():
-			args.extend(("-XX:+UseJITServer",
-			             "-XX:JITServerAddress={}".format(jitserver_addr)))
+			args.extend(("-XX:+UseJITServer", "-XX:JITServerAddress={}".format(jitserver_addr)))
 			if jitserver_port is not None:
 				args.append("-XX:JITServerPort={}".format(jitserver_port))
 			if self.client_threads is not None:
@@ -185,23 +177,19 @@ class JITServerConfig:
 			if self.require_jitserver:
 				args.append("-XX:+RequireJITServer")
 			if self.reconnect_wait_time is not None:
-				jit_opts.append("reconnectWaitTimeMs={}".format(
-				                self.reconnect_wait_time))
+				jit_opts.append("reconnectWaitTimeMs={}".format(self.reconnect_wait_time))
 			if self.client_socket_timeout is not None:
-				args.append("-XX:JITServerTimeout={}".format(
-				            self.client_socket_timeout))
+				args.append("-XX:JITServerTimeout={}".format(self.client_socket_timeout))
 			if self.encryption:
 				args.append("-XX:JITServerSSLRootCerts={}".format(cert_path))
 		else:
 			if self.localjit_memlimit is not None:
-				jit_opts.append("scratchSpaceLimit={}".format(
-				                util.size_to_bytes(self.localjit_memlimit) // 1024))
+				jit_opts.append("scratchSpaceLimit={}".format(util.size_to_bytes(self.localjit_memlimit) // 1024))
 
 		if experiment.is_aotcache():
 			args.append("-XX:+JITServerUseAOTCache")
 			if self.aotcache_name:
-				args.append("-XX:JITServerAOTCacheName={}".format(
-				            self.aotcache_name))
+				args.append("-XX:JITServerAOTCacheName={}".format(self.aotcache_name))
 
 		if self.disable_jit_profiling:
 			jit_opts.extend(("disableJProfiling", "disableJProfilingThread",
@@ -238,14 +226,10 @@ class JITServerConfig:
 
 #NOTE: assuming single instance per host
 class JITServerInstance(remote.ServerInstance):
-	def __init__(self, config, host, benchmark, config_name,
-	             instance_id, *, reserve_cpus=True, collect_stats=False):
-		super().__init__(
-			host, "jitserver", benchmark, config_name, instance_id,
-			start_log_line="JITServer is ready to accept incoming requests",
-			reserve_cpus=reserve_cpus,
-			collect_stats=collect_stats or config.server_resource_stats
-		)
+	def __init__(self, config, host, benchmark, config_name, instance_id, *, reserve_cpus=True, collect_stats=False):
+		super().__init__(host, "jitserver", benchmark, config_name, instance_id,
+		                 start_log_line="JITServer is ready to accept incoming requests",
+		                 reserve_cpus=reserve_cpus, collect_stats=collect_stats or config.server_resource_stats)
 		self.config = config
 
 	def jitserver_port(self):
@@ -259,12 +243,9 @@ class JITServerInstance(remote.ServerInstance):
 		jdk_path = self.host.jdk_path(self.config.jdk_ver, self.config.debug)
 
 		cmd = [os.path.join(jdk_path, "bin/jitserver")]
-		cmd.extend(self.config.jitserver_args(
-			experiment, vlog_path=self.output_path("vlog_server"),
-			jitserver_port=self.jitserver_port(),
-			cert_path=os.path.join(jdk_path, "cert.pem"),
-			key_path=os.path.join(jdk_path, "key.pem")
-		))
+		cmd.extend(self.config.jitserver_args(experiment, vlog_path=self.output_path("vlog_server"),
+		           jitserver_port=self.jitserver_port(), cert_path=os.path.join(jdk_path, "cert.pem"),
+		           key_path=os.path.join(jdk_path, "key.pem")))
 
 		return super().start(cmd, experiment.name.lower(), run_id, attempt_id,
 		                     env=self.config.jitserver_env(), timeout=5.0)
@@ -280,11 +261,8 @@ class JITServerInstance(remote.ServerInstance):
 			self.remote_proc.kill(signal.SIGQUIT)
 			time.sleep(1.0)
 
-		exc = super().stop(
-			store=False, timeout=self.config.stop_timeout,
-			attempts=self.config.stop_attempts, raise_on_failure=False,
-			kill_remote_on_timeout=self.config.kill_remote_on_timeout
-		)
+		exc = super().stop(store=False, timeout=self.config.stop_timeout, attempts=self.config.stop_attempts,
+		                   raise_on_failure=False, kill_remote_on_timeout=self.config.kill_remote_on_timeout)
 
 		if exc is None:
 			cmd = []
@@ -296,8 +274,7 @@ class JITServerInstance(remote.ServerInstance):
 			self.store_openj9_crash_files()
 
 		if store:
-			self.host.run(["mv", self.output_path("vlog_server*"),
-			               self.output_path("vlog_server.log")], globs=True)
+			self.host.run(["mv", self.output_path("vlog_server*"), self.output_path("vlog_server.log")], globs=True)
 			self.store_output(exc is None, prefix)
 		return exc
 
@@ -306,8 +283,7 @@ class JITServerHost(docker.DockerHost, openj9.OpenJ9Host):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
-	def jitserver_setup(self, *, scripts_only=False, buildkit=False,
-	                    sudo=False, passwd=None):
+	def jitserver_setup(self, *, scripts_only=False, buildkit=False, sudo=False, passwd=None):
 		self.rsync_put(os.path.join(module_dir, "jitserver/"), "jitserver/")
 		self.update_scripts()
 		if scripts_only:
@@ -316,8 +292,7 @@ class JITServerHost(docker.DockerHost, openj9.OpenJ9Host):
 		output_path = self.log_path("jitserver_setup")
 		t0 = time.monotonic()
 		if sudo:
-			self.run_sudo(["jitserver/build.sh"], output=output_path,
-			              check=True, passwd=passwd)
+			self.run_sudo(["jitserver/build.sh"], output=output_path, check=True, passwd=passwd)
 		else:
 			self.run(["jitserver/build.sh"], output=output_path, check=True,
 			         env={"DOCKER_BUILDKIT": 1} if buildkit else None)
@@ -342,27 +317,17 @@ class JITServerContainerInstance(openj9.OpenJ9ContainerInstance, JITServerInstan
 			self.benchmark,
 			str(self.instance_id),
 			self.host.jdk_path(self.config.jdk_ver, self.config.debug),
-			util.args_str(
-				self.config.jitserver_args(
-					experiment, vlog_path="/output/vlogs/vlog_server",
-					jitserver_port=self.jitserver_port(),
-					cert_path="/cert.pem", key_path="/key.pem"
-				)
-			),
-			util.args_str(
-				"{}={}".format(k, v)
-				for k, v in self.config.jitserver_env().items()
-			)
+			util.args_str(self.config.jitserver_args(experiment, vlog_path="/output/vlogs/vlog_server",
+			              jitserver_port=self.jitserver_port(), cert_path="/cert.pem", key_path="/key.pem")),
+			util.args_str("{}={}".format(k, v) for k, v in self.config.jitserver_env().items())
 		] + self.docker_config.docker_args(self.host, self.reserved_cpus)
 
-		return super(JITServerInstance, self).start(cmd, experiment.name.lower(),
-		                                            run_id, attempt_id)
+		return super(JITServerInstance, self).start(cmd, experiment.name.lower(), run_id, attempt_id)
 
 	def stop(self, prefix=None):
 		exc = super(openj9.OpenJ9ContainerInstance, self).stop(store=False)
 		if exc is None and self.config.save_javacore:
-			self.host.cp_from_container(self.get_name(), "/output/javacore.txt",
-			                            self.output_dir())
+			self.host.cp_from_container(self.get_name(), "/output/javacore.txt", self.output_dir())
 		self.host.remove_container(self.get_name())
 		self.store_output(exc is None, prefix)
 		return exc
