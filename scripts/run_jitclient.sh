@@ -5,7 +5,8 @@ set -e -u -o pipefail
 
 usage_str="\
 Usage: ${0} jdk_dir jdk_ver jitserver_addr [-d|--debug] [-g|--gdb]
-       [-b|--break] [-s|--stderr] [-c|--cache] [-p|--purge-scc] [<jvm args>]"
+       [-b|--break] [-v|--valgrind] [-s|--stderr-vlog]
+       [-P|--purge-scc] [-a|--aotcache] [<jvm args>]"
 
 function usage()
 {
@@ -22,17 +23,17 @@ jitserver_addr="${3}"
 debug=false
 use_gdb=false
 do_break=false
+use_valgrind=false
 stderr_vlog=false
 purge_scc=false
+use_aotcache=false
 
-jvm_args=("-XX:+UseJITServer" "-XX:+RequireJITServer"
-          "-XX:JITServerAddress=${jitserver_addr}")
-jit_opts=("verbose={failures|compilePerformance|JITServer}")
+jvm_args=("-XX:+UseJITServer" "-XX:+RequireJITServer" "-XX:JITServerAddress=${jitserver_addr}" "-XX:JITServerTimeout=0")
 extra_args=()
 
 for arg in "${@:4}"; do
 	case "${arg}" in
-		"--help" )
+		"-h" | "--help" )
 			usage
 			;;
 		"-d" | "--debug" )
@@ -40,36 +41,31 @@ for arg in "${@:4}"; do
 			;;
 		"-g" | "--gdb" )
 			use_gdb=true
+			use_valgrind=false
 			;;
 		"-b" | "--break" )
 			do_break=true
 			;;
-		"-s" | "--stderr" )
+		"-v" | "--valgrind" )
+			use_valgrind=true
+			use_gdb=false
+			;;
+		"-s" | "--stderr-vlog" )
 			stderr_vlog=true
 			;;
-		"-c" | "--cache" )
+		"-P" | "--purge-scc" )
+			purge_scc=true
+			;;
+		"-a" | "--aotcache" )
+			use_aotcache=true
 			jvm_args+=("-XX:+JITServerUseAOTCache")
 			;;
-		"-p" | "--purge-scc" )
-			purge_scc=true
 			;;
 		*)
 			extra_args+=("${arg}")
 			;;
 	esac
 done
-
-if [[ "${stderr_vlog}" != true ]]; then
-	jit_opts+=("vlog=vlog_client")
-fi
-
-
-function join() { local IFS="${1}"; shift; echo "$*"; }
-
-if [[ ${#jit_opts[@]} > 0 ]]; then
-	opts="$(join "," "${jit_opts[@]}")"
-	jvm_args+=("-Xjit:${opts}" "-Xaot:${opts}")
-fi
 
 jvm_args+=("${extra_args[@]}")
 
@@ -89,6 +85,12 @@ if [[ "${purge_scc}" == true ]]; then
 fi
 
 
+vlog_opts="verbose={failures|compilePerformance|JITServer}"
+if [[ "${stderr_vlog}" != true ]]; then
+	vlog_opts+=",vlog=vlog_client"
+fi
+export TR_Options="${vlog_opts}"
+
 export TR_silentEnv=1
 export TR_PrintCompStats=1
 export TR_PrintCompTime=1
@@ -96,12 +98,15 @@ export TR_PrintJITServerMsgStats=1
 export TR_PrintJITServerAOTCacheStats=1
 export TR_PrintResourceUsageStats=1
 
+
 if [[ "${use_gdb}" == true ]]; then
 	gdb_args=("-ex" "handle SIGPIPE nostop noprint pass")
 	if [[ "${do_break}" != true ]]; then
 		gdb_args+=("-ex" "run")
 	fi
 	gdb "${gdb_args[@]}" --args "${java}" "${jvm_args[@]}"
+elif [[ "${use_valgrind}" == true ]]; then
+	valgrind --vgdb=yes --vgdb-error=0 "${java}" "${jvm_args[@]}"
 else
 	"${java}" "${jvm_args[@]}"
 fi
