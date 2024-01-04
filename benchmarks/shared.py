@@ -214,33 +214,37 @@ class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 		return exc
 
 	def stop(self, success=True, prefix=None, invocation_attempt=None):
-		if self.javacore_proc is not None:
-			self.javacore_proc.stop(signal.SIGINT)
-			self.javacore_proc = None
+		if self.bench.stop_signal() is not None:
+			if self.javacore_proc is not None:
+				self.javacore_proc.stop(signal.SIGINT)
+				self.javacore_proc = None
 
-		if self.config.save_jitdump or self.config.save_javacore:
-			self.remote_proc.kill(signal.SIGQUIT)
-			time.sleep(0.5)
+			if self.config.save_jitdump or self.config.save_javacore:
+				self.remote_proc.kill(signal.SIGQUIT)
+				time.sleep(0.5)
 
-		exc = super(openj9.OpenJ9ContainerInstance, self).stop(
-			store=False, timeout=self.config.stop_timeout,
-			attempts=self.config.stop_attempts, raise_on_failure=False,
-			kill_remote_on_timeout=self.config.kill_remote_on_timeout
-		)
+			if self.config.save_scc_stats:
+				cmd = ["docker", "exec", self.get_name(), "/opt/ibm/java/bin/java",
+				       "-Xshareclasses:printStats,name={},cacheDir=/output/.classCache".format(self.bench.name())]
+				self.host.run(cmd, remote_output=self.output_path("scc_stats.log"))
+
+			exc = super(openj9.OpenJ9ContainerInstance, self).stop(
+				store=False, timeout=self.config.stop_timeout, attempts=self.config.stop_attempts,
+				raise_on_failure=False, kill_remote_on_timeout=self.config.kill_remote_on_timeout
+			)
+
+		else:
+			exc = self.wait(store=False, timeout=self.config.stop_timeout, raise_on_failure=False,
+			                kill_remote_on_timeout=self.config.kill_remote_on_timeout,
+			                prefix=prefix, invocation_attempt=invocation_attempt)
+
+			if self.javacore_proc is not None:
+				self.javacore_proc.stop(signal.SIGINT)
+				self.javacore_proc = None
 
 		if exc is None:
 			if self.config.save_javacore:
-				self.host.cp_from_container(
-					self.get_name(), "/output/javacore.txt", self.output_dir()
-				)
-			if self.config.save_scc_stats:
-				cmd = [
-					"docker", "exec", self.get_name(), "/opt/ibm/java/bin/java",
-					"-Xshareclasses:printStats,name={},cacheDir=/output/.classCache".format(
-						self.bench.name()
-					)
-				]
-				self.host.run(cmd, remote_output=self.output_path("scc_stats.log"))
+				self.host.cp_from_container(self.get_name(), "/output/javacore.txt", self.output_dir())
 		else:
 			self.store_openj9_crash_files()
 
@@ -654,7 +658,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		return True
 
 	def skip_run(self, experiment, run_id, is_density):
-		if (run_id in self.config.skip_runs):
+		if run_id in self.config.skip_runs:
 			print("Skipping experiment {} {} {} run {}".format(
 			      self.bench.name(), self.config.name, experiment.name, run_id))
 			return True
@@ -662,16 +666,14 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		if not self.config.skip_complete_runs:
 			return False
 
-		components = ("jitserver", self.bench.db_name(),
-		              self.bench.name(), "jmeter")
+		components = ("jitserver", self.bench.db_name(), self.bench.name(), "jmeter")
 
-		n_instances = self.config.n_instances * (self.config.n_invocations
-		                                         if is_density else 1)
+		n_instances = self.config.n_instances * (self.config.n_invocations if is_density else 1)
 		nums_of_instances = (
 			self.config.n_jitservers if experiment.is_jitserver() else 0,
 			self.config.n_dbs if self.bench.db_name() is not None else 0,
-			n_instances,# application
-			n_instances if self.config.run_jmeter else 0,# jmeter
+			n_instances, # application
+			n_instances if self.config.run_jmeter else 0, # jmeter
 		)
 
 		jitserver_files = ["jitserver.log"]
@@ -682,29 +684,27 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 
 		db_files = [(self.bench.db_name() or "") + ".log", "cgroup_rusage.log"]
 
-		app_files = [self.bench.name() + ".log", "cgroup_rusage.log",
-		             self.bench.start_stop_ts_file()]
+		app_files = [self.bench.name() + ".log", self.bench.start_stop_ts_file()]
+		if self.bench.stop_signal():
+			app_files.append("cgroup_rusage.log")
 		if self.config.jitserver_config.client_vlog:
 			app_files.append("vlog_client.log")
 
 		jmeter_files = ["jmeter.log"]
-		if (self.config.jmeter_config.latency_data or
-		    self.config.jmeter_config.report_data
-		):
+		if self.config.jmeter_config.latency_data or self.config.jmeter_config.report_data:
 			jmeter_files.append("results.jtl")
 
 		if self.config.collect_stats:
 			jitserver_files.append("stats.log")
 			if self.config.jitserver_docker_config is not None:
 				jitserver_files.append("docker_stats.log")
-			db_files.extend("stats.log", "docker_stats.log")
-			app_files.extend("stats.log", "docker_stats.log")
-			jmeter_files.extend("stats.log", "docker_stats.log")
+			db_files.extend(("stats.log", "docker_stats.log"))
+			app_files.extend(("stats.log", "docker_stats.log"))
+			jmeter_files.extend(("stats.log", "docker_stats.log"))
 
 		files = (jitserver_files, db_files, app_files, jmeter_files)
 
-		if not self.is_complete_run(experiment, run_id, components,
-		                            nums_of_instances, files):
+		if not self.is_complete_run(experiment, run_id, components, nums_of_instances, files):
 			return False
 
 		print("Skipping complete experiment {} {} {} run {}".format(
