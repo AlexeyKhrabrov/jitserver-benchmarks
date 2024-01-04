@@ -448,22 +448,20 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 			)
 		]
 
-	def run_application_and_jmeter(self,
-		jmeter_instance, experiment, run_jmeter, run_id, attempt_id, *,
-		scc_run=False, prefix=None, invocation_attempt=None
-	):
+	def run_application_and_jmeter(self, jmeter_instance, experiment, run_jmeter, run_id, attempt_id, *,
+	                               scc_run=False, prefix=None, invocation_attempt=None):
 		application_instance = jmeter_instance.application_instance
-		exc = application_instance.start(experiment, run_id, attempt_id, scc_run)
-		success = exc is None
+		success = not experiment.is_jitserver() or application_instance.jitserver_instance.is_running()
 
-		if (success and experiment.is_jitserver() and
-		    not self.config.jitserver_config.require_jitserver
-		):
+		if success:
+			exc = application_instance.start(experiment, run_id, attempt_id, scc_run)
+			success = exc is None
+
+		if success and experiment.is_jitserver():
 			success = application_instance.jitserver_instance.is_running()
 
 		if success and run_jmeter:
-			exc = jmeter_instance.run(experiment, run_id, attempt_id,
-			                          scc_run, prefix, invocation_attempt)
+			exc = jmeter_instance.run(experiment, run_id, attempt_id, scc_run, prefix, invocation_attempt)
 			success = exc is None
 
 		exc = application_instance.stop(success, prefix, invocation_attempt)
