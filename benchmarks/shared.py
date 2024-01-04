@@ -802,7 +802,7 @@ def base_config():
 		n_instances=None,
 		run_jmeter=False,
 		n_runs=1,
-		attempts=2,
+		attempts=3,
 	)
 
 def update_config(config, name, application_cpus, application_mem, jmeter_cpus,

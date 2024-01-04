@@ -62,7 +62,7 @@ def main():
 			debug=False,
 			portable_scc=False,
 			noaot=False,
-			forceaot=True,
+			forceaot=False,
 			nodelay_aotload=True,
 			svm_at_startup=False,
 			client_threads=None,
@@ -75,8 +75,10 @@ def main():
 			disable_gcr_threshold=False,
 			server_scratch_space_factor=1,
 			reconnect_wait_time=None, # milliseconds
-			client_socket_timeout=None, # milliseconds
-			server_socket_timeout=None, # milliseconds
+			client_socket_timeout=0, # milliseconds
+			server_socket_timeout=0, # milliseconds
+			session_purge_time=0, # milliseconds
+			session_purge_interval=0, # milliseconds
 			encryption=False,
 			use_internal_addr=False,
 			share_romclasses=True,
@@ -111,7 +113,7 @@ def main():
 			populate_scc_bench=None,
 			use_internal_addr=False,
 			share_scc=False,
-			start_interval=None, # seconds
+			start_interval=float("+inf"), # seconds
 			start_timeout=2 * 60.0, # seconds
 			sleep_time=1.0, # seconds
 			stop_timeout=10.0, # seconds
@@ -143,13 +145,13 @@ def main():
 		n_jitservers=1,
 		n_dbs=1,
 		n_instances=args.n_instances,
-		cache_extra_instance=False,
+		cache_extra_instance=True,
 		populate_cache_bench=None,
 		run_jmeter=args.jmeter,
 		n_runs=args.n_runs,
-		attempts=1,
+		attempts=3,
 		skip_runs=(),
-		skip_complete_runs=False,
+		skip_complete_runs=True,
 		n_invocations=None,
 		idle_time=None,
 		collect_stats=True,
