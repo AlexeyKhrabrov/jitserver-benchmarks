@@ -60,7 +60,7 @@ def save_summary(s, *args):
 	path = os.path.join(results_path(*args), "summary.txt")
 	os.makedirs(os.path.dirname(path), exist_ok=True)
 	with open(path, "w") as f:
-		print(s, file=f)
+		print(s, end="", file=f)
 
 plot_format = "png"
 
@@ -292,21 +292,18 @@ class ApplicationOutput:
 		return ProcessRUsage(self.benchmark + ".log", *self.id)
 
 	def container_rusage(self):
-		return ContainerRUsage(*self.id)
+		try:
+			return ContainerRUsage(*self.id)
+		except:
+			return None
 
 	def vlog(self):
 		return VLog("vlog_client.log", *self.id)
 
 
-class JMeterOutput:
-	@staticmethod
-	def parse_time(s):
-		t = s.split(":")
-		return 60 * 60 * int(t[0]) + 60 * int(t[1]) + int(t[2])
-
+class WarmupData:
 	def is_within_margin(self, val, center):
-		return ((val >= center * (1 - self.margin)) and
-		        (val <= center * (1 + self.margin)))
+		return (val >= center * (1 - self.margin)) and (val <= center * (1 + self.margin))
 
 	def is_plateau(self, data, idx):
 		outliers = 0
@@ -319,85 +316,75 @@ class JMeterOutput:
 
 		return idx < len(data) - 1
 
-	def reached_threshold(self, threshold, next_threshold, idx):
-		data = self.throughput_data
-		return ((data[idx][1] >= threshold * self.peak_throughput) and
-		        ((idx + 1 >= len(data)) or
-		         (data[idx + 1][1] >= next_threshold * self.peak_throughput)))
+	def reached_threshold(self, data, idx):
+		return ((data[idx] >= self.threshold * self.peak_throughput) and
+		        ((idx + 1 >= len(data)) or (data[idx + 1] >= self.next_threshold * self.peak_throughput)))
 
-	def warmup_data(self):
-		data = [d[1] for d in self.throughput_data]
-		if self.window is None:
-			return data
-		return pd.DataFrame(data).rolling(self.window, 1, True).mean()[0].to_list()
-
-	def __init__(self,
-		benchmark, config, *args, threshold=None, next_threshold=None,
-		margin=None, outlier_limit=None, window=None, keep_throughput_data=True
-	):
-		self.id = [benchmark, config] + list(args) + ["jmeter"]
-
-		self.duration = config.jmeter_config.duration
+	def __init__(self, throughput_data, duration=None, *, keep_throughput_data=True, threshold=None,
+	             next_threshold=None, margin=None, outlier_limit=None, window=None):
+		self.throughput_data = throughput_data
 		self.threshold = threshold or 0.9
 		self.next_threshold = next_threshold or 0.8
 		self.margin = margin or 0.1
 		self.outlier_limit = outlier_limit or 0.1
-		self.window = window
 
-		self.throughput_data = [(0.0, 0.0)]# time (sec), throughput (req/sec)
+		data = [d[1] for d in self.throughput_data]
+		if window is not None:
+			data = pd.DataFrame(data).rolling(window, 1, True).mean()[0].to_list()
+
+		plateau_start = next((i for i in range(len(data)) if self.is_plateau(data, i)), len(data) - 1)
+		self.peak_throughput = mean(d for d in data[plateau_start:])
+
+		warmup_end = next((i for i in range(len(data)) if self.reached_threshold(data, i)), len(data) - 1)
+		self.warmup_time = self.throughput_data[warmup_end][0] or self.throughput_data[-1][0]
+		self.warmup_avg_throughput = sum(data[i] for i in range(min(warmup_end + 1, len(data)))) / self.warmup_time
+
+		if not keep_throughput_data:
+			self.throughput_data = None
+
+
+class JMeterOutput:
+	def __init__(self, benchmark, config, *args, tail=None, **kwargs):
+		self.id = [benchmark, config] + list(args) + ["jmeter"]
+
+		self.duration = config.jmeter_config.duration
 		self.requests = 0
 
-		regex = re.compile(r"summary \+\s+(\d+) in (\d+:\d+:\d+) =\s+(\d+\.?\d*)/s")
+		throughput_data = [(0.0, 0.0)] # time (sec), throughput (req/sec)
+		regex = re.compile(r"^summary \+\s+(\d+) in (\d+:\d+:\d+) =\s+(\d+\.\d+)/s")
 		t = 0.0
 
 		with open(os.path.join(logs_path(*self.id), "jmeter.log"), "r") as f:
 			for line in f:
 				m = regex.search(line)
 				if m:
-					t += self.parse_time(m.group(2))
+					hms = m.group(2).split(":")
+					t += 60 * 60 * int(hms[0]) + 60 * int(hms[1]) + int(hms[2])
 					if t <= self.duration:
-						self.throughput_data.append((t, float(m.group(3))))
+						throughput_data.append((t, float(m.group(3))))
 					self.requests += int(m.group(1))
 
-		data = self.warmup_data()
-		plateau_start = next((i for i in range(len(data))
-		                      if self.is_plateau(data, i)), len(data) - 1)
-		self.peak_throughput = mean(d[1] for d in
-		                            self.throughput_data[plateau_start:])
-		warmup_end = next(
-			(i for i in range(len(self.throughput_data))
-			 if self.reached_threshold(self.threshold, self.next_threshold, i)),
-			len(self.throughput_data) - 1
-		)
-		self.warmup_time = self.throughput_data[warmup_end][0] or self.duration
-		self.warmup_avg_throughput = sum(
-			self.throughput_data[i][1]
-			for i in range(min(warmup_end + 1, len(self.throughput_data)))
-		) / self.warmup_time
+		self.warmup_data = WarmupData(throughput_data, self.duration, **kwargs)
 
-		if not keep_throughput_data:
-			self.throughput_data = None
+		if config.jmeter_config.latency_data:
+			latency_data = [] # time (sec), latency (sec)
+			t = 0.0
 
-	# Returns a list of (time (sec), latency (sec)) tuples
-	def latency_data(self):
-		result = []
-		t = 0.0
+			with open(os.path.join(logs_path(*self.id), "results.jtl"), "r", newline="") as f:
+				#TODO: use faster csv.reader
+				reader = csv.DictReader(f)
+				start_ts = int(next(reader)["timeStamp"])
 
-		path = os.path.join(logs_path(*self.id), "results.jtl")
-		with open(path, "r", newline="") as f:
-			#TODO: use faster csv.reader
-			reader = csv.DictReader(f)
-			start_ts = int(next(reader)["timeStamp"])
+				for row in reader:
+					if row["label"] not in ("WS2 Open Connection", "WS2 existing"):
+						t += (int(row["timeStamp"]) - start_ts) / 1000.0
+						if (self.duration is not None) and (t > self.duration):
+							break
+						latency_data.append((t, int(row["elapsed"]) / 1000.0))
 
-			for row in reader:
-				if row["label"] in ("WS2 Open Connection", "WS2 existing"):
-					continue
-				t += (int(row["timeStamp"]) - start_ts) / 1000.0
-				if (self.duration is not None) and (t > self.duration):
-					break
-				result.append((t, int(row["elapsed"]) / 1000.0))
-
-		return result
+			latencies = [d[1] for d in latency_data]
+			tail_percentile = tail or 99.0
+			self.tail_latency = np.percentile(latencies, tail_percentile)
 
 	def process_stats(self):
 		return ProcessStats(*self.id)
@@ -407,9 +394,6 @@ class JMeterOutput:
 
 	def process_rusage(self):
 		return ProcessRUsage("jmeter.log", *self.id)
-
-	def container_rusage(self):
-		return ContainerRUsage(*self.id)
 
 
 class JITServerOutput:
@@ -426,7 +410,7 @@ class JITServerOutput:
 				)
 				if parsed: break
 
-		self.bytes_recv = self.bytes_recv or 0#TODO
+		self.bytes_recv = self.bytes_recv or 0
 
 	def process_stats(self):
 		return ProcessStats(*self.id)
@@ -519,39 +503,31 @@ def add_total_mean_stdev_lists(result, results, field, in_values=False):
 	return vals
 
 
+max_experiment_name_len = max(len(e.name) for e in Experiment)
+
+def experiment_summary(m, s, experiments, e, rel_e=None, total_e=Experiment.LocalJIT):
+	if e not in experiments:
+		return ""
+
+	result = "\t{}:{} {:2.2f} ±{:1.2f}".format(e.name, " " * (max_experiment_name_len - len(e.name)), m[e], s[e])
+
+	do_rel = rel_e is not None and rel_e in experiments
+	do_total = total_e is not None and total_e in experiments
+	if do_rel or do_total:
+		result += " ("
+		if do_rel:
+			result += "{:+2.1f}%{}".format(rel_change_p(m[e], m[rel_e]), ", " if do_total else "")
+		if do_total:
+			result += "total {:+2.1f}%".format(rel_change_p(m[e], m[total_e]))
+		result += ")"
+
+	return result + "\n"
+
 def summary(m, s, experiments):
-	result = ""
-
-	if Experiment.LocalJIT in experiments:
-		result += "\tLocalJIT:       {:2.2f} ±{:1.2f}\n".format(
-			m[Experiment.LocalJIT], s[Experiment.LocalJIT]
-		)
-
-	if Experiment.JITServer in experiments:
-		result += "\tJITServer:      {:2.2f} ±{:1.2f} ({:+2.1f}%)\n".format(
-			m[Experiment.JITServer], s[Experiment.JITServer],
-			rel_change_p(m[Experiment.JITServer], m[Experiment.LocalJIT])
-			if Experiment.LocalJIT in experiments else 0.0
-		)
-
-	if Experiment.AOTCache in experiments:
-		result += "\tAOTCache:       {:2.2f} ±{:1.2f} ({:+2.1f}%, total {:+2.1f}%)\n".format(
-			m[Experiment.AOTCache], s[Experiment.AOTCache],
-			rel_change_p(m[Experiment.AOTCache], m[Experiment.JITServer])
-			if Experiment.JITServer in experiments else 0.0,
-			rel_change_p(m[Experiment.AOTCache], m[Experiment.LocalJIT])
-			if Experiment.LocalJIT in experiments else 0.0
-		)
-
-	if Experiment.AOTCacheWarm in experiments:
-		result += "\tAOTCacheWarm:   {:2.2f} ±{:1.2f} ({:+2.1f}%, total {:+2.1f}%)\n".format(
-			m[Experiment.AOTCacheWarm], s[Experiment.AOTCacheWarm],
-			rel_change_p(m[Experiment.AOTCacheWarm], m[Experiment.JITServer])
-			if Experiment.JITServer in experiments else 0.0,
-			rel_change_p(m[Experiment.AOTCacheWarm], m[Experiment.LocalJIT])
-			if Experiment.LocalJIT in experiments else 0.0
-		)
-
+	result = experiment_summary(m, s, experiments, Experiment.LocalJIT, None, None)
+	result += experiment_summary(m, s, experiments, Experiment.JITServer, Experiment.LocalJIT, None)
+	result += experiment_summary(m, s, experiments, Experiment.AOTCache, Experiment.JITServer)
+	result += experiment_summary(m, s, experiments, Experiment.AOTCacheWarm, Experiment.JITServer)
 	return result
 
 
@@ -605,19 +581,24 @@ class ApplicationRunResult:
 		self.jit_cpu_time = self.application_output.jit_cpu_time
 		self.jitserver_mem = 0.0
 		self.jitserver_cpu = 0.0
-		self.data_transferred = self.application_output.bytes_recv / (1024 * 1024)# MB
+		self.data_transferred = self.application_output.bytes_recv / (1024 * 1024) # MB
 
+		self.warmup_data = None
 		if config.run_jmeter:
-			self.jmeter_output = JMeterOutput(bench.name(), config, experiment,
-			                                  *args, **kwargs)
+			self.jmeter_output = JMeterOutput(bench.name(), config, experiment, *args, **kwargs)
 			self.requests = self.jmeter_output.requests
-			self.warmup_time = self.jmeter_output.warmup_time
+			self.warmup_data = self.jmeter_output.warmup_data
+
+		if self.warmup_data is not None:
+			self.warmup_time = self.warmup_data.warmup_time
 			self.full_warmup_time = self.warmup_time + self.start_time
-			self.warmup_avg_throughput = self.jmeter_output.warmup_avg_throughput
-			self.peak_throughput = self.jmeter_output.peak_throughput
+			self.warmup_avg_throughput = self.warmup_data.warmup_avg_throughput
+			self.peak_throughput = self.warmup_data.peak_throughput
+
+		self.vlog = self.application_output.vlog() if config.jitserver_config.client_vlog else None
 
 	def throughput_df(self):
-		data = self.jmeter_output.throughput_data
+		data = self.warmup_data.throughput_data
 		return pd.DataFrame([d[1] for d in data], index=[d[0] for d in data],
 		                    columns=[experiment_names[self.actual_experiment]])
 
@@ -692,6 +673,13 @@ def result_fields(config):
 
 	return fields
 
+# field, label, log, cut
+vlog_cdf_fields = (
+	("queue_sizes", "Compilation queue size", False, None),
+	("comp_times", "Compilation time, ms", True, 0.99),
+	("queue_times", "Total queuing time, ms", True, 0.99),
+)
+
 
 class ApplicationInstanceResult:
 	def __init__(self, bench, config, experiment, instance_id,
@@ -712,20 +700,13 @@ class ApplicationInstanceResult:
 		add_min_max(self, self.results, "peak_mem")
 
 		if config.run_jmeter:
-			self.interval = mean(
-				(r.jmeter_output.throughput_data[-1][0] /
-				 (len(r.jmeter_output.throughput_data) - 1))
-				if r.jmeter_output.throughput_data is not None else 0.0
-				for r in self.results
-			)
+			self.interval = mean((r.warmup_data.throughput_data[-1][0] / (len(r.warmup_data.throughput_data) - 1))
+			                     if r.warmup_data is not None else 0.0 for r in self.results)
 
 	def aligned_throughput_df(self, run_id):
-		data = self.results[run_id].jmeter_output.throughput_data
-		return pd.DataFrame(
-			[d[1] for d in data],
-			index=[self.interval * i for i in range(len(data))],
-			columns=[experiment_names[self.actual_experiment]]
-		)
+		data = self.results[run_id].warmup_data.throughput_data
+		return pd.DataFrame([d[1] for d in data], index=[self.interval * i for i in range(len(data))],
+		                    columns=[experiment_names[self.actual_experiment]])
 
 	def avg_throughput_df_groups(self):
 		return pd.concat(
@@ -775,10 +756,8 @@ class ApplicationInstanceResult:
 		for r in self.results:
 			r.save_stats_plots()
 
-	def plot_comp_time_cdf(self, ax, field, log=False, cut=None):
-		data = list(itertools.chain.from_iterable(
-			getattr(r.application_output.vlog(), field) for r in self.results
-		))
+	def plot_cdf(self, ax, field, log=False, cut=None):
+		data = list(itertools.chain.from_iterable(getattr(r.vlog, field) for r in self.results))
 		s = pd.Series(data).sort_values()
 		if cut is not None:
 			s = s[:math.floor(len(s) * cut)]
@@ -911,10 +890,10 @@ class SingleInstanceExperimentResult:
 			if r is not None:
 				r.save_stats_plots()
 
-	def save_comp_time_cdf_plot(self, field, label, log=False, cut=None, legends=None):
+	def save_cdf_plot(self, field, label, log=False, cut=None, legends=None):
 		ax = plt.gca()
 		for e in self.experiments:
-			self.application_results[e].plot_comp_time_cdf(ax, field, log, cut)
+			self.application_results[e].plot_cdf(ax, field, log, cut)
 		ax.set(xlabel=label + (" (log scale)" if log else ""), ylabel="CDF", title="")
 
 		if (legends or {}).get(field, True):
@@ -928,7 +907,7 @@ class SingleInstanceExperimentResult:
 		name = field + ("_log" if log else "") + ("_cut" if cut is not None else "")
 		save_plot(ax, name, self.benchmark, self.config)
 
-	def save_results(self, limits=None, details=False, legends=None):
+	def save_results(self, limits=None, details=False, legends=None, cdf_plots=False):
 		self.save_summary()
 
 		if details:
@@ -944,11 +923,14 @@ class SingleInstanceExperimentResult:
 				self.save_stats_plots()
 
 		if self.config.jitserver_config.client_vlog:
-			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms", legends=legends)
-			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms", log=True, legends=legends)
-			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms", cut=0.99, legends=legends)
-			self.save_comp_time_cdf_plot("queue_times", "Total queuing time, ms", legends=legends)
-			self.save_comp_time_cdf_plot("queue_times", "Total queuing time, ms", log=True, legends=legends)
+			if cdf_plots:
+				for field, label, log, cut in vlog_cdf_fields:
+					self.save_cdf_plot(field, label, legends=legends)
+					if log:
+						self.save_cdf_plot(field, label, log=True, legends=legends)
+					if cut is not None:
+						self.save_cdf_plot(field, label, cut=cut, legends=legends)
+
 
 
 class SingleInstanceAllExperimentsResult:
@@ -958,7 +940,7 @@ class SingleInstanceAllExperimentsResult:
 		self.mode = mode
 		self.configs = configs
 		self.names = names
-		self.jmeter = configs[0].run_jmeter
+		self.warmup = configs[0].run_jmeter
 
 		self.results = [SingleInstanceExperimentResult(experiments, bench, configs[i],
 		                                               **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
@@ -989,8 +971,8 @@ class SingleInstanceAllExperimentsResult:
 		if dry_run:
 			plt.close(ax.get_figure())
 		else:
-			save_plot(ax, "single_{}_{}_{}".format("full" if self.jmeter
-			          else "start", self.mode, field[0]), self.benchmark)
+			save_plot(ax, "single_{}_{}_{}".format("full" if self.warmup else "start",
+			          self.mode, field[0]), self.benchmark)
 		return result
 
 	def save_all_bar_plots(self, limits=None, legends=None, dry_run=False):
@@ -1025,20 +1007,13 @@ class ApplicationAllInstancesResult:
 		add_min_max(self, self.all_results, "peak_mem")
 
 		if config.run_jmeter:
-			self.interval = mean(
-				(r.jmeter_output.throughput_data[-1][0] /
-				 (len(r.jmeter_output.throughput_data) - 1))
-				if r.jmeter_output.throughput_data is not None else 0.0
-				for r in self.all_results
-			)
+			self.interval = mean((r.warmup_data.throughput_data[-1][0] / (len(r.warmup_data.throughput_data) - 1))
+			                     if r.warmup_data.throughput_data is not None else 0.0 for r in self.all_results)
 
 	def aligned_throughput_df(self, instance_id, run_id):
-		data = self.results[instance_id][run_id].jmeter_output.throughput_data
-		return pd.DataFrame(
-			[d[1] for d in data],
-			index=[self.interval * i for i in range(len(data))],
-			columns=[experiment_names[self.experiment]]
-		)
+		data = self.results[instance_id][run_id].warmup_data.throughput_data
+		return pd.DataFrame([d[1] for d in data], index=[self.interval * i for i in range(len(data))],
+		                    columns=[experiment_names[self.experiment]])
 
 	def avg_throughput_df_groups(self):
 		return pd.concat(
@@ -1086,10 +1061,8 @@ class ApplicationAllInstancesResult:
 
 		self.plot_peak_throughput_warmup_time(ax)
 
-	def plot_comp_time_cdf(self, ax, field, log=False, cut=None):
-		data = list(itertools.chain.from_iterable(
-			getattr(r.application_output.vlog(), field) for r in self.all_results
-		))
+	def plot_cdf(self, ax, field, log=False, cut=None):
+		data = list(itertools.chain.from_iterable(getattr(r.vlog, field) for r in self.all_results))
 		s = pd.Series(data).sort_values()
 		if cut is not None:
 			s = s[:math.floor(len(s) * cut)]
@@ -1245,10 +1218,10 @@ class ScaleExperimentResult:
 			self.application_results[e].plot_avg_throughput(ax)
 		self.save_throughput_plot(ax, "avg", ymax)
 
-	def save_comp_time_cdf_plot(self, field, label, log=False, cut=None, legends=None):
+	def save_cdf_plot(self, field, label, log=False, cut=None, legends=None):
 		ax = plt.gca()
 		for e in self.experiments:
-			self.application_results[e].plot_comp_time_cdf(ax, field, log, cut)
+			self.application_results[e].plot_cdf(ax, field, log, cut)
 		ax.set(xlabel=label + (" (log scale)" if log else ""), ylabel="CDF", title="")
 
 		if (legends or {}).get(field, True):
@@ -1261,7 +1234,7 @@ class ScaleExperimentResult:
 		name = field + ("_log" if log else "") + ("_cut" if cut is not None else "")
 		save_plot(ax, name, self.benchmark, self.config)
 
-	def save_results(self, limits=None, legends=None):
+	def save_results(self, limits=None, legends=None, cdf_plots=False):
 		self.save_summary()
 		self.save_all_bar_plots(limits)
 
@@ -1275,19 +1248,20 @@ class ScaleExperimentResult:
 				if r is not None:
 					r.save_stats_plots()
 
-		if self.config.jitserver_config.client_vlog:
-			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms", legends=legends)
-			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms", log=True, legends=legends)
-			self.save_comp_time_cdf_plot("comp_times", "Compilation time, ms", cut=0.99, legends=legends)
-			self.save_comp_time_cdf_plot("queue_times", "Total queuing time, ms", legends=legends)
-			self.save_comp_time_cdf_plot("queue_times", "Total queuing time, ms", log=True, legends=legends)
+		if self.config.jitserver_config.client_vlog and cdf_plots:
+			for field, label, log, cut in vlog_cdf_fields:
+				self.save_cdf_plot(field, label, legends=legends)
+				if log:
+					self.save_cdf_plot(field, label, log=True, legends=legends)
+				if cut is not None:
+					self.save_cdf_plot(field, label, cut=cut, legends=legends)
 
 
 class ScaleAllExperimentsResult:
 	def __init__(self, experiments, bench, configs, kwargs_list=None):
 		self.experiments = experiments
 		self.benchmark = bench.name()
-		self.jmeter = configs[0].run_jmeter
+		self.warmup = configs[0].run_jmeter
 
 		self.results = [ScaleExperimentResult(experiments, bench, configs[i], keep_throughput_data=False,
 		                                      **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
@@ -1301,7 +1275,7 @@ class ScaleAllExperimentsResult:
 			("total_jitserver_mem", "Total JITServer memory usage, MB"),
 			("total_jitserver_cpu", "Total JITServer CPU time, sec"),
 		]
-		if self.jmeter:
+		if self.warmup:
 			self.fields.extend((
 				("warmup_time", "Warm-up time, sec"),
 				("full_warmup_time", "Full warm-up time, sec"),
@@ -1405,7 +1379,7 @@ class LatencyAllExperimentsResult:
 	def __init__(self, experiments, bench, configs, kwargs_list=None):
 		self.experiments = experiments
 		self.benchmark = bench.name()
-		self.jmeter = configs[0].run_jmeter
+		self.warmup = configs[0].run_jmeter
 
 		self.results = [LatencyExperimentResult(experiments, bench, configs[i],
 		                                        **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
