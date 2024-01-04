@@ -231,55 +231,41 @@ class ApplicationOutput:
 		self.id = [self.benchmark] + list(args) + [self.benchmark]
 		path = logs_path(*self.id)
 
-		self.app_start_time = None
 		self.jvm_ts = None
 		self.docker_ts = None
 		self.start_ts = None
 		self.stop_ts = None
 		self.n_comps = None
 		self.bytes_recv = None
-		self.jit_cpu_time = 0.0# seconds
-
-		start_log_line = bench.start_log_line()
+		self.jit_cpu_time = 0.0 # seconds
 
 		with open(os.path.join(path, bench.name() + ".log"), "r") as f:
 			for line in f:
-				self.app_start_time, parsed = parse_first_token(
-					self.app_start_time, line, start_log_line, float
-				)
+				self.jvm_ts, parsed = parse_first_token(self.jvm_ts, line, "JVM start timestamp: ", self.parse_log_ts)
 				if parsed: continue
 
-				self.jvm_ts, parsed = parse_first_token(
-					self.jvm_ts, line, "JVM start timestamp: ",
-					self.parse_log_ts
-				)
+				self.docker_ts, parsed = parse_first_token(self.docker_ts, line,
+				                                           "Docker start timestamp: ", self.parse_log_ts)
 				if parsed: continue
 
-				self.docker_ts, parsed = parse_first_token(
-					self.docker_ts, line, "Docker start timestamp: ",
-					self.parse_log_ts
-				)
+				self.n_comps, parsed = parse_first_token(self.n_comps, line, "compilationOK", int)
 				if parsed: continue
 
-				self.n_comps, parsed = parse_first_token(
-					self.n_comps, line, "compilationOK", int
-				)
+				self.bytes_recv, parsed = parse_first_token(self.bytes_recv, line,
+				                                            "Total amount of data received: ", int)
 				if parsed: continue
 
-				self.bytes_recv, parsed = parse_first_token(
-					self.bytes_recv, line, "Total amount of data received: ", int
-				)
+				t, parsed = parse_first_token(None, line, "Time spent in compilation thread =", float)
+				self.jit_cpu_time += (t or 0.0) / 1000.0
 				if parsed: continue
 
-				t, parsed = parse_first_token(
-					None, line, "Time spent in compilation thread =", float
-				)
+				t, parsed = parse_first_token(None, line, "Time spent in AOT prefetcher thread: ", float)
 				self.jit_cpu_time += (t or 0.0) / 1000.0
 
 		self.bytes_recv = self.bytes_recv or 0
 
+		start_log_line = bench.start_log_line()
 		stop_log_line = bench.stop_log_line()
-
 		with open(os.path.join(path, bench.start_stop_ts_file()), "r") as f:
 			for line in f:
 				if start_log_line in line:
