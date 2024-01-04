@@ -56,8 +56,8 @@ def results_path(benchmark, config=None, experiment=None,
 		"{}_{}".format(component, instance_id) if component is not None else ""
 	)
 
-def save_summary(s, *args):
-	path = os.path.join(results_path(*args), "summary.txt")
+def save_summary(s, *args, name=None):
+	path = os.path.join(results_path(*args), (name or "summary") + ".txt")
 	os.makedirs(os.path.dirname(path), exist_ok=True)
 	with open(path, "w") as f:
 		print(s, end="", file=f)
@@ -211,7 +211,7 @@ class VLog:
 		optlevel = self.parse(line, " (", ")", True)
 		return "{} @ {}".format(self.parse(line, prefix, " "), optlevel)
 
-	def __init__(self, file_name, *args):
+	def __init__(self, file_name, *args, find_dups=False, dups_dlt=False, dups_mht=False):
 		self.path = os.path.join(logs_path(*args), file_name)
 
 		self.comp_starts = [] # milliseconds
@@ -220,6 +220,10 @@ class VLog:
 		self.queue_times = [] # milliseconds
 
 		self.n_lambdas = 0
+		self.dups = None
+		if find_dups:
+			methods = set()
+			self.dups = set()
 
 		with open(self.path, "r") as f:
 			for line in f:
@@ -230,10 +234,27 @@ class VLog:
 				elif line.startswith("+ ("):
 					method = self.parse_method(line)
 					self.queue_sizes.append(int(self.parse(line, " Q_SZ=", " ")))
+					method += " " + self.parse(line, "j9m=", " ")
 					self.comp_times.append(float(self.parse(line, " time=", "us")) / 1000.0)
 					self.queue_times.append(float(self.parse(line, " queueTime=", "us")) / 1000.0)
 
 					self.n_lambdas += 1 if "$$Lambda$" in method else 0
+					if (find_dups and (dups_dlt or " MethodInProgress " not in line) and
+					    (dups_mht or "_thunkArchetype_" not in method)
+					):
+						if method in methods:
+							self.dups.add(method)
+						else:
+							methods.add(method)
+
+	def dups_summary(self):
+		if not self.dups:
+			return ""
+
+		result = self.path + ":\n"
+		for method in self.dups:
+			result += "\t{}\n".format(method)
+		return result + "\n"
 
 
 class ApplicationOutput:
@@ -315,7 +336,7 @@ class ApplicationOutput:
 			return None
 
 	def vlog(self):
-		return VLog("vlog_client.log", *self.id)
+		return VLog("vlog_client.log", *self.id, find_dups=True)
 
 
 class WarmupData:
@@ -950,6 +971,12 @@ class SingleInstanceExperimentResult:
 					if cut is not None:
 						self.save_cdf_plot(field, label, cut=cut, legends=legends)
 
+			s = ""
+			for e in self.experiments:
+				for r in self.application_results[e].results:
+					s += r.vlog.dups_summary()
+			if s:
+				save_summary(s, self.benchmark, self.config, name="dups")
 
 
 class SingleInstanceAllExperimentsResult:
