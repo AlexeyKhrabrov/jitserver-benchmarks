@@ -99,8 +99,8 @@ bench_cls = {
 
 def make_cluster(bench, hosts, subset, jmeter, size, warm, duration,
                  scc_extra_duration, n_runs, skip_complete_runs=False):
-	host0 = hosts[subset]
-	host1 = hosts[subset + (1 if (subset % 2 == 0) else -1)]
+	host0 = hosts[subset % len(hosts)]
+	host1 = hosts[(subset + (1 if (subset % 2 == 0) else -1)) % len(hosts)]
 
 	return shared.BenchmarkCluster(
 		get_config(bench, jmeter, size, warm, duration,
