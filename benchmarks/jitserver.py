@@ -215,9 +215,7 @@ class JITServerConfig:
 	stats_env_vars = ("TR_silentEnv", "TR_PrintResourceUsageStats", "TR_PrintCompStats",
 	                  "TR_PrintCompTime", "TR_PrintJITServerAOTCacheStats")
 
-	extra_stats_env_vars = (
-		"TR_PrintJITServerMsgStats", "TR_PrintJITServerMallocStats"
-	)
+	extra_stats_env_vars = ("TR_PrintJITServerMsgStats")
 
 	@staticmethod
 	def env(env_vars):
