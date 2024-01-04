@@ -308,7 +308,7 @@ class JMeterInstance(docker.ContainerInstance):
 class BenchmarkConfig:
 	def __init__(self, *,
 		name, jitserver_config, jitserver_docker_config, db_config, application_config, jmeter_config,
-		n_jitservers, n_dbs, n_instances, aotcache_extra_instance=False, populate_aotcache_bench=None,
+		n_jitservers, n_dbs, n_instances, cache_extra_instance=False, populate_cache_bench=None,
 		run_jmeter, n_runs, attempts, skip_runs=None, skip_complete_runs=False,
 		n_invocations=None, idle_time=None, invocation_attempts=None, collect_stats=False
 	):
@@ -321,8 +321,8 @@ class BenchmarkConfig:
 		self.n_jitservers = n_jitservers
 		self.n_dbs = n_dbs
 		self.n_instances = n_instances
-		self.aotcache_extra_instance = aotcache_extra_instance
-		self.populate_aotcache_bench = populate_aotcache_bench
+		self.cache_extra_instance = cache_extra_instance
+		self.populate_cache_bench = populate_cache_bench
 		self.run_jmeter = run_jmeter
 		self.n_runs = n_runs
 		self.attempts = attempts
@@ -333,8 +333,8 @@ class BenchmarkConfig:
 		self.invocation_attempts = invocation_attempts
 		self.collect_stats = collect_stats
 
-	def get_n_instances(self, is_aotcache):
-		if self.aotcache_extra_instance and is_aotcache:
+	def get_n_instances(self, is_cache):
+		if self.cache_extra_instance and is_cache:
 			return self.n_instances + 1
 		else:
 			return self.n_instances
@@ -465,8 +465,8 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 			                                        "localjit", 0, 0, "scc")
 			raise Exception("Failed to populate {} scc".format(self.bench.name()))
 
-	def populate_aotcache(self, instance_id, experiment, run_id, attempt_id):
-		bench = self.config.populate_aotcache_bench or self.bench
+	def populate_cache(self, instance_id, experiment, run_id, attempt_id):
+		bench = self.config.populate_cache_bench or self.bench
 
 		db_instance = bench.new_db_instance(self.config.db_config, self.db_hosts[instance_id], self.bench.name(),
 		                                    self.config.name, instance_id, reserve_cpus=False,
@@ -484,22 +484,22 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 			reserve_cpus=False, collect_stats=self.config.collect_stats
 		)
 		success = self.run_application_and_jmeter(jmeter_instance, experiment, self.config.run_jmeter,
-		                                          run_id, attempt_id, prefix="aotcache")
+		                                          run_id, attempt_id, prefix="cache")
 
-		db_instance.stop(prefix="aotcache")
+		db_instance.stop(prefix="cache")
 		return success
 
-	def populate_all_aotcache(self, experiment, run_id, attempt_id):
-		print("Populating aotcache...")
+	def populate_all_cache(self, experiment, run_id, attempt_id):
+		print("Populating cache...")
 
-		results = util.parallelize(self.populate_aotcache, range(len(self.jitserver_hosts)),
+		results = util.parallelize(self.populate_cache, range(len(self.jitserver_hosts)),
 		                           experiment, run_id, attempt_id)
 		success = all(r for r in results)
 
 		if not success:
-			util.parallelize(lambda i: i.stop(prefix="aotcache"), self.jitserver_instances)
+			util.parallelize(lambda i: i.stop(prefix="cache"), self.jitserver_instances)
 			remote.ServerInstance.rename_failed_run(self.hosts[0], self.bench.name(), self.config.name,
-			                                        experiment.name.lower(), run_id, attempt_id, "aotcache")
+			                                        experiment.name.lower(), run_id, attempt_id, "cache")
 
 		return success
 
@@ -507,7 +507,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		if experiment.is_jitserver():
 			util.parallelize(lambda i: i.start(experiment, run_id, attempt_id), self.jitserver_instances)
 
-			if experiment.is_warm_aotcache() and not self.populate_all_aotcache(experiment, run_id, attempt_id):
+			if experiment.is_warm_cache() and not self.populate_all_cache(experiment, run_id, attempt_id):
 				return False
 
 		util.parallelize(lambda i: i.start(experiment, run_id, attempt_id), self.db_instances)
@@ -519,7 +519,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 			else:
 				util.parallelize(BenchmarkHost.scc_cleanup, self.application_hosts, self.bench.name())
 
-		n_instances = self.config.get_n_instances(experiment.is_aotcache())
+		n_instances = self.config.get_n_instances(experiment.is_cache())
 		results = util.parallelize(self.run_application_and_jmeter, self.jmeter_instances[0:n_instances],
 		                           experiment, self.config.run_jmeter, run_id, attempt_id,
 		                           sleep_time=self.config.application_config.start_interval)

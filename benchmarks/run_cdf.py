@@ -47,7 +47,7 @@ def get_config(bench, jmeter, experiment, n_runs,
 	result.jmeter_config.duration = jmeter_durations[bench.name()]
 
 	result.n_instances = 1
-	result.aotcache_extra_instance = True
+	result.cache_extra_instance = True
 	result.run_jmeter = jmeter
 	result.n_runs = n_runs
 	result.skip_complete_runs = skip_complete_runs

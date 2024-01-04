@@ -83,7 +83,7 @@ def get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs, 
 	config.jmeter_config.scc_extra_duration = scc_extra_duration
 
 	config.n_instances = 1
-	config.aotcache_extra_instance = True
+	config.cache_extra_instance = True
 	config.run_jmeter = jmeter
 	config.n_runs = n_runs
 	config.skip_complete_runs = skip_complete_runs

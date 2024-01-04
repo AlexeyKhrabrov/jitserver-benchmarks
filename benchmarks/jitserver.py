@@ -21,21 +21,24 @@ class Experiment(enum.IntEnum):
 		return self is not Experiment.LocalJIT
 
 	def is_aotcache(self):
-		return self not in (Experiment.LocalJIT, Experiment.JITServer)
+		return self in (Experiment.AOTCache, Experiment.AOTCacheWarm)
 
-	def is_warm_aotcache(self):
+	def is_cache(self):
+		return self.is_aotcache()
+
+	def is_warm_cache(self):
 		return self is Experiment.AOTCacheWarm
 
 	def to_single_instance(self):
-		if self.is_warm_aotcache():
+		if self.is_warm_cache():
 			return (Experiment(self.value - 1), 1)
 		else:
 			return (self, 0)
 
 	def cdf_report_experiment(self):
-		if self.is_warm_aotcache():
+		if self.is_warm_cache():
 			return Experiment(self.value - 1)
-		elif self.is_aotcache():
+		elif self.is_cache():
 			return Experiment.JITServer
 		else:
 			return self
@@ -188,8 +191,8 @@ class JITServerConfig:
 
 		if experiment.is_aotcache():
 			args.append("-XX:+JITServerUseAOTCache")
-			if self.aotcache_name:
-				args.append("-XX:JITServerAOTCacheName={}".format(self.aotcache_name))
+		if experiment.is_cache() and self.aotcache_name:
+			args.append("-XX:JITServerAOTCacheName={}".format(self.aotcache_name))
 
 		if self.disable_jit_profiling:
 			jit_opts.extend(("disableJProfiling", "disableJProfilingThread",
