@@ -219,6 +219,8 @@ class VLog:
 		self.comp_times = [] # milliseconds
 		self.queue_times = [] # milliseconds
 
+		self.n_lambdas = 0
+
 		with open(self.path, "r") as f:
 			for line in f:
 				if line.startswith(" ("):
@@ -230,6 +232,8 @@ class VLog:
 					self.queue_sizes.append(int(self.parse(line, " Q_SZ=", " ")))
 					self.comp_times.append(float(self.parse(line, " time=", "us")) / 1000.0)
 					self.queue_times.append(float(self.parse(line, " queueTime=", "us")) / 1000.0)
+
+					self.n_lambdas += 1 if "$$Lambda$" in method else 0
 
 
 class ApplicationOutput:
@@ -609,6 +613,7 @@ class ApplicationRunResult:
 			self.peak_throughput = self.warmup_data.peak_throughput
 
 		self.vlog = self.application_output.vlog() if config.jitserver_config.client_vlog else None
+		self.n_lambdas = self.vlog.n_lambdas if self.vlog is not None else 0
 
 	def throughput_df(self):
 		data = self.warmup_data.throughput_data
