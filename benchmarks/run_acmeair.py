@@ -8,6 +8,7 @@ import docker
 import jitserver
 import openj9
 import remote
+import results
 import shared
 import util
 
@@ -18,11 +19,19 @@ experiments = (
 	jitserver.Experiment.AOTCache,
 )
 
+result_experiments = (
+	jitserver.Experiment.LocalJIT,
+	jitserver.Experiment.JITServer,
+	jitserver.Experiment.AOTCache,
+	jitserver.Experiment.AOTCacheWarm,
+)
+
 
 def main():
 	parser = argparse.ArgumentParser()
 
 	parser.add_argument("hosts_file")
+	parser.add_argument("subset", type=int)
 	parser.add_argument("n_instances", type=int)
 	parser.add_argument("n_runs", type=int)
 
@@ -30,9 +39,15 @@ def main():
 	parser.add_argument("-j", "--jmeter", action="store_true")
 	parser.add_argument("-v", "--verbose", action="store_true")
 	parser.add_argument("-L", "--logs-path")
+	parser.add_argument("-r", "--result", action="store_true")
+	parser.add_argument("-R", "--results-path")
+	parser.add_argument("-f", "--format")
+	parser.add_argument("-d", "--details", action="store_true")
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
+	results.results_dir = args.results_path or results.results_dir
+	results.plot_format = args.format or results.plot_format
 
 	config = shared.BenchmarkConfig(
 		name="test",
@@ -150,14 +165,19 @@ def main():
 		collect_stats=True,
 	)
 
-	hosts = [acmeair.AcmeAirHost(*h)
-	         for h in remote.load_hosts(args.hosts_file)]
+	if args.result:
+		assert args.n_instances == 1
+		results.SingleInstanceExperimentResult(
+			result_experiments, acmeair.AcmeAir, config
+		).save_results(details=args.details)
+		return
 
-	cluster = shared.BenchmarkCluster(
-		config, acmeair.AcmeAir,
-		jitserver_hosts=[hosts[0]], db_hosts=[hosts[0]],
-		application_hosts=[hosts[1]], jmeter_hosts=[hosts[0]]
-	)
+	hosts = [acmeair.AcmeAirHost(*h) for h in remote.load_hosts(args.hosts_file)]
+	host0 = hosts[(2 * args.subset) % len(hosts)]
+	host1 = hosts[(2 * args.subset + 1) % len(hosts)]
+
+	cluster = shared.BenchmarkCluster(config, acmeair.AcmeAir, jitserver_hosts=[host0], db_hosts=[host0],
+	                                  application_hosts=[host1], jmeter_hosts=[host0])
 
 	util.verbose = args.verbose
 	util.set_sigint_handler()
