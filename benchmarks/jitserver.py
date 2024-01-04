@@ -44,9 +44,9 @@ class Experiment(enum.IntEnum):
 class JITServerConfig:
 	def __init__(self, *,
 		server_vlog=False, client_vlog=False, detailed_vlog=False, server_extra_stats=False, client_extra_stats=False,
-		server_resource_stats=False, jdk_ver=8, debug=False, portable_scc=False, forceaot=False, nodelay_aotload=False,
-		svm_at_startup=False, client_threads=None, localjit_memlimit=None, server_threads=None, server_codecache=None,
-		server_memlimit=None, require_jitserver=False, disable_active_thread_thresholds=False,
+		server_resource_stats=False, jdk_ver=8, debug=False, portable_scc=False, noaot=False, forceaot=False,
+		nodelay_aotload=False, svm_at_startup=False, client_threads=None, localjit_memlimit=None, server_threads=None,
+		server_codecache=None, server_memlimit=None, require_jitserver=False, disable_active_thread_thresholds=False,
 		disable_gcr_threshold=False, server_scratch_space_factor=None, reconnect_wait_time=None,
 		client_socket_timeout=None, server_socket_timeout=None, session_purge_time=None, session_purge_interval=None,
 		encryption=False, use_internal_addr=False, share_romclasses=False, romclass_cache_partitions=None,
@@ -62,6 +62,7 @@ class JITServerConfig:
 		self.jdk_ver = jdk_ver
 		self.debug = debug
 		self.portable_scc = portable_scc
+		self.noaot = noaot
 		self.forceaot = forceaot
 		self.nodelay_aotload = nodelay_aotload
 		self.svm_at_startup = svm_at_startup
@@ -161,15 +162,14 @@ class JITServerConfig:
 
 		if self.client_vlog:
 			jit_opts.append(self.verbose_args(vlog_path))
+		if self.noaot or scc_no_aot:
+			jit_opts.extend(("noload", "nostore"))
 		if self.forceaot:
 			jit_opts.append("forceAOT")
 		if self.nodelay_aotload:
 			jit_opts.append("disableDelayRelocationForAOTCompilations")
 		if self.disable_gcr_threshold:
 			jit_opts.append("GCRQueuedThresholdForCounting=1000000000")
-
-		if scc_no_aot:
-			jit_opts.append("nostore")
 		if save_jitdump:
 			args.append("-Xdump:jit:events=user")
 		if save_javacore:
