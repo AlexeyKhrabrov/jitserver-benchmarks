@@ -3,23 +3,11 @@ import signal
 
 import openj9
 import shared
-import remote
 
 
 class PetClinicHost(shared.BenchmarkHost):
 	def __init__(self, *args, **kwargs):
 		super().__init__("petclinic", *args, **kwargs)
-
-
-class DummyDBInstance(remote.ServerInstance):
-	def __init__(self, config, host, *args, **kwargs):
-		super().__init__(host, "dummy", *args, **kwargs)
-		self.config = config
-
-	def get_port(self): return 0
-	def start(self, *args): pass
-	def stop(self, *args, **kwargs): pass
-	def cleanup(self): pass
 
 
 class PetClinic:
@@ -33,7 +21,7 @@ class PetClinic:
 	def db_name(): return None
 
 	@staticmethod
-	def new_db_instance(*args, **kwargs): return DummyDBInstance(*args, **kwargs)
+	def new_db_instance(*args, **kwargs): return shared.DummyDBInstance(*args, **kwargs)
 
 	@staticmethod
 	def start_log_line(): return "Started PetClinicApplication in"

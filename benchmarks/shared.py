@@ -857,6 +857,17 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		self.full_cleanup()
 
 
+class DummyDBInstance(remote.ServerInstance):
+	def __init__(self, config, host, *args, **kwargs):
+		super().__init__(host, "dummy", *args, **kwargs)
+		self.config = config
+
+	def get_port(self): return 0
+	def start(self, *args): pass
+	def stop(self, *args, **kwargs): pass
+	def cleanup(self): pass
+
+
 def base_config():
 	return BenchmarkConfig(
 		name=None,
