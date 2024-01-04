@@ -200,23 +200,36 @@ class ContainerRUsage(ProcessRUsage):
 
 
 class VLog:
-	def __init__(self, file_name, *args):
-		self.comp_times = []# milliseconds
-		self.queue_times = []# milliseconds
-		self.queue_sizes = []
+	def parse(self, line, prefix, suffix, first=False):
+		self.start_idx = line.index(prefix, 0 if first else self.end_idx) + len(prefix)
+		self.end_idx = line.index(suffix, self.start_idx)
+		result = line[self.start_idx:self.end_idx]
+		self.end_idx += len(suffix)
+		return result
 
-		path = os.path.join(logs_path(*args), file_name)
-		with open(path, "r") as f:
+	def parse_method(self, line, prefix=" "):
+		optlevel = self.parse(line, " (", ")", True)
+		return "{} @ {}".format(self.parse(line, prefix, " "), optlevel)
+
+	def __init__(self, file_name, *args):
+		self.path = os.path.join(logs_path(*args), file_name)
+
+		self.comp_starts = [] # milliseconds
+		self.queue_sizes = []
+		self.comp_times = [] # milliseconds
+		self.queue_times = [] # milliseconds
+
+		with open(self.path, "r") as f:
 			for line in f:
-				if line.startswith("+ ("):
-					idx = line.index(" time=") + len(" time=")
-					t = float(line[idx:line.index("us", idx)])
-					self.comp_times.append(t / 1000.0)
-					idx = line.index(" queueTime=") + len(" queueTime=")
-					t = float(line[idx:line.index("us", idx)])
-					self.queue_times.append(t / 1000.0)
-					idx = line.index(" Q_SZ=") + len(" Q_SZ=")
-					self.queue_sizes.append(int(line[idx:line.index(" ", idx)]))
+				if line.startswith(" ("):
+					method = self.parse_method(line, " Compiling ")
+					self.comp_starts.append(int(self.parse(line, " t=", " ")))
+
+				elif line.startswith("+ ("):
+					method = self.parse_method(line)
+					self.queue_sizes.append(int(self.parse(line, " Q_SZ=", " ")))
+					self.comp_times.append(float(self.parse(line, " time=", "us")) / 1000.0)
+					self.queue_times.append(float(self.parse(line, " queueTime=", "us")) / 1000.0)
 
 
 class ApplicationOutput:
@@ -675,6 +688,7 @@ def result_fields(config):
 
 # field, label, log, cut
 vlog_cdf_fields = (
+	("comp_starts", "Compilation start time, ms", False, None),
 	("queue_sizes", "Compilation queue size", False, None),
 	("comp_times", "Compilation time, ms", True, 0.99),
 	("queue_times", "Total queuing time, ms", True, 0.99),
