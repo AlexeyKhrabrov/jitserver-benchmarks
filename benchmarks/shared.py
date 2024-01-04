@@ -135,7 +135,7 @@ class ApplicationConfig:
 
 class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 	def __init__(self, config, host, bench, config_name, instance_id, db_instance, jitserver_instance, *,
-	             benchmark=None, reserve_cpus=True, collect_stats=False, extra_args=None):
+	             benchmark=None, reserve_cpus=True, collect_stats=False, extra_args=None, fix_log_cmd=None):
 		super().__init__(host, bench.name(), benchmark or bench.name(), config_name, instance_id,
 		                 start_log_line=bench.start_log_line(), error_log_line=bench.error_log_line(),
 		                 stop_signal=bench.stop_signal(), reserve_cpus=reserve_cpus, collect_stats=collect_stats)
@@ -153,6 +153,7 @@ class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 		self.reserved_cpus = self.get_reserved_cpus(config.docker_config)
 		self.javacore_proc = None
 		self.extra_args = extra_args
+		self.fix_log_cmd = fix_log_cmd
 
 	def scc_path(self):
 		if not self.config.populate_scc and not self.config.share_scc:
@@ -242,6 +243,9 @@ class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 				self.host.run(cmd, remote_output=self.output_path("scc_stats.log"))
 		else:
 			self.store_openj9_crash_files()
+
+		if self.fix_log_cmd is not None:
+			self.host.run(self.fix_log_cmd + [self.log_path()], check=True)
 
 		self.host.remove_container(self.get_name())
 		self.store_output(success and (exc is None), prefix, invocation_attempt)
@@ -385,7 +389,8 @@ class BenchmarkConfig:
 
 
 class BenchmarkCluster(openj9.OpenJ9Cluster):
-	def __init__(self, config, bench, *, jitserver_hosts, db_hosts, application_hosts, jmeter_hosts, extra_args=None):
+	def __init__(self, config, bench, *, jitserver_hosts, db_hosts, application_hosts,
+	             jmeter_hosts, extra_args=None, fix_log_cmd=None):
 		super().__init__(list(set(jitserver_hosts + db_hosts + application_hosts + jmeter_hosts)))
 		self.config = config
 		self.bench = bench
@@ -416,7 +421,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 
 		self.application_instances = [
 			ApplicationInstance(config.application_config, h, bench, config.name, i, d, j,
-			                    collect_stats=config.collect_stats, extra_args=extra_args)
+			                    collect_stats=config.collect_stats, extra_args=extra_args, fix_log_cmd=fix_log_cmd)
 			for i, h, d, j in zip(
 				range(config.get_n_instances(True)),
 				itertools.cycle(application_hosts),
