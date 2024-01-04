@@ -134,17 +134,11 @@ class ApplicationConfig:
 
 
 class ApplicationInstance(openj9.OpenJ9ContainerInstance):
-	def __init__(self,
-		config, host, bench, config_name, instance_id,
-		db_instance, jitserver_instance, *, benchmark=None,
-		reserve_cpus=True, collect_stats=False
-	):
-		super().__init__(
-			host, bench.name(), benchmark or bench.name(), config_name,
-			instance_id, start_log_line=bench.start_log_line(),
-			error_log_line=bench.error_log_line(), stop_signal=bench.stop_signal(),
-			reserve_cpus=reserve_cpus, collect_stats=collect_stats
-		)
+	def __init__(self, config, host, bench, config_name, instance_id, db_instance, jitserver_instance, *,
+	             benchmark=None, reserve_cpus=True, collect_stats=False, extra_args=None):
+		super().__init__(host, bench.name(), benchmark or bench.name(), config_name, instance_id,
+		                 start_log_line=bench.start_log_line(), error_log_line=bench.error_log_line(),
+		                 stop_signal=bench.stop_signal(), reserve_cpus=reserve_cpus, collect_stats=collect_stats)
 		self.config = config
 		self.bench = bench
 		self.jitclient_config = jitserver_instance.config
@@ -158,6 +152,7 @@ class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 		self.jitserver_instance = jitserver_instance
 		self.reserved_cpus = self.get_reserved_cpus(config.docker_config)
 		self.javacore_proc = None
+		self.extra_args = extra_args
 
 	def scc_path(self):
 		if not self.config.populate_scc and not self.config.share_scc:
@@ -197,10 +192,8 @@ class ApplicationInstance(openj9.OpenJ9ContainerInstance):
 						save_javacore=self.config.save_javacore
 					))
 			),
-			util.args_str(
-				"{}={}".format(k, v)
-				for k, v in self.jitclient_config.jvm_env().items()
-			)
+			util.args_str("{}={}".format(k, v) for k, v in self.jitclient_config.jvm_env().items()),
+			self.extra_args or ""
 		] + self.config.docker_config.docker_args(self.host, self.reserved_cpus)
 
 		exc = super().start(
@@ -392,10 +385,8 @@ class BenchmarkConfig:
 
 
 class BenchmarkCluster(openj9.OpenJ9Cluster):
-	def __init__(self, config, bench, *,
-	             jitserver_hosts, db_hosts, application_hosts, jmeter_hosts):
-		super().__init__(list(set(jitserver_hosts + db_hosts +
-		                          application_hosts + jmeter_hosts)))
+	def __init__(self, config, bench, *, jitserver_hosts, db_hosts, application_hosts, jmeter_hosts, extra_args=None):
+		super().__init__(list(set(jitserver_hosts + db_hosts + application_hosts + jmeter_hosts)))
 		self.config = config
 		self.bench = bench
 		self.jitserver_hosts = jitserver_hosts
@@ -419,13 +410,13 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 			                      i, collect_stats=config.collect_stats)
 			for i, h in zip(
 				range(config.n_dbs),
-				itertools.cycle(db_hosts),
+				itertools.cycle(db_hosts)
 			)
 		]
 
 		self.application_instances = [
-			ApplicationInstance(config.application_config, h, bench, config.name,
-			                    i, d, j, collect_stats=config.collect_stats)
+			ApplicationInstance(config.application_config, h, bench, config.name, i, d, j,
+			                    collect_stats=config.collect_stats, extra_args=extra_args)
 			for i, h, d, j in zip(
 				range(config.get_n_instances(True)),
 				itertools.cycle(application_hosts),

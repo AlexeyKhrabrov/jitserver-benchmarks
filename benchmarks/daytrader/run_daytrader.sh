@@ -6,8 +6,8 @@ dir="$(dirname "$(readlink -f "${BASH_SOURCE}")")"
 
 
 usage_str="\
-Usage: ${0} instance_id db2_addr db2_port jdk_path
-       scc_path jvm_args jvm_env [<docker args>]"
+Usage: ${0} instance_id db2_addr db2_port jdk_path scc_path
+       jvm_args jvm_env extra_args(unused) [<docker args>]"
 
 function usage()
 {
@@ -16,7 +16,7 @@ function usage()
 }
 
 
-if (( $# < 7 )); then usage; fi
+if (( $# < 8 )); then usage; fi
 
 instance_id="${1}"
 db2_addr="${2}"
@@ -25,7 +25,8 @@ jdk_path=$(readlink -f "${4}")
 scc_path="${5}" # can be "" (scc directory is not mapped outside the container)
 jvm_args="${6}"
 jvm_env=(${7})
-docker_args=("${@:8}")
+extra_args=(${8})
+docker_args=("${@:9}")
 
 
 docker_args+=(-v "${jdk_path}:/opt/ibm/java" -v "${jdk_path}/cert.pem:/cert.pem")
@@ -57,7 +58,8 @@ http_port="$((9080 + instance_id))"
 jms_port="$((7276 + instance_id))"
 iiop_port="$((2809 + instance_id))"
 
-printf "Docker start timestamp: "; date -u "+%FT%T.%N"
+printf "Docker start timestamp: "
+date -u "+%FT%T.%N"
 
 #NOTE: the container is not automatically deleted
 exec docker run --name="${name}" -p "${http_port}:${http_port}" \
