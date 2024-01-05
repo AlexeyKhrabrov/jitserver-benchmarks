@@ -47,11 +47,12 @@ class PetClinic:
 	def base_config():
 		result = shared.base_config()
 		result.application_config.jvm_config = openj9.JVMConfig(
-			scc_size="80m",
+			scc_size="128m",
 		)
 		result.application_config.start_timeout = 2 * 60.0 # seconds
 		result.application_config.stop_timeout = 10.0 # seconds
 		result.application_config.stop_attempts = 6
+		result.application_config.save_jitdump = True # since stats output at shutdown can be truncated
 		return result
 
 	@staticmethod
@@ -60,16 +61,16 @@ class PetClinic:
 
 	@staticmethod
 	def xsmall_config(jmeter_pin_cpus=False):
-		return shared.xsmall_config(PetClinic.base_config(), 2, 1, jmeter_pin_cpus)
+		return shared.xsmall_config(PetClinic.base_config(), 1, 1, jmeter_pin_cpus)
 
 	@staticmethod
 	def small_config(jmeter_pin_cpus=False):
-		return shared.small_config(PetClinic.base_config(), 3, 1, jmeter_pin_cpus)
+		return shared.small_config(PetClinic.base_config(), 2, 1, jmeter_pin_cpus)
 
 	@staticmethod
 	def medium_config(jmeter_pin_cpus=False):
-		return shared.medium_config(PetClinic.base_config(), 8, 3, jmeter_pin_cpus)
+		return shared.medium_config(PetClinic.base_config(), 4, 1, jmeter_pin_cpus)
 
 	@staticmethod
 	def large_config(jmeter_pin_cpus=False):
-		return shared.large_config(PetClinic.base_config(), 16, 6, jmeter_pin_cpus)
+		return shared.large_config(PetClinic.base_config(), 10, 2, jmeter_pin_cpus)

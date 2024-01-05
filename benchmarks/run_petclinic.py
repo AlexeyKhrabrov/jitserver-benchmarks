@@ -104,7 +104,7 @@ def main():
 			jvm_config=openj9.JVMConfig(
 				heap_size=None,
 				virtualized=False,
-				scc_size="80m",
+				scc_size="128m",
 				nojit=False,
 			),
 			populate_scc=False,
@@ -132,8 +132,8 @@ def main():
 				network="host",
 			),
 			jvm_config=openj9.JVMConfig(), # defaults
-			nthreads=1,
-			duration=40, # seconds
+			nthreads=2,
+			duration=4 * 60, # seconds
 			summariser_interval=6, # seconds; minimum is 6
 			latency_data=False,
 			report_data=False,

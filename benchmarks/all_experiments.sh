@@ -133,7 +133,7 @@ wait
 ./run_latency.py daytrader "${main_hosts}" 3 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
 wait
 
-# petclinic latency: ~3h
+# petclinic latency: ~4h
 ./run_latency.py petclinic "${main_hosts}" 0 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
 ./run_latency.py petclinic "${main_hosts}" 1 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
 ./run_latency.py petclinic "${main_hosts}" 2 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
@@ -187,7 +187,7 @@ wait
 wait
 ./host_cleanup.py daytrader "${all_hosts}"
 
-# petclinic scale: ~5h
+# petclinic scale: ~7h
 ./host_cleanup.py petclinic "${all_hosts}"
 ./run_scale.py petclinic "${all_hosts}" 0 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py petclinic "${all_hosts}" 1 -j -n "${runs}" "${args[@]}" &
@@ -205,9 +205,6 @@ wait
 ./run_scale.py petclinic "${all_hosts}" 7 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py petclinic "${all_hosts}" 8 -j -n "${runs}" "${args[@]}" &
 ./run_scale.py petclinic "${all_hosts}" 9 -j -n "${runs}" "${args[@]}" &
-wait
-./host_cleanup.py petclinic "${all_hosts}"
-./run_scale.py petclinic "${all_hosts}" 10 -j -n "${runs}" "${args[@]}" &
 wait
 ./host_cleanup.py petclinic "${all_hosts}"
 

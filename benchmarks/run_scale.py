@@ -61,15 +61,13 @@ configurations = {
 		(12, 1, [0], [0], [1], [8, 9], dict()),
 		(8, 1, [2], [2], [3], [4], dict()),
 		(4, 1, [5], [6], [6], [7], dict()),
-
-		(80, 1, [0], [0], [1, 2, 3, 4, 5], [6, 7, 8, 9, 10], dict()),
 	),
 }
 
 jmeter_durations = {
 	"acmeair": 6 * 60, # seconds
 	"daytrader": 15 * 60, # seconds
-	"petclinic": 2 * 60 # seconds
+	"petclinic": 5 * 60 # seconds
 }
 
 
@@ -87,11 +85,10 @@ bench_cls = {
 }
 
 def get_config(benchmark, n_instances, n_dbs, jmeter, n_runs, skip_complete_runs=False):
-	result = bench_cls[benchmark]().small_config(False)
+	result = bench_cls[benchmark]().small_config()
 	result.name = "scale_{}_{}".format("full" if jmeter else "start", n_instances)
 
 	result.jitserver_config.server_threads = 128
-	result.application_config.save_jitdump = (benchmark == "petclinic")
 	result.jmeter_config.duration = jmeter_durations[benchmark]
 
 	result.n_instances = n_instances

@@ -17,7 +17,7 @@ import util
 jmeter_durations = {
 	"acmeair": 6 * 60, # seconds
 	"daytrader": 15 * 60, # seconds
-	"petclinic": 3 * 60, # seconds
+	"petclinic": 5 * 60, # seconds
 }
 
 run_experiments = (
@@ -32,9 +32,8 @@ result_experiments = (
 )
 
 
-def get_config(bench, jmeter, experiment, n_runs,
-               equal_resources, skip_complete_runs=False):
-	result = bench.small_config(False)
+def get_config(bench, jmeter, experiment, n_runs, equal_resources, skip_complete_runs=False):
+	result = bench.small_config()
 	result.name = "cdf_{}_{}".format("eq" if equal_resources else "ne", "full" if jmeter else "start")
 
 	result.jitserver_config.server_vlog = True
@@ -43,7 +42,6 @@ def get_config(bench, jmeter, experiment, n_runs,
 	result.jitserver_config.client_extra_stats = True
 
 	result.application_config.start_interval = float("+inf") # seconds
-	result.application_config.save_jitdump = (bench.name() == "petclinic")
 	result.jmeter_config.duration = jmeter_durations[bench.name()]
 
 	result.n_instances = 1

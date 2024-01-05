@@ -40,7 +40,7 @@ configurations = ((
 jmeter_durations = {
 	"acmeair": 4 * 60, # seconds
 	"daytrader": 10 * 60, # seconds
-	"petclinic": 2 * 60, # seconds
+	"petclinic": 4 * 60, # seconds
 }
 
 
@@ -61,9 +61,8 @@ bench_cls = {
 	"petclinic": petclinic.PetClinic
 }
 
-def get_config(benchmark, local, ib, delay_us, jmeter, n_runs,
-               localjit=False, skip_complete_runs=False):
-	result = bench_cls[benchmark]().small_config(False)
+def get_config(benchmark, local, ib, delay_us, jmeter, n_runs, localjit=False, skip_complete_runs=False):
+	result = bench_cls[benchmark]().small_config()
 	result.name = "latency_{}_{}".format(
 		"full" if jmeter else "start",
 		"localjit" if localjit else "{}_{}_{}".format("tcp", "local" if local else ("ib" if ib else "eth"), delay_us)
@@ -78,7 +77,6 @@ def get_config(benchmark, local, ib, delay_us, jmeter, n_runs,
 
 	result.application_config.use_internal_addr = True
 	result.application_config.start_interval = float("+inf") # seconds
-	result.application_config.save_jitdump = (benchmark == "petclinic")
 
 	result.jmeter_config.duration = jmeter_durations[benchmark]
 

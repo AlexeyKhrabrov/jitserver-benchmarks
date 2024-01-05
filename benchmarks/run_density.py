@@ -56,7 +56,7 @@ hosts_lists = {
 }
 
 def get_config(benchmark, name, interval, duration, n_invocations, idle_time, scc, n_runs, skip_complete_runs=False):
-	result = bench_cls[benchmark]().small_config(False)
+	result = bench_cls[benchmark]().small_config()
 	result.name = "density_{}_{}".format("scc" if scc else "noscc", name)
 
 	result.jitserver_config.server_threads = 128
@@ -64,7 +64,6 @@ def get_config(benchmark, name, interval, duration, n_invocations, idle_time, sc
 	result.jitserver_config.session_purge_interval = 10 * 1000 # milliseconds
 
 	result.application_config.start_interval = interval
-	result.application_config.save_jitdump = (benchmark == "petclinic")
 	if scc:
 		result.application_config.populate_scc = True
 		result.application_config.populate_scc_run_jmeter = False

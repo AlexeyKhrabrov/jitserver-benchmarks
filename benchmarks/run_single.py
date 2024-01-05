@@ -36,14 +36,14 @@ configurations = {
 		("L",  True,  3 * 60,  2 * 60,  dict()),
 	),
 	"petclinic": (
-		("XS", False, 4 * 60, 0,      dict()),
-		("XS", True,  2 * 60, 2 * 60, dict()),
-		("S",  False, 2 * 60, 0,      dict()),
-		("S",  True,  90,     30,     dict()),
-		("M",  False, 90,     0,      dict()),
-		("M",  True,  90,     0,      dict()),
-		("L",  False, 60,     0,      dict()),
-		("L",  True,  60,     0,      dict()),
+		("XS", False, 8 * 60, 0,      dict()),
+		("XS", True,  6 * 60, 2 * 60, dict()),
+		("S",  False, 5 * 60, 0,      dict()),
+		("S",  True,  3 * 60, 2 * 60, dict()),
+		("M",  False, 3 * 60, 0,      dict()),
+		("M",  True,  150,    30,     dict()),
+		("L",  False, 150,    0,      dict()),
+		("L",  True,  2 * 60, 30,     dict()),
 	),
 }
 
@@ -62,13 +62,13 @@ result_experiments = (
 
 def get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs, skip_complete_runs=False):
 	if size == "XS":
-		c = bench.xsmall_config(False)
+		c = bench.xsmall_config()
 	elif size == "S":
-		c = bench.small_config(False)
+		c = bench.small_config()
 	elif size == "M":
-		c = bench.medium_config(False)
+		c = bench.medium_config()
 	elif size == "L":
-		c = bench.large_config(False)
+		c = bench.large_config()
 
 	if warm:
 		config = shared.warm_full_config(c)
@@ -78,7 +78,6 @@ def get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs, 
 	config.name = "single_{}_{}".format("full" if jmeter else "start", config.name)
 
 	config.application_config.start_interval = float("+inf") # seconds
-	config.application_config.save_jitdump = (bench.name() == "petclinic")
 	config.jmeter_config.duration = duration
 	config.jmeter_config.scc_extra_duration = scc_extra_duration
 
