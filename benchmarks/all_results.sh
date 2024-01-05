@@ -44,7 +44,6 @@ fi
 benchmarks=("acmeair" "daytrader" "petclinic")
 
 for b in "${benchmarks[@]}"; do
-	./run_single.py "${b}" -r -n "${runs}" "${args[@]}" &
 	./run_single.py "${b}" -r -j -n "${runs}" "${args[@]}" &
 	./run_cdf.py "${b}" -r -j -n "${runs}" "${args[@]}" &
 	./run_cdf.py "${b}" -r -j -e -n "${runs}" "${args[@]}" &
@@ -58,8 +57,8 @@ wait
 
 
 plots=(
-	"single_start_cold_start_time" "single_full_cold_warmup_time" "single_full_cold_peak_mem"
-	"single_start_warm_start_time" "single_full_warm_warmup_time" "single_full_warm_peak_mem"
+	"single_full_cold_start_time" "single_full_cold_warmup_time" "single_full_cold_peak_mem"
+	"single_full_warm_start_time" "single_full_warm_warmup_time" "single_full_warm_peak_mem"
 	"cdf_ne_full/comp_times_log" "cdf_ne_full/queue_times_log"
 	"cdf_eq_full/comp_times_log" "cdf_eq_full/queue_times_log"
 	"latency_full_full_warmup_time" "scale_full_full_warmup_time_normalized"

@@ -56,39 +56,6 @@ echo
 ./host_cleanup.py daytrader "${main_hosts}"
 ./host_cleanup.py petclinic "${main_hosts}"
 
-./run_single.py daytrader "${main_hosts}" 0 0 -n "${runs}" "${args[@]}" &
-./run_single.py daytrader "${main_hosts}" 2 1 -n "${runs}" "${args[@]}" && \
-./run_single.py daytrader "${main_hosts}" 4 1 -n "${runs}" "${args[@]}" &
-./run_single.py daytrader "${main_hosts}" 1 2 -n "${runs}" "${args[@]}" && \
-./run_single.py daytrader "${main_hosts}" 5 2 -n "${runs}" "${args[@]}" &
-./run_single.py daytrader "${main_hosts}" 3 3 -n "${runs}" "${args[@]}" && \
-./run_single.py daytrader "${main_hosts}" 6 3 -n "${runs}" "${args[@]}" && \
-./run_single.py daytrader "${main_hosts}" 7 3 -n "${runs}" "${args[@]}" &
-
-./run_single.py acmeair "${main_hosts}" 0 4 -n "${runs}" "${args[@]}" && \
-./run_single.py acmeair "${main_hosts}" 2 4 -n "${runs}" "${args[@]}" && \
-./run_single.py acmeair "${main_hosts}" 4 4 -n "${runs}" "${args[@]}" && \
-./run_single.py acmeair "${main_hosts}" 6 4 -n "${runs}" "${args[@]}" &
-./run_single.py acmeair "${main_hosts}" 1 5 -n "${runs}" "${args[@]}" && \
-./run_single.py acmeair "${main_hosts}" 3 5 -n "${runs}" "${args[@]}" && \
-./run_single.py acmeair "${main_hosts}" 5 5 -n "${runs}" "${args[@]}" && \
-./run_single.py acmeair "${main_hosts}" 7 5 -n "${runs}" "${args[@]}" &
-
-./run_single.py petclinic "${main_hosts}" 0 6 -n "${runs}" "${args[@]}" && \
-./run_single.py petclinic "${main_hosts}" 2 6 -n "${runs}" "${args[@]}" && \
-./run_single.py petclinic "${main_hosts}" 4 6 -n "${runs}" "${args[@]}" && \
-./run_single.py petclinic "${main_hosts}" 6 6 -n "${runs}" "${args[@]}" &
-./run_single.py petclinic "${main_hosts}" 1 7 -n "${runs}" "${args[@]}" && \
-./run_single.py petclinic "${main_hosts}" 3 7 -n "${runs}" "${args[@]}" && \
-./run_single.py petclinic "${main_hosts}" 5 7 -n "${runs}" "${args[@]}" && \
-./run_single.py petclinic "${main_hosts}" 7 7 -n "${runs}" "${args[@]}" &
-
-wait
-
-./host_cleanup.py acmeair "${main_hosts}"
-./host_cleanup.py daytrader "${main_hosts}"
-./host_cleanup.py petclinic "${main_hosts}"
-
 ./run_single.py daytrader "${main_hosts}" 0 0 -j -n "${runs}" "${args[@]}" &
 ./run_single.py daytrader "${main_hosts}" 2 1 -j -n "${runs}" "${args[@]}" && \
 ./run_single.py daytrader "${main_hosts}" 4 1 -j -n "${runs}" "${args[@]}" &
