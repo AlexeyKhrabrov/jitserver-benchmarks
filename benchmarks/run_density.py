@@ -164,7 +164,6 @@ def main():
 			result.save_results(
 				limits=limits, legends={
 					"cpu_time_per_req": args.benchmark == "daytrader",
-					"req_per_cpu_time": args.benchmark == "daytrader",
 					"total_peak_mem": False,
 				} if args.single_legend else None
 			)

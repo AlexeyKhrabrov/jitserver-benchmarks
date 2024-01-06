@@ -1390,7 +1390,6 @@ class DensityExperimentResult:
 			("total_jvm_peak_mem", "Total JVM memory usage, GB"),
 			("jitserver_peak_mem", "JITServer memory usage, GB"),
 			("total_peak_mem", "Total mem. usage, GB"),
-			("req_per_cpu_time", "Reqs/sec of CPU time"),
 			("cpu_time_per_req", "CPU cost, msec/req"),
 		)
 
@@ -1426,13 +1425,6 @@ class DensityExperimentResult:
 		                                       if e in experiments else None for e in Experiment]
 		self.values["total_peak_mem_stdevs"] = [stdev([total_peak_mem_vals[e][r] for r in range(config.n_runs)])
 		                                        if e in experiments else None for e in Experiment]
-
-		req_per_cpu_time_vals = [[req_vals[e][r] / cpu_vals[e][r] for r in range(config.n_runs)]
-		                         if e in experiments else None for e in Experiment]
-		self.values["req_per_cpu_time_means"] = [mean([req_per_cpu_time_vals[e][r] for r in range(config.n_runs)])
-		                                         if e in experiments else None for e in Experiment]
-		self.values["req_per_cpu_time_stdevs"] = [stdev([req_per_cpu_time_vals[e][r] for r in range(config.n_runs)])
-		                                          if e in experiments else None for e in Experiment]
 
 		cpu_time_per_req_vals = [[1000 * cpu_vals[e][r] / req_vals[e][r] for r in range(config.n_runs)] # msec/req
 		                         if e in experiments else None for e in Experiment]
