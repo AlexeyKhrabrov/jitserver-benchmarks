@@ -20,6 +20,7 @@ plt.rcParams.update({
 	"axes.labelpad": 3.0,
 	"figure.figsize": (1.8, 1.2),
 	"font.size": 6,
+	"hatch.linewidth": 0.5,
 	"legend.fontsize": 5,
 	"legend.framealpha": 0.5,
 	"lines.linewidth": 1.0,
@@ -1402,7 +1403,7 @@ class DensityExperimentResult:
 		add_mean_stdev_lists(self, self.application_results, "peak_mem", True)
 		req_vals = add_total_mean_stdev_lists(self, req_results, "requests")
 		cpu_vals = add_total_mean_stdev_lists(self, all_results, "cpu_time")
-		add_total_mean_stdev_lists(self, all_results, "jit_cpu_time")
+		jit_cpu_vals = add_total_mean_stdev_lists(self, all_results, "jit_cpu_time")
 
 		total_jvm_peak_mem_vals = [[self.total_jvm_peak_mem(e, r) for r in range(config.n_runs)]
 		                           if e in experiments else None for e in Experiment]
@@ -1432,6 +1433,19 @@ class DensityExperimentResult:
 		                                         if e in experiments else None for e in Experiment]
 		self.values["cpu_time_per_req_stdevs"] = [stdev([cpu_time_per_req_vals[e][r] for r in range(config.n_runs)])
 		                                          if e in experiments else None for e in Experiment]
+
+		jit_cpu_time_per_req_vals = [
+			[1000 * jit_cpu_vals[e][r] / req_vals[e][r] for r in range(config.n_runs)] # msec/req
+			if e in experiments else None for e in Experiment
+		]
+		self.values["jit_cpu_time_per_req_means"] = [
+			mean([jit_cpu_time_per_req_vals[e][r] for r in range(config.n_runs)])
+			if e in experiments else None for e in Experiment
+		]
+		self.values["jit_cpu_time_per_req_stdevs"] = [
+			stdev([jit_cpu_time_per_req_vals[e][r] for r in range(config.n_runs)])
+			if e in experiments else None for e in Experiment
+		]
 
 	def save_summary(self):
 		s = ""
@@ -1469,9 +1483,21 @@ class DensityAllExperimentsResult:
 		index = ["{:g} min".format(c.jmeter_config.duration / 60) for c in self.configs]
 		return pd.DataFrame(data, index=index)
 
-	def save_bar_plot(self, field, ymax=None, legend=True, dry_run=False):
-		ax = self.get_df(field, "_means").plot.bar(yerr=self.get_df(field, "_stdevs"),
-		                                           rot=0, ylim=(0, ymax), legend=legend)
+	def save_bar_plot(self, field, ymax=None, legend=True, dry_run=False, overlay_field=None):
+		ax = self.get_df(field, "_means").plot.bar(yerr=self.get_df(field, "_stdevs"), rot=0, ylim=(0, ymax),
+		                                           legend=legend and overlay_field is None)
+
+		if overlay_field is not None:
+			self.get_df(overlay_field, "_means").plot.bar(
+				ax=ax, yerr=self.get_df(overlay_field, "_stdevs"), rot=0, ylim=(0, ymax),
+				legend=False, edgecolor="black", linewidth=0.5, hatch="xxxxxxxx"
+			)
+			ax.legend(
+				[matplotlib.patches.Patch(color="C{}".format(e.value)) for e in self.experiments] +
+				[matplotlib.patches.Patch(edgecolor="black", facecolor="none", linewidth=0.5, hatch="xxxxxxxx")],
+				[experiment_names_multi[e] for e in self.experiments] + [overlay_field[1]]
+			)
+
 		ax.set(xlabel="{}: Application lifespan".format(benchmark_full_names[self.benchmark]), ylabel=field[1])
 		result = ax.get_ylim()[1]
 
@@ -1482,11 +1508,20 @@ class DensityAllExperimentsResult:
 			          else "noscc", field[0]), self.benchmark)
 		return result
 
-	def save_all_bar_plots(self, limits=None, legends=None, dry_run=False):
+	def save_all_bar_plots(self, limits=None, legends=None, dry_run=False, overlays=False):
 		result = {}
+
 		for f in self.results[0].fields:
-			result[f[0]] = self.save_bar_plot(f, (limits or {}).get(f[0]), (legends or {}).get(f[0], True), dry_run)
+			overlay_field = None
+			if f[0] == "total_peak_mem":
+				overlay_field = ("jitserver_peak_mem", "JITServer memory")
+			elif f[0] == "cpu_time_per_req":
+				overlay_field = ("jit_cpu_time_per_req", "JIT CPU time")
+
+			result[f[0]] = self.save_bar_plot(f, (limits or {}).get(f[0]), (legends or {}).get(f[0], True),
+			                                  dry_run, overlay_field if overlays else None)
+
 		return result
 
-	def save_results(self, limits=None, legends=None, dry_run=False):
-		return self.save_all_bar_plots(limits, legends, dry_run)
+	def save_results(self, limits=None, legends=None, dry_run=False, overlays=False):
+		return self.save_all_bar_plots(limits, legends, dry_run, overlays)

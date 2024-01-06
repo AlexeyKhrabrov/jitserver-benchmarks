@@ -116,6 +116,7 @@ def main():
 	parser.add_argument("-f", "--format")
 	parser.add_argument("--single-legend", action="store_true")
 	parser.add_argument("--same-limits", action="store_true")
+	parser.add_argument("-o", "--overlays", action="store_true")
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
@@ -165,7 +166,8 @@ def main():
 				limits=limits, legends={
 					"cpu_time_per_req": args.benchmark == "daytrader",
 					"total_peak_mem": False,
-				} if args.single_legend else None
+				} if args.single_legend else None,
+				overlays=args.overlays
 			)
 
 		return
