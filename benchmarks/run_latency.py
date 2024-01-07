@@ -167,33 +167,31 @@ def main():
 		if args.result >= 0:
 			c = all_configs[args.result]
 			results.LatencyExperimentResult(
-				result_experiments, bench, get_config(args.benchmark, *c[:-1], args.jmeter, args.n_runs), **c[-1]
-			).save_results()
-
-		else:
-			if args.details:
-				cmd = [__file__, args.benchmark, "-n", str(args.n_runs)]
-				if args.jmeter:
-					cmd.append("-j")
-				if args.logs_path is not None:
-					cmd.extend(("-L", args.logs_path))
-				if args.results_path is not None:
-					cmd.extend(("-R", args.results_path))
-				if args.format is not None:
-					cmd.extend(("-f", args.format))
-
-				util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True), range(len(all_configs)))
-
-			results.LatencyAllExperimentsResult(
 				result_experiments, bench,
-				[get_config(args.benchmark, *c[:-1], args.jmeter, args.n_runs) for c in all_configs],
-				[c[-1] for c in all_configs]
-			).save_results(
-				legends={
-					"full_warmup_time": args.benchmark == "petclinic"
-				} if args.single_legend else None
-			)
+				get_config(args.benchmark, *c[:-1], args.jmeter, args.n_runs), args.details, **c[-1]
+			).save_results()
+			return
 
+		if args.details:
+			cmd = [__file__, args.benchmark, "-n", str(args.n_runs), "-d"]
+			if args.jmeter:
+				cmd.append("-j")
+			if args.logs_path is not None:
+				cmd.extend(("-L", args.logs_path))
+			if args.results_path is not None:
+				cmd.extend(("-R", args.results_path))
+			if args.format is not None:
+				cmd.extend(("-f", args.format))
+
+			util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True), range(len(all_configs)))
+
+		results.LatencyAllExperimentsResult(
+			result_experiments, bench,
+			[get_config(args.benchmark, *c[:-1], args.jmeter, args.n_runs) for c in all_configs],
+			args.details, [c[-1] for c in all_configs]
+		).save_results(
+			legends={"full_warmup_time": args.benchmark == "petclinic"} if args.single_legend else None
+		)
 		return
 
 	hosts = [bench.new_host(*h) for h in remote.load_hosts(args.hosts_file)]

@@ -138,55 +138,53 @@ def main():
 	if args.result is not None:
 		if args.result >= 0:
 			c = configs[args.result]
-
 			results.SingleInstanceExperimentResult(
-				result_experiments, bench, get_config(bench, args.jmeter, *c[:-1], args.n_runs), **c[-1]
-			).save_results(details=args.details)
+				result_experiments, bench, get_config(bench, args.jmeter, *c[:-1], args.n_runs), args.details, **c[-1]
+			).save_results()
+			return
 
-		else:
-			cmd = [__file__, args.benchmark, "-n", str(args.n_runs)]
-			if args.jmeter:
-				cmd.append("-j")
-			if args.logs_path is not None:
-				cmd.extend(("-L", args.logs_path))
-			if args.results_path is not None:
-				cmd.extend(("-R", args.results_path))
-			if args.format is not None:
-				cmd.extend(("-f", args.format))
-			if args.details:
-				cmd.append("-d")
+		cmd = [__file__, args.benchmark, "-n", str(args.n_runs)]
+		if args.jmeter:
+			cmd.append("-j")
+		if args.logs_path is not None:
+			cmd.extend(("-L", args.logs_path))
+		if args.results_path is not None:
+			cmd.extend(("-R", args.results_path))
+		if args.format is not None:
+			cmd.extend(("-f", args.format))
+		if args.details:
+			cmd.append("-d")
 
-			util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True), range(len(configs)))
+		util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True), range(len(configs)))
 
-			cold_configs = configs[0::2]
-			warm_configs = configs[1::2]
+		cold_configs = configs[0::2]
+		warm_configs = configs[1::2]
 
-			cold_result = results.SingleInstanceAllExperimentsResult(
-				result_experiments, bench, "cold",
-				[get_config(bench, args.jmeter, *c[:-1], args.n_runs) for c in cold_configs],
-				["XS", "S", "M", "L"], [c[-1] for c in cold_configs],
-			)
-			warm_result = results.SingleInstanceAllExperimentsResult(
-				result_experiments, bench, "warm",
-				[get_config(bench, args.jmeter, *c[:-1], args.n_runs) for c in warm_configs],
-				["XS", "S", "M", "L"], [c[-1] for c in warm_configs]
-			)
+		cold_result = results.SingleInstanceAllExperimentsResult(
+			result_experiments, bench, "cold",
+			[get_config(bench, args.jmeter, *c[:-1], args.n_runs) for c in cold_configs],
+			["XS", "S", "M", "L"], args.details, [c[-1] for c in cold_configs],
+		)
+		warm_result = results.SingleInstanceAllExperimentsResult(
+			result_experiments, bench, "warm",
+			[get_config(bench, args.jmeter, *c[:-1], args.n_runs) for c in warm_configs],
+			["XS", "S", "M", "L"], args.details, [c[-1] for c in warm_configs]
+		)
 
-			limits = None
-			if args.same_limits:
-				cold_limits = cold_result.save_results(dry_run=True)
-				warm_limits = warm_result.save_results(dry_run=True)
-				limits = {f: max(cold_limits[f], warm_limits[f]) for f in cold_limits.keys()}
+		limits = None
+		if args.same_limits:
+			cold_limits = cold_result.save_results(dry_run=True)
+			warm_limits = warm_result.save_results(dry_run=True)
+			limits = {f: max(cold_limits[f], warm_limits[f]) for f in cold_limits.keys()}
 
-			cold_result.save_results(
-				limits=limits,
-				legends={"start_time": False, "warmup_time": False, "peak_mem": False} if args.single_legend else None
-			)
-			warm_result.save_results(
-				limits=limits,
-				legends={"start_time": True, "warmup_time": False, "peak_mem": False} if args.single_legend else None
-			)
-
+		cold_result.save_results(
+			limits=limits,
+			legends={"start_time": False, "warmup_time": False, "peak_mem": False} if args.single_legend else None
+		)
+		warm_result.save_results(
+			limits=limits,
+			legends={"start_time": True, "warmup_time": False, "peak_mem": False} if args.single_legend else None
+		)
 		return
 
 	hosts = [bench.new_host(*h) for h in remote.load_hosts(args.hosts_file)]

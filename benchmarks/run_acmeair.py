@@ -168,8 +168,8 @@ def main():
 	if args.result:
 		assert args.n_instances == 1
 		results.SingleInstanceExperimentResult(
-			result_experiments, acmeair.AcmeAir, config
-		).save_results(details=args.details)
+			result_experiments, acmeair.AcmeAir, config, args.details
+		).save_results()
 		return
 
 	hosts = [acmeair.AcmeAirHost(*h) for h in remote.load_hosts(args.hosts_file)]

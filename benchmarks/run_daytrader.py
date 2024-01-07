@@ -168,8 +168,8 @@ def main():
 	if args.result:
 		assert args.n_instances == 1
 		results.SingleInstanceExperimentResult(
-			result_experiments, daytrader.DayTrader, config
-		).save_results(details=args.details)
+			result_experiments, daytrader.DayTrader, config, args.details
+		).save_results()
 		return
 
 	hosts = [daytrader.DayTraderHost(*h) for h in remote.load_hosts(args.hosts_file)]

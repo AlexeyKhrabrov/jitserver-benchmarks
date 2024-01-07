@@ -114,6 +114,7 @@ def main():
 	parser.add_argument("-r", "--result", type=int, nargs="?", const=-1)
 	parser.add_argument("-R", "--results-path")
 	parser.add_argument("-f", "--format")
+	parser.add_argument("-d", "--details", action="store_true")
 	parser.add_argument("--single-legend", action="store_true")
 	parser.add_argument("--same-limits", action="store_true")
 	parser.add_argument("-o", "--overlays", action="store_true")
@@ -130,46 +131,47 @@ def main():
 		if args.result >= 0:
 			c = configs[args.result]
 			results.DensityExperimentResult(
-				experiments, bench, get_config(args.benchmark, *c[:-1], args.scc, args.n_runs), **c[-1]
+				experiments, bench, get_config(args.benchmark, *c[:-1], args.scc, args.n_runs), args.details, **c[-1]
 			).save_results()
+			return
 
-		else:
-			cmd = [__file__, args.benchmark, "-n", str(args.n_runs)]
-			if args.scc:
-				cmd.append("-s")
-			if args.logs_path is not None:
-				cmd.extend(("-L", args.logs_path))
-			if args.results_path is not None:
-				cmd.extend(("-R", args.results_path))
-			if args.format is not None:
-				cmd.extend(("-f", args.format))
+		cmd = [__file__, args.benchmark, "-n", str(args.n_runs)]
+		if args.scc:
+			cmd.append("-s")
+		if args.logs_path is not None:
+			cmd.extend(("-L", args.logs_path))
+		if args.results_path is not None:
+			cmd.extend(("-R", args.results_path))
+		if args.format is not None:
+			cmd.extend(("-f", args.format))
+		if args.details:
+			cmd.append("-d")
 
-			util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True), range(len(configs)))
+		util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True), range(len(configs)))
 
-			result = results.DensityAllExperimentsResult(
-				experiments, bench, [get_config(args.benchmark, *c[:-1], args.scc, args.n_runs) for c in configs],
-				[c[-1] for c in configs],
+		result = results.DensityAllExperimentsResult(
+			experiments, bench, [get_config(args.benchmark, *c[:-1], args.scc, args.n_runs) for c in configs],
+			args.details, [c[-1] for c in configs]
+		)
+
+		limits = None
+		if args.same_limits:
+			other_result = results.DensityAllExperimentsResult(
+				experiments, bench,
+				[get_config(args.benchmark, *c[:-1], not args.scc, args.n_runs) for c in configs],
+				args.details, [c[-1] for c in configs]
 			)
+			current_limits = result.save_results(dry_run=True)
+			other_limits = other_result.save_results(dry_run=True)
+			limits = {f: max(current_limits[f], other_limits[f]) for f in current_limits.keys()}
 
-			limits = None
-			if args.same_limits:
-				other_result = results.DensityAllExperimentsResult(
-					experiments, bench,
-					[get_config(args.benchmark, *c[:-1], not args.scc, args.n_runs) for c in configs],
-					[c[-1] for c in configs],
-				)
-				current_limits = result.save_results(dry_run=True)
-				other_limits = other_result.save_results(dry_run=True)
-				limits = {f: max(current_limits[f], other_limits[f]) for f in current_limits.keys()}
-
-			result.save_results(
-				limits=limits, legends={
-					"cpu_time_per_req": args.benchmark == "daytrader",
-					"total_peak_mem": False,
-				} if args.single_legend else None,
-				overlays=args.overlays
-			)
-
+		result.save_results(
+			limits=limits, legends={
+				"cpu_time_per_req": args.benchmark == "daytrader",
+				"total_peak_mem": False,
+			} if args.single_legend else None,
+			overlays=args.overlays
+		)
 		return
 
 	hosts = [bench.new_host(*h) for h in remote.load_hosts(args.hosts_file)]

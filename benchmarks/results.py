@@ -662,23 +662,28 @@ class DBRunResult:
 		self.db_output.container_stats().save_plots()
 
 
-def result_fields(config):
+def result_fields(config, details=False):
 	fields = [
 		("start_time", "Start time, sec"),
-		("n_comps", "Number of methods compiled"),
 		("peak_mem", "Memory usage, MB"),
-		("jit_cpu_time", "JIT CPU time, sec"),
-		("cpu_time", "CPU time, sec"),
 	]
+
+	if details:
+		fields.extend((
+			("n_comps", "Number of methods compiled"),
+			("jit_cpu_time", "JIT CPU time, sec"),
+			("cpu_time", "CPU time, sec"),
+		))
 
 	if config.run_jmeter:
 		fields.extend((
 			("requests", "Requests served"),
 			("warmup_time", "Warm-up time, sec"),
 			("full_warmup_time", "Full warm-up time, sec"),
-			("warmup_avg_throughput", "Warm-up avg throughput, sec"),
 			("peak_throughput", "Peak throughput, req/sec"),
 		))
+		if details:
+			fields.append(("warmup_avg_throughput", "Warm-up avg throughput, sec"))
 
 	return fields
 
@@ -692,7 +697,7 @@ vlog_cdf_fields = (
 
 
 class ApplicationInstanceResult:
-	def __init__(self, bench, config, experiment, instance_id, actual_experiment=None, **kwargs):
+	def __init__(self, bench, config, experiment, instance_id, details=False, *, actual_experiment=None, **kwargs):
 		self.config = config
 		self.experiment = experiment
 		self.actual_experiment = actual_experiment or experiment
@@ -702,7 +707,7 @@ class ApplicationInstanceResult:
 		                for r in range(config.n_runs)]
 
 		self.values = {}
-		for f in result_fields(config):
+		for f in result_fields(config, details):
 			add_mean_stdev(self, self.results, f[0])
 		add_min_max(self, self.results, "peak_mem")
 
@@ -801,13 +806,14 @@ def bar_plot_df(result, field):
 
 
 class SingleInstanceExperimentResult:
-	def __init__(self, experiments, bench, config, **kwargs):
+	def __init__(self, experiments, bench, config, details=False, **kwargs):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.config = config
+		self.details = details
 
 		self.application_results = [ApplicationInstanceResult(bench, config, *e.to_single_instance(),
-		                                                      actual_experiment=e, **kwargs)
+		                                                      details, actual_experiment=e, **kwargs)
 		                            if e in experiments else None for e in Experiment]
 
 		self.jitserver_results = [JITServerInstanceResult(self.benchmark, config, e.to_single_instance()[0], 0)
@@ -817,7 +823,7 @@ class SingleInstanceExperimentResult:
 		                    if e in experiments else None for e in Experiment]
 		                   if bench.db_name() is not None else [])
 
-		self.fields = result_fields(config)
+		self.fields = result_fields(config, details)
 		self.values = {}
 		for f in self.fields:
 			add_mean_stdev_lists(self, self.application_results, f[0], True)
@@ -886,10 +892,10 @@ class SingleInstanceExperimentResult:
 		name = field + ("_log" if log else "") + ("_cut" if cut is not None else "")
 		save_plot(ax, name, self.benchmark, self.config)
 
-	def save_results(self, limits=None, details=False, legends=None, cdf_plots=False):
+	def save_results(self, limits=None, legends=None, cdf_plots=False):
 		self.save_summary()
 
-		if details:
+		if self.details:
 			self.save_all_bar_plots(limits)
 
 			if self.config.run_jmeter:
@@ -919,15 +925,15 @@ class SingleInstanceExperimentResult:
 
 
 class SingleInstanceAllExperimentsResult:
-	def __init__(self, experiments, bench, mode, configs, names, kwargs_list=None):
+	def __init__(self, experiments, bench, mode, configs, config_names, details=False, kwargs_list=None):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.mode = mode
 		self.configs = configs
-		self.names = names
+		self.config_names = config_names
 		self.warmup = configs[0].run_jmeter
 
-		self.results = [SingleInstanceExperimentResult(experiments, bench, configs[i],
+		self.results = [SingleInstanceExperimentResult(experiments, bench, configs[i], details,
 		                                               **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
 		                for i in range(len(configs))]
 
@@ -936,7 +942,7 @@ class SingleInstanceAllExperimentsResult:
 			experiment_names_single[e]: [self.results[i].values[field[0] + suffix][e] for i in range(len(self.configs))]
 			for e in self.experiments
 		}
-		return pd.DataFrame(data, index=self.names)
+		return pd.DataFrame(data, index=self.config_names)
 
 	def save_bar_plot(self, field, ymax=None, legend=True, dry_run=False):
 		ax = self.get_df(field, "_means").plot.bar(yerr=self.get_df(field, "_stdevs"),
@@ -962,7 +968,7 @@ class SingleInstanceAllExperimentsResult:
 
 
 class ApplicationAllInstancesResult:
-	def __init__(self, bench, config, experiment, n_instances=None, **kwargs):
+	def __init__(self, bench, config, experiment, details=False, *, n_instances=None, **kwargs):
 		self.config = config
 		self.experiment = experiment
 
@@ -970,7 +976,7 @@ class ApplicationAllInstancesResult:
 		                 for r in range(config.n_runs)] for i in range(n_instances or config.n_instances)]
 		self.all_results = list(itertools.chain.from_iterable(self.results))
 
-		self.fields = result_fields(config)
+		self.fields = result_fields(config, details)
 		self.values = {}
 		for f in self.fields:
 			add_mean_stdev(self, self.all_results, f[0])
@@ -1066,12 +1072,13 @@ class DBAllInstancesResult:
 
 
 class ScaleExperimentResult:
-	def __init__(self, experiments, bench, config, **kwargs):
+	def __init__(self, experiments, bench, config, details=False, **kwargs):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.config = config
+		self.details = details
 
-		self.application_results = [ApplicationAllInstancesResult(bench, config, e, **kwargs)
+		self.application_results = [ApplicationAllInstancesResult(bench, config, e, details, **kwargs)
 		                            if e in experiments else None for e in Experiment]
 
 		self.jitserver_results = [JITServerAllInstancesResult(self.benchmark, config, e)
@@ -1080,7 +1087,7 @@ class ScaleExperimentResult:
 		self.db_results = ([DBAllInstancesResult(bench, config, e) if e in experiments else None for e in Experiment]
 		                   if bench.db_name() is not None else [])
 
-		self.fields = result_fields(config)
+		self.fields = result_fields(config, details)
 		self.values = {}
 
 		if config.run_jmeter and (Experiment.LocalJIT in experiments):
@@ -1095,23 +1102,24 @@ class ScaleExperimentResult:
 			add_mean_stdev_lists(self, self.application_results, f[0], True)
 		add_min_max_lists(self, self.application_results, "peak_mem", True)
 
-		all_results = [
-			(self.application_results[e].results + (self.jitserver_results[e].results if e.is_jitserver() else []))
-			if e in experiments else None for e in Experiment
-		]
+		if details:
+			all_results = [
+				(self.application_results[e].results + (self.jitserver_results[e].results if e.is_jitserver() else []))
+				if e in experiments else None for e in Experiment
+			]
 
-		total_fields = [
-			("peak_mem", "Total memory usage, MB"),
-			("jit_cpu_time", "Total JIT CPU time, sec"),
-			("cpu_time", "Total CPU time, sec"),
-			("jitserver_mem", "Total JITServer memory usage, MB"),
-			("jitserver_cpu", "Total JITServer CPU time, sec"),
-			("data_transferred", "Data transferred, MB")
-		]
+			total_fields = [
+				("peak_mem", "Total memory usage, MB"),
+				("jit_cpu_time", "Total JIT CPU time, sec"),
+				("cpu_time", "Total CPU time, sec"),
+				("jitserver_mem", "Total JITServer memory usage, MB"),
+				("jitserver_cpu", "Total JITServer CPU time, sec"),
+				("data_transferred", "Data transferred, MB")
+			]
 
-		self.fields.extend(("total_" + f[0], f[1]) for f in total_fields)
-		for f in total_fields:
-			add_total_mean_stdev_lists(self, all_results, f[0])
+			self.fields.extend(("total_" + f[0], f[1]) for f in total_fields)
+			for f in total_fields:
+				add_total_mean_stdev_lists(self, all_results, f[0])
 
 	def save_summary(self):
 		s = ""
@@ -1151,6 +1159,11 @@ class ScaleExperimentResult:
 			self.application_results[e].plot_avg_throughput(ax)
 		self.save_throughput_plot(ax, "avg", ymax)
 
+	def save_stats_plots(self):
+		for r in (self.jitserver_results + self.db_results):
+			if r is not None:
+				r.save_stats_plots()
+
 	def save_cdf_plot(self, field, label, log=False, cut=None, legends=None):
 		ax = plt.gca()
 		for e in self.experiments:
@@ -1166,17 +1179,17 @@ class ScaleExperimentResult:
 
 	def save_results(self, limits=None, legends=None, cdf_plots=False):
 		self.save_summary()
-		self.save_all_bar_plots(limits)
 
-		if self.config.run_jmeter:
-			ymax = (limits or {}).get("peak_throughput")
-			self.save_all_throughput_plot(ymax)
-			self.save_avg_throughput_plot(ymax)
+		if self.details:
+			self.save_all_bar_plots(limits)
 
-		if self.config.collect_stats:
-			for r in (self.jitserver_results + self.db_results):
-				if r is not None:
-					r.save_stats_plots()
+			if self.config.run_jmeter:
+				ymax = (limits or {}).get("peak_throughput")
+				self.save_all_throughput_plot(ymax)
+				self.save_avg_throughput_plot(ymax)
+
+			if self.config.collect_stats:
+				self.save_stats_plots()
 
 		if self.config.jitserver_config.client_vlog and cdf_plots:
 			for field, label, log, cut in vlog_cdf_fields:
@@ -1188,34 +1201,27 @@ class ScaleExperimentResult:
 
 
 class ScaleAllExperimentsResult:
-	def __init__(self, experiments, bench, configs, kwargs_list=None):
+	def __init__(self, experiments, bench, configs, details=False, kwargs_list=None):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.warmup = configs[0].run_jmeter
 
-		self.results = [ScaleExperimentResult(experiments, bench, configs[i], keep_throughput_data=False,
+		self.results = [ScaleExperimentResult(experiments, bench, configs[i], details, keep_throughput_data=False,
 		                                      **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
 		                for i in range(len(configs))]
 
-		self.fields = [
-			("start_time", "Start time, sec"),
-			("n_comps", "Number of methods compiled"),
-			("total_peak_mem", "Total memory usage, MB"),
-			("total_jit_cpu_time", "Total JIT CPU time, sec"),
-			("total_jitserver_mem", "Total JITServer memory usage, MB"),
-			("total_jitserver_cpu", "Total JITServer CPU time, sec"),
-		]
-		if self.warmup:
+		self.fields = result_fields(configs[0], details)
+		if self.warmup and (Experiment.LocalJIT in experiments):
+			self.fields.append(("full_warmup_time_normalized", "Full warm-up time"))
+
+		if details:
 			self.fields.extend((
-				("warmup_time", "Warm-up time, sec"),
-				("full_warmup_time", "Full warm-up time, sec"),
-				("warmup_avg_throughput", "Warm-up avg throughput, sec"),
-				("peak_throughput", "Peak throughput, req/sec"),
+				("total_peak_mem", "Total memory usage, MB"),
+				("total_jit_cpu_time", "Total JIT CPU time, sec"),
+				("total_cpu_time", "Total CPU time, sec"),
+				("total_jitserver_mem", "Total JITServer memory usage, MB"),
+				("total_jitserver_cpu", "Total JITServer CPU time, sec"),
 			))
-			if Experiment.LocalJIT in experiments:
-				self.fields.append(("full_warmup_time_normalized", "Full warm-up time"))
-		else:
-			self.fields.extend((("total_cpu_time", "Total CPU time, sec")))
 
 	def get_df(self, results, field, suffix, name_suffix=None):
 		return pd.DataFrame({experiment_names_multi[e] + (name_suffix or ""):
@@ -1246,28 +1252,14 @@ class ScaleAllExperimentsResult:
 
 
 class LatencyExperimentResult:
-	def __init__(self, experiments, bench, config, **kwargs):
+	def __init__(self, experiments, bench, config, details=False, **kwargs):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.config = config
 
-		self.result = SingleInstanceExperimentResult(experiments, bench, config, **kwargs)
+		self.result = SingleInstanceExperimentResult(experiments, bench, config, details, **kwargs)
 
-		self.fields = [
-			("start_time", "Start time, sec"),
-			("n_comps", "Number of methods compiled"),
-			("jit_cpu_time", "JIT CPU time, sec"),
-			("cpu_time", "CPU time, sec"),
-			("peak_mem", "Memory usage, MB"),
-		]
-		if config.run_jmeter:
-			self.fields.extend((
-				("warmup_time", "Warm-up time, sec"),
-				("full_warmup_time", "Full warmup time, sec"),
-				("warmup_avg_throughput", "Warm-up avg throughput, sec"),
-				("peak_throughput", "Peak throughput, req/sec"),
-			))
-
+		self.fields = result_fields(config, details)
 		self.values = {}
 		for f in self.fields:
 			self.values[f[0] + "_means"] = self.result.values[f[0] + "_means"]
@@ -1290,12 +1282,12 @@ class LatencyExperimentResult:
 
 
 class LatencyAllExperimentsResult:
-	def __init__(self, experiments, bench, configs, kwargs_list=None):
+	def __init__(self, experiments, bench, configs, details=False, kwargs_list=None):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.warmup = configs[0].run_jmeter
 
-		self.results = [LatencyExperimentResult(experiments, bench, configs[i],
+		self.results = [LatencyExperimentResult(experiments, bench, configs[i], details,
 		                                        **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
 		                for i in range(len(configs))]
 
@@ -1355,15 +1347,17 @@ class DensityExperimentResult:
 		return (sum(self.jitserver_results[experiment].results[i][run_id].peak_mem
 		        for i in range(self.config.n_jitservers)) if experiment.is_jitserver() else 0.0) / 1024.0 # GB
 
-	def __init__(self, experiments, bench, config, **kwargs):
+	def __init__(self, experiments, bench, config, details=False, **kwargs):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.config = config
 		self.total_instances = config.n_instances * config.n_invocations
 
-		self.application_results = [ApplicationAllInstancesResult(bench, config, e, n_instances=self.total_instances,
-		                                                          keep_throughput_data=False, **kwargs)
-		                            if e in experiments else None for e in Experiment]
+		self.application_results = [
+			ApplicationAllInstancesResult(bench, config, e, details, n_instances=self.total_instances,
+			                              keep_throughput_data=False, **kwargs)
+			if e in experiments else None for e in Experiment
+		]
 
 		self.jitserver_results = [JITServerAllInstancesResult(self.benchmark, config, e)
 		                          if (e.is_jitserver() and e in experiments) else None for e in Experiment]
@@ -1378,13 +1372,12 @@ class DensityExperimentResult:
 			if e in experiments else None for e in Experiment
 		]
 
-		self.fields = (
-			("start_time", "Start time, sec"),
-			("warmup_time", "Warm-up time, sec"),
-			("full_warmup_time", "Full warm-up time, sec"),
-			("warmup_avg_throughput", "Warm-up avg throughput, sec"),
-			("peak_throughput", "Peak throughput, req/sec"),
-			("peak_mem", "Memory usage, MB"),
+		self.fields = result_fields(config, details)
+		self.values = {}
+		for f in self.fields:
+			add_mean_stdev_lists(self, self.application_results, f[0], True)
+
+		self.fields.extend((
 			("total_requests", "Total requests served"),
 			("total_cpu_time", "Total CPU time, sec"),
 			("total_jit_cpu_time", "Total JIT CPU time, sec"),
@@ -1392,15 +1385,8 @@ class DensityExperimentResult:
 			("jitserver_peak_mem", "JITServer memory usage, GB"),
 			("total_peak_mem", "Total mem. usage, GB"),
 			("cpu_time_per_req", "CPU cost, msec/req"),
-		)
+		))
 
-		self.values = {}
-		add_mean_stdev_lists(self, self.application_results, "start_time", True)
-		add_mean_stdev_lists(self, self.application_results, "warmup_time", True)
-		add_mean_stdev_lists(self, self.application_results, "full_warmup_time", True)
-		add_mean_stdev_lists(self, self.application_results, "warmup_avg_throughput", True)
-		add_mean_stdev_lists(self, self.application_results, "peak_throughput", True)
-		add_mean_stdev_lists(self, self.application_results, "peak_mem", True)
 		req_vals = add_total_mean_stdev_lists(self, req_results, "requests")
 		cpu_vals = add_total_mean_stdev_lists(self, all_results, "cpu_time")
 		jit_cpu_vals = add_total_mean_stdev_lists(self, all_results, "jit_cpu_time")
@@ -1466,12 +1452,12 @@ class DensityExperimentResult:
 
 
 class DensityAllExperimentsResult:
-	def __init__(self, experiments, bench, configs, kwargs_list=None):
+	def __init__(self, experiments, bench, configs, details=False, kwargs_list=None):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.configs = configs
 
-		self.results = [DensityExperimentResult(experiments, bench, configs[i],
+		self.results = [DensityExperimentResult(experiments, bench, configs[i], details,
 		                                        **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
 		                for i in range(len(configs))]
 
