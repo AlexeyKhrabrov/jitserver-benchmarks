@@ -801,12 +801,16 @@ class DBInstanceResult:
 			r.save_stats_plots()
 
 
+def normalized_field_label(label):
+	pos = label.find(", ")
+	return (label if pos < 0 else label[:pos]) + " (normalized)"
+
 def bar_plot_df(result, field):
 	return pd.DataFrame({experiment_names[e]: [result.values[field][e]] for e in result.experiments}).iloc[0]
 
 
 class SingleInstanceExperimentResult:
-	def __init__(self, experiments, bench, config, details=False, **kwargs):
+	def __init__(self, experiments, bench, config, details=False, normalized=False, **kwargs):
 		self.experiments = experiments
 		self.benchmark = bench.name()
 		self.config = config
@@ -828,6 +832,15 @@ class SingleInstanceExperimentResult:
 		for f in self.fields:
 			add_mean_stdev_lists(self, self.application_results, f[0], True)
 		add_min_max_lists(self, self.application_results, "peak_mem", True)
+
+		if normalized and (Experiment.LocalJIT in experiments):
+			for f in self.fields:
+				m = self.application_results[Experiment.LocalJIT].values[f[0] + "_mean"]
+				self.values[f[0] + "_normalized_means"] = [v / m if v is not None else None
+				                                           for v in self.values[f[0] + "_means"]]
+				self.values[f[0] + "_normalized_stdevs"] = [v / m if v is not None else None
+				                                           for v in self.values[f[0] + "_stdevs"]]
+			self.fields.extend([(f[0] + "_normalized", normalized_field_label(f[1])) for f in self.fields])
 
 	def save_summary(self):
 		s = ""
@@ -1094,9 +1107,9 @@ class ScaleExperimentResult:
 			self.fields.append(("full_warmup_time_normalized", "Full warm-up time"))
 			for e in experiments:
 				r = self.application_results
-				x = r[Experiment.LocalJIT].values["full_warmup_time_mean"]
-				r[e].values["full_warmup_time_normalized_mean"] = (r[e].values["full_warmup_time_mean"] / x)
-				r[e].values["full_warmup_time_normalized_stdev"] = (r[e].values["full_warmup_time_stdev"] / x)
+				m = r[Experiment.LocalJIT].values["full_warmup_time_mean"]
+				r[e].values["full_warmup_time_normalized_mean"] = r[e].values["full_warmup_time_mean"] / m
+				r[e].values["full_warmup_time_normalized_stdev"] = r[e].values["full_warmup_time_stdev"] / m
 
 		for f in self.fields:
 			add_mean_stdev_lists(self, self.application_results, f[0], True)
