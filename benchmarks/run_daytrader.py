@@ -92,6 +92,7 @@ def main():
 			save_javacore=False,
 			disable_jit_profiling=True,
 			comp_stats_on_jitdump=False,
+			exclude_methods=None,
 		),
 		jitserver_docker_config=None,
 		db_config=shared.DBConfig(

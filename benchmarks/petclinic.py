@@ -48,6 +48,9 @@ class PetClinic:
 		result = shared.base_config()
 
 		result.jitserver_config.comp_stats_on_jitdump = True # workaround for premature JVM shutdown
+		result.jitserver_config.exclude_methods = ( # workaround for AOT miscompilation bug
+			"org/springframework/beans/AbstractPropertyAccessor.setPropertyValues(Lorg/springframework/beans/PropertyValues;ZZ)V",
+		)
 
 		result.application_config.jvm_config = openj9.JVMConfig(
 			scc_size="128m",

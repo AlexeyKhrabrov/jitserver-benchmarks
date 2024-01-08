@@ -54,7 +54,8 @@ class JITServerConfig:
 		client_socket_timeout=None, server_socket_timeout=None, session_purge_time=None, session_purge_interval=None,
 		encryption=False, use_internal_addr=False, share_romclasses=False, romclass_cache_partitions=None,
 		aotcache_name=None, stop_sleep_time=None, stop_timeout=None, stop_attempts=None, kill_remote_on_timeout=False,
-		save_jitdump=False, save_javacore=False, disable_jit_profiling=False, comp_stats_on_jitdump=False
+		save_jitdump=False, save_javacore=False, disable_jit_profiling=False, comp_stats_on_jitdump=False,
+		exclude_methods=None
 	):
 		self.server_vlog = server_vlog
 		self.client_vlog = client_vlog
@@ -96,6 +97,7 @@ class JITServerConfig:
 		self.save_javacore = save_javacore
 		self.disable_jit_profiling = disable_jit_profiling
 		self.comp_stats_on_jitdump = comp_stats_on_jitdump
+		self.exclude_methods = exclude_methods
 
 	def verbose_args(self, vlog_path):
 		tags = ["compilePerformance"]
@@ -198,6 +200,10 @@ class JITServerConfig:
 		if self.disable_jit_profiling:
 			jit_opts.extend(("disableJProfiling", "disableJProfilingThread",
 			                 "disableProfiling", "disableSamplingJProfiling"))
+
+		if self.exclude_methods:
+			jit_opts.extend("exclude={{{}}}".format(m) for m in self.exclude_methods)
+			jit_opts.extend("dontInline={{{}}}".format(m) for m in self.exclude_methods)
 
 		if jit_opts:
 			opts = ",".join(jit_opts)

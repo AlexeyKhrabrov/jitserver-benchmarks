@@ -92,6 +92,9 @@ def main():
 			save_javacore=False,
 			disable_jit_profiling=True,
 			comp_stats_on_jitdump=True, # workaround for premature JVM shutdown
+			exclude_methods=( # workaround for AOT miscompilation bug
+				"org/springframework/beans/AbstractPropertyAccessor.setPropertyValues(Lorg/springframework/beans/PropertyValues;ZZ)V",
+			),
 		),
 		jitserver_docker_config=None,
 		db_config=shared.DBConfig(docker_config=docker.DockerConfig()), # unused
