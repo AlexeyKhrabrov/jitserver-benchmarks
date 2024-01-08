@@ -91,6 +91,7 @@ def main():
 			save_jitdump=True, # since stats output at shutdown can be truncated
 			save_javacore=False,
 			disable_jit_profiling=True,
+			comp_stats_on_jitdump=True, # workaround for premature JVM shutdown
 		),
 		jitserver_docker_config=None,
 		db_config=shared.DBConfig(docker_config=docker.DockerConfig()), # unused

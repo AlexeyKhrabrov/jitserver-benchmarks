@@ -46,6 +46,9 @@ class PetClinic:
 	@staticmethod
 	def base_config():
 		result = shared.base_config()
+
+		result.jitserver_config.comp_stats_on_jitdump = True # workaround for premature JVM shutdown
+
 		result.application_config.jvm_config = openj9.JVMConfig(
 			scc_size="128m",
 		)
@@ -53,6 +56,7 @@ class PetClinic:
 		result.application_config.stop_timeout = 10.0 # seconds
 		result.application_config.stop_attempts = 6
 		result.application_config.save_jitdump = True # since stats output at shutdown can be truncated
+
 		return result
 
 	@staticmethod

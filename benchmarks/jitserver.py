@@ -54,7 +54,7 @@ class JITServerConfig:
 		client_socket_timeout=None, server_socket_timeout=None, session_purge_time=None, session_purge_interval=None,
 		encryption=False, use_internal_addr=False, share_romclasses=False, romclass_cache_partitions=None,
 		aotcache_name=None, stop_sleep_time=None, stop_timeout=None, stop_attempts=None, kill_remote_on_timeout=False,
-		save_jitdump=False, save_javacore=False, disable_jit_profiling=False
+		save_jitdump=False, save_javacore=False, disable_jit_profiling=False, comp_stats_on_jitdump=False
 	):
 		self.server_vlog = server_vlog
 		self.client_vlog = client_vlog
@@ -95,6 +95,7 @@ class JITServerConfig:
 		self.save_jitdump = save_jitdump
 		self.save_javacore = save_javacore
 		self.disable_jit_profiling = disable_jit_profiling
+		self.comp_stats_on_jitdump = comp_stats_on_jitdump
 
 	def verbose_args(self, vlog_path):
 		tags = ["compilePerformance"]
@@ -203,9 +204,7 @@ class JITServerConfig:
 			args.extend(("-Xjit:{}".format(opts), "-Xaot:{}".format(opts)))
 		return args
 
-	stats_env_vars = ("TR_silentEnv", "TR_PrintResourceUsageStats", "TR_PrintCompStats",
-	                  "TR_PrintCompTime", "TR_PrintJITServerAOTCacheStats")
-
+	common_stats_env_vars = ("TR_silentEnv", "TR_PrintResourceUsageStats", "TR_PrintJITServerAOTCacheStats")
 	extra_stats_env_vars = ("TR_PrintJITServerMsgStats")
 
 	@staticmethod
@@ -213,17 +212,26 @@ class JITServerConfig:
 		return {k: 1 for k in env_vars}
 
 	def jitserver_env(self):
-		env_vars = list(self.stats_env_vars)
+		env_vars = list(self.common_stats_env_vars) + ["TR_PrintCompStats", "TR_PrintCompTime"]
+
 		if self.server_extra_stats:
 			env_vars.extend(self.extra_stats_env_vars)
+
 		return self.env(env_vars)
 
 	def jvm_env(self):
-		env_vars = list(self.stats_env_vars)
+		env_vars = list(self.common_stats_env_vars)
+
+		if self.comp_stats_on_jitdump:
+			env_vars.extend(("TR_PrintCompStatsOnJITDump", "TR_PrintCompTimeOnJITDump"))
+		else:
+			env_vars.extend(("TR_PrintCompStats", "TR_PrintCompTime"))
+
 		if self.client_extra_stats:
 			env_vars.extend(self.extra_stats_env_vars)
 		if self.svm_at_startup:
 			env_vars.append("TR_DontDisableSVMDuringStartup")
+
 		return self.env(env_vars)
 
 
