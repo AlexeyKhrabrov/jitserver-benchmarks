@@ -586,6 +586,7 @@ assert len(experiment_markers) == len(Experiment)
 
 throughput_marker_interval = 5
 throughput_alpha = 0.33
+throughput_time_index = True
 
 
 class ApplicationRunResult:
@@ -623,8 +624,8 @@ class ApplicationRunResult:
 
 	def throughput_df(self):
 		data = self.warmup_data.throughput_data
-		return pd.DataFrame([d[1] for d in data], index=[d[0] for d in data],
-		                    columns=[experiment_names[self.actual_experiment]])
+		index = [d[0] for d in data] if throughput_time_index else range(len(data))
+		return pd.DataFrame([d[1] for d in data], index=index, columns=[experiment_names[self.actual_experiment]])
 
 	def plot_run_throughput(self, ax):
 		c = "C{}".format(self.actual_experiment.value)
