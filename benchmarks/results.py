@@ -99,6 +99,8 @@ class ProcessStats:
 				except:
 					pass
 
+		self.max_cpu_p = max(self.cpu_data)
+
 	def cpu_df(self):
 		idx = [self.period * i for i in range(len(self.cpu_data))]
 		return pd.DataFrame(self.cpu_data, index=idx, columns=["cpu"])
@@ -643,8 +645,8 @@ class ApplicationRunResult:
 
 
 class JITServerRunResult:
-	def __init__(self, *args):
-		self.jitserver_output = JITServerOutput(*args)
+	def __init__(self, benchmark, config, *args):
+		self.jitserver_output = JITServerOutput(benchmark, config, *args)
 		rusage = self.jitserver_output.process_rusage()
 
 		self.peak_mem = rusage.peak_mem
@@ -654,11 +656,17 @@ class JITServerRunResult:
 		self.jitserver_cpu = self.cpu_time
 		self.data_transferred = self.jitserver_output.bytes_recv / (1024 * 1024) # MB
 
+		collect_stats = config.collect_stats or config.jitserver_config.server_resource_stats
+		self.process_stats = self.jitserver_output.process_stats() if collect_stats else None
+		self.max_cpu_p = self.process_stats.max_cpu_p if collect_stats else 0.0
+
 	def save_stats_plots(self):
-		self.jitserver_output.process_stats().save_plots()
+		self.process_stats.save_plots()
+
 		ct_stats = self.jitserver_output.container_stats()
 		if ct_stats is not None:
 			ct_stats.save_plots()
+
 
 class DBRunResult:
 	def __init__(self, *args):
@@ -791,6 +799,8 @@ class JITServerInstanceResult:
 			add_mean_stdev(self, self.results, f)
 		add_min_max(self, self.results, "peak_mem")
 
+		self.max_cpu_p = max(r.max_cpu_p for r in self.results)
+
 	def save_stats_plots(self):
 		for r in self.results:
 			r.save_stats_plots()
@@ -851,8 +861,13 @@ class SingleInstanceExperimentResult:
 				                                           for v in self.values[f[0] + "_stdevs"]]
 			self.fields.extend([(f[0] + "_normalized", normalized_field_label(f[1])) for f in self.fields])
 
+		self.jitserver_max_cpu_p = max(r.max_cpu_p if r is not None else 0.0 for r in self.jitserver_results)
+
 	def summary(self):
-		return summary(self.values, self.fields, self.experiments)
+		s = summary(self.values, self.fields, self.experiments)
+		if self.jitserver_max_cpu_p:
+			s += "JITServer max CPU usage: {}%\n".format(self.jitserver_max_cpu_p)
+		return s
 
 	def save_bar_plot(self, field, ymax=None):
 		ax = bar_plot_df(self, field[0] + "_means").plot.bar(yerr=bar_plot_df(self, field[0] + "_stdevs"),
@@ -1068,6 +1083,8 @@ class JITServerAllInstancesResult:
 			add_mean_stdev(self, self.all_results, f)
 		add_min_max(self, self.all_results, "peak_mem")
 
+		self.max_cpu_p = max(r.max_cpu_p for r in itertools.chain.from_iterable(self.results))
+
 	def save_stats_plots(self):
 		for r in self.all_results:
 			r.save_stats_plots()
@@ -1139,8 +1156,13 @@ class ScaleExperimentResult:
 			for f in total_fields:
 				add_total_mean_stdev_lists(self, all_results, f[0])
 
+		self.jitserver_max_cpu_p = max(r.max_cpu_p if r is not None else 0.0 for r in self.jitserver_results)
+
 	def summary(self):
-		return summary(self.values, self.fields, self.experiments)
+		s = summary(self.values, self.fields, self.experiments)
+		if self.jitserver_max_cpu_p:
+			s += "JITServer max CPU usage: {}%\n".format(self.jitserver_max_cpu_p)
+		return s
 
 	def save_bar_plot(self, field, ymax=None):
 		ax = bar_plot_df(self, field[0] + "_means").plot.bar(yerr=bar_plot_df(self, field[0] + "_stdevs"),
@@ -1430,8 +1452,13 @@ class DensityExperimentResult:
 			if e in experiments else None for e in Experiment
 		]
 
+		self.jitserver_max_cpu_p = max(r.max_cpu_p if r is not None else 0.0 for r in self.jitserver_results)
+
 	def summary(self):
-		return summary(self.values, self.fields, self.experiments)
+		s = summary(self.values, self.fields, self.experiments)
+		if self.jitserver_max_cpu_p:
+			s += "JITServer max CPU usage: {}%\n".format(self.jitserver_max_cpu_p)
+		return s
 
 	def save_stats_plots(self):
 		for r in (self.jitserver_results + self.db_results):
