@@ -517,30 +517,39 @@ def add_total_mean_stdev_lists(result, results, field, in_values=False):
 
 max_experiment_name_len = max(len(e.name) for e in Experiment)
 
-def experiment_summary(m, s, experiments, e, rel_e=None, total_e=Experiment.LocalJIT):
+def experiment_summary(means, stdevs, experiments, e, rel_e=None, total_e=Experiment.LocalJIT):
 	if e not in experiments:
 		return ""
 
-	result = "\t{}:{} {:2.2f} ±{:1.2f}".format(e.name, " " * (max_experiment_name_len - len(e.name)), m[e], s[e])
+	s = "\t{}:{} {:2.2f} ±{:1.2f}".format(e.name, " " * (max_experiment_name_len - len(e.name)), means[e], stdevs[e])
 
 	do_rel = rel_e is not None and rel_e in experiments
 	do_total = total_e is not None and total_e in experiments
 	if do_rel or do_total:
-		result += " ("
+		s += " ("
 		if do_rel:
-			result += "{:+2.1f}%{}".format(rel_change_p(m[e], m[rel_e]), ", " if do_total else "")
+			s += "{:+2.1f}%{}".format(rel_change_p(means[e], means[rel_e]), ", " if do_total else "")
 		if do_total:
-			result += "total {:+2.1f}%".format(rel_change_p(m[e], m[total_e]))
-		result += ")"
+			s += "total {:+2.1f}%".format(rel_change_p(means[e], means[total_e]))
+		s += ")"
 
-	return result + "\n"
+	return s + "\n"
 
-def summary(m, s, experiments):
-	result = experiment_summary(m, s, experiments, Experiment.LocalJIT, None, None)
-	result += experiment_summary(m, s, experiments, Experiment.JITServer, Experiment.LocalJIT, None)
-	result += experiment_summary(m, s, experiments, Experiment.AOTCache, Experiment.JITServer)
-	result += experiment_summary(m, s, experiments, Experiment.AOTCacheWarm, Experiment.JITServer)
-	return result
+def field_summary(means, stdevs, experiments):
+	s = ""
+
+	s += experiment_summary(means, stdevs, experiments, Experiment.LocalJIT, None, None)
+	s += experiment_summary(means, stdevs, experiments, Experiment.JITServer, Experiment.LocalJIT, None)
+	s += experiment_summary(means, stdevs, experiments, Experiment.AOTCache, Experiment.JITServer)
+	s += experiment_summary(means, stdevs, experiments, Experiment.AOTCacheWarm, Experiment.JITServer)
+
+	return s
+
+def summary(values, fields, experiments):
+	s = ""
+	for f in fields:
+		s += "{}:\n{}\n".format(f[1], field_summary(values[f[0] + "_means"], values[f[0] + "_stdevs"], experiments))
+	return s
 
 
 benchmark_full_names = {
@@ -842,12 +851,8 @@ class SingleInstanceExperimentResult:
 				                                           for v in self.values[f[0] + "_stdevs"]]
 			self.fields.extend([(f[0] + "_normalized", normalized_field_label(f[1])) for f in self.fields])
 
-	def save_summary(self):
-		s = ""
-		for f in self.fields:
-			s += "{}:\n{}\n".format(f[1], summary(self.values[f[0] + "_means"], self.values[f[0] + "_stdevs"],
-			                                      self.experiments))
-		save_summary(s, self.benchmark, self.config)
+	def summary(self):
+		return summary(self.values, self.fields, self.experiments)
 
 	def save_bar_plot(self, field, ymax=None):
 		ax = bar_plot_df(self, field[0] + "_means").plot.bar(yerr=bar_plot_df(self, field[0] + "_stdevs"),
@@ -906,7 +911,7 @@ class SingleInstanceExperimentResult:
 		save_plot(ax, name, self.benchmark, self.config)
 
 	def save_results(self, limits=None, legends=None, cdf_plots=False):
-		self.save_summary()
+		save_summary(self.summary(), self.benchmark, self.config)
 
 		if self.details:
 			self.save_all_bar_plots(limits)
@@ -1134,12 +1139,8 @@ class ScaleExperimentResult:
 			for f in total_fields:
 				add_total_mean_stdev_lists(self, all_results, f[0])
 
-	def save_summary(self):
-		s = ""
-		for f in self.fields:
-			s += "{}:\n{}\n".format(f[1], summary(self.values[f[0] + "_means"], self.values[f[0] + "_stdevs"],
-			                                      self.experiments))
-		save_summary(s, self.benchmark, self.config)
+	def summary(self):
+		return summary(self.values, self.fields, self.experiments)
 
 	def save_bar_plot(self, field, ymax=None):
 		ax = bar_plot_df(self, field[0] + "_means").plot.bar(yerr=bar_plot_df(self, field[0] + "_stdevs"),
@@ -1191,7 +1192,7 @@ class ScaleExperimentResult:
 		save_plot(ax, name, self.benchmark, self.config)
 
 	def save_results(self, limits=None, legends=None, cdf_plots=False):
-		self.save_summary()
+		save_summary(self.summary(), self.benchmark, self.config)
 
 		if self.details:
 			self.save_all_bar_plots(limits)
@@ -1264,34 +1265,17 @@ class ScaleAllExperimentsResult:
 		self.save_all_line_plots(limits, legends)
 
 
-class LatencyExperimentResult:
+class LatencyExperimentResult(SingleInstanceExperimentResult):
 	def __init__(self, experiments, bench, config, details=False, **kwargs):
-		self.experiments = experiments
-		self.benchmark = bench.name()
-		self.config = config
+		super().__init__(experiments, bench, config, details, **kwargs)
 
-		self.result = SingleInstanceExperimentResult(experiments, bench, config, details, **kwargs)
-
-		self.fields = result_fields(config, details)
-		self.values = {}
-		for f in self.fields:
-			self.values[f[0] + "_means"] = self.result.values[f[0] + "_means"]
-			self.values[f[0] + "_stdevs"] = self.result.values[f[0] + "_stdevs"]
-
-		path = os.path.join(logs_path(self.benchmark, config), "latency.log")
-		with open(path, "r") as f:
+		with open(os.path.join(logs_path(self.benchmark, config), "latency.log"), "r") as f:
 			self.latency = float(f.readlines()[0].strip())
 
-	def save_summary(self):
+	def summary(self):
 		s = "Latency: {} us\n\n".format(self.latency)
-		for f in self.fields:
-			s += "{}:\n{}\n".format(f[1], summary(self.values[f[0] + "_means"], self.values[f[0] + "_stdevs"],
-			                                      self.experiments))
-		save_summary(s, self.benchmark, self.config)
-
-	def save_results(self):
-		self.save_summary()
-		self.result.save_results()
+		s += super().summary()
+		return s
 
 
 class LatencyAllExperimentsResult:
@@ -1309,7 +1293,7 @@ class LatencyAllExperimentsResult:
 		        for e in self.experiments}
 
 		if Experiment.LocalJIT in self.experiments:
-			values = [getattr(r.result.application_results[Experiment.LocalJIT].results[i], field[0])
+			values = [getattr(r.application_results[Experiment.LocalJIT].results[i], field[0])
 			          for r in self.results for i in range(r.config.n_runs)]
 			val = f(values)
 			data[experiment_names_single[Experiment.LocalJIT]] = [val for r in self.results]
@@ -1446,12 +1430,8 @@ class DensityExperimentResult:
 			if e in experiments else None for e in Experiment
 		]
 
-	def save_summary(self):
-		s = ""
-		for f in self.fields:
-			s += "{}:\n{}\n".format(f[1], summary(self.values[f[0] + "_means"], self.values[f[0] + "_stdevs"],
-			                                      self.experiments))
-		save_summary(s, self.benchmark, self.config)
+	def summary(self):
+		return summary(self.values, self.fields, self.experiments)
 
 	def save_stats_plots(self):
 		for r in (self.jitserver_results + self.db_results):
@@ -1459,7 +1439,7 @@ class DensityExperimentResult:
 				r.save_stats_plots()
 
 	def save_results(self):
-		self.save_summary()
+		save_summary(self.summary(), self.benchmark, self.config)
 		if self.config.collect_stats:
 			self.save_stats_plots()
 
