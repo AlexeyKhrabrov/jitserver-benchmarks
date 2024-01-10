@@ -457,13 +457,17 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 
 	def populate_all_application_scc(self):
 		print("Populating {} scc...".format(self.bench.name()))
-		results = util.parallelize(self.populate_application_scc, range(len(self.application_hosts)))
-		success = all(r for r in results)
 
-		if not success:
+		t0 = time.monotonic()
+		results = util.parallelize(self.populate_application_scc, range(len(self.application_hosts)))
+		t1 = time.monotonic()
+
+		if not all(r for r in results):
 			remote.ServerInstance.rename_failed_run(self.hosts[0], self.bench.name(), self.config.name,
 			                                        "localjit", 0, 0, "scc")
 			raise Exception("Failed to populate {} scc".format(self.bench.name()))
+
+		print("Populated {} scc in {:.2f} seconds".format(self.bench.name(), t1 - t0))
 
 	def populate_cache(self, instance_id, experiment, run_id, attempt_id):
 		bench = self.config.populate_cache_bench or self.bench
@@ -627,8 +631,13 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 				print("Running experiment {} {} {} run {}/{} attempt {}/{}...".format(self.bench.name(),
 				      self.config.name, experiment.name, r, self.config.n_runs, i, self.config.attempts))
 
+				t0 = time.monotonic()
 				if self.run_single_experiment(experiment, r, i):
+					t1 = time.monotonic()
+					print("Finished experiment {} {} {} run {}/{} in {:.2f} seconds".format(
+					      self.bench.name(), self.config.name, experiment.name, r, self.config.n_runs, t1 - t0))
 					break
+
 				if i == self.config.attempts - 1:
 					print("Experiment {} {} {} failed".format(self.bench.name(), self.config.name, experiment.name))
 					return False
@@ -648,10 +657,16 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		if not skip_cleanup:
 			self.cleanup()
 		try:
+			t0 = time.monotonic()
+
 			if self.config.application_config.populate_scc:
 				self.populate_all_application_scc()
 			for e in experiments:
 				self.run_experiment(e)
+
+			t1 = time.monotonic()
+			print("Finished benchmark {} configuration {} in {:.2f} seconds".format(
+			      self.bench.name(), self.config.name, t1 - t0))
 
 		except KeyboardInterrupt:
 			print("Interrupting...")
@@ -718,8 +733,13 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 				print("Running experiment {} {} {} run {}/{} attempt {}/{}...".format(self.bench.name(),
 				      self.config.name, experiment.name, r, self.config.n_runs, i, self.config.attempts))
 
+				t0 = time.monotonic()
 				if self.run_single_density_experiment(experiment, r, i):
+					t1 = time.monotonic()
+					print("Finished experiment {} {} {} run {}/{} in {:.2f} seconds".format(
+					      self.bench.name(), self.config.name, experiment.name, r, self.config.n_runs, t1 - t0))
 					break
+
 				if i == self.config.attempts - 1:
 					print("Experiment {} {} {} failed".format(self.bench.name(), self.config.name, experiment.name))
 					return False
