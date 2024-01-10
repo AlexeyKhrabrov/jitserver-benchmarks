@@ -48,14 +48,14 @@ class JITServerConfig:
 	def __init__(self, *,
 		server_vlog=False, client_vlog=False, detailed_vlog=False, server_extra_stats=False, client_extra_stats=False,
 		server_resource_stats=False, jdk_ver=8, debug=False, portable_scc=False, noaot=False, forceaot=False,
-		nodelay_aotload=False, svm_at_startup=False, client_threads=None, localjit_memlimit=None, server_threads=None,
-		server_codecache=None, server_memlimit=None, require_jitserver=False, disable_active_thread_thresholds=False,
-		disable_gcr_threshold=False, server_scratch_space_factor=None, reconnect_wait_time=None,
-		client_socket_timeout=None, server_socket_timeout=None, session_purge_time=None, session_purge_interval=None,
-		encryption=False, use_internal_addr=False, share_romclasses=False, romclass_cache_partitions=None,
-		aotcache_name=None, stop_sleep_time=None, stop_timeout=None, stop_attempts=None, kill_remote_on_timeout=False,
-		save_jitdump=False, save_javacore=False, disable_jit_profiling=False, comp_stats_on_jitdump=False,
-		exclude_methods=None
+		nodelay_aotload=False, svm_at_startup=False, client_threads=None, client_thread_activation_factor=None,
+		localjit_memlimit=None, server_threads=None, server_codecache=None, server_memlimit=None,
+		require_jitserver=False, disable_active_thread_thresholds=False, disable_gcr_threshold=False,
+		server_scratch_space_factor=None, reconnect_wait_time=None, client_socket_timeout=None,
+		server_socket_timeout=None, session_purge_time=None, session_purge_interval=None, encryption=False,
+		use_internal_addr=False, share_romclasses=False, romclass_cache_partitions=None, aotcache_name=None,
+		stop_sleep_time=None, stop_timeout=None, stop_attempts=None, kill_remote_on_timeout=False, save_jitdump=False,
+		save_javacore=False, disable_jit_profiling=False, comp_stats_on_jitdump=False, exclude_methods=None
 	):
 		self.server_vlog = server_vlog
 		self.client_vlog = client_vlog
@@ -71,6 +71,7 @@ class JITServerConfig:
 		self.nodelay_aotload = nodelay_aotload
 		self.svm_at_startup = svm_at_startup
 		self.client_threads = client_threads
+		self.client_thread_activation_factor = client_thread_activation_factor
 		self.localjit_memlimit = localjit_memlimit
 		self.server_threads = server_threads
 		self.server_codecache = server_codecache
@@ -180,6 +181,9 @@ class JITServerConfig:
 				args.append("-XX:JITServerPort={}".format(jitserver_port))
 			if self.client_threads is not None:
 				args.append("-XcompilationThreads{}".format(self.client_threads))
+			if self.client_thread_activation_factor is not None:
+				jit_opts.append("jitclientThreadActivationQueueWeightFactor={}".format(
+				                self.client_thread_activation_factor))
 			if self.require_jitserver:
 				args.append("-XX:+RequireJITServer")
 			if self.reconnect_wait_time is not None:

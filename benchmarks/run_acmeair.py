@@ -66,6 +66,7 @@ def main():
 			nodelay_aotload=True,
 			svm_at_startup=False,
 			client_threads=None,
+			client_thread_activation_factor=None,
 			localjit_memlimit=None,
 			server_threads=None,
 			server_codecache=None,
