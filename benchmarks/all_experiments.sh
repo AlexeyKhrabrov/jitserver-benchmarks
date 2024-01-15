@@ -21,7 +21,7 @@ runs="${3}" # number of runs (repetitions) in all experiments except "density"
 density_runs="${4}"
 
 #NOTE: This option skips complete experiment runs and only runs the missing ones
-args=("--skip-complete-runs")
+args=("--skip-complete")
 
 if (( $# >= 5 )); then
 	logs_path="${5}"
@@ -29,6 +29,10 @@ if (( $# >= 5 )); then
 else
 	logs_path="logs"
 fi
+
+density_args=("${args[@]}")
+args+=(-n "${runs}")
+density_args+=(-n "${density_runs}")
 
 # Needed by latency experiments
 read -s -p "Password: " password
@@ -52,36 +56,36 @@ echo
 # 6: pxc + psc + pmc + plc
 # 7: pxw + psw + pmw + plw
 
-./host_cleanup.py acmeair "${main_hosts}"
+./host_cleanup.py acmeair   "${main_hosts}"
 ./host_cleanup.py daytrader "${main_hosts}"
 ./host_cleanup.py petclinic "${main_hosts}"
 
-./run_single.py daytrader "${main_hosts}" 0 0 -j -n "${runs}" "${args[@]}" &
-./run_single.py daytrader "${main_hosts}" 2 1 -j -n "${runs}" "${args[@]}" && \
-./run_single.py daytrader "${main_hosts}" 4 1 -j -n "${runs}" "${args[@]}" &
-./run_single.py daytrader "${main_hosts}" 1 2 -j -n "${runs}" "${args[@]}" && \
-./run_single.py daytrader "${main_hosts}" 5 2 -j -n "${runs}" "${args[@]}" &
-./run_single.py daytrader "${main_hosts}" 3 3 -j -n "${runs}" "${args[@]}" && \
-./run_single.py daytrader "${main_hosts}" 6 3 -j -n "${runs}" "${args[@]}" && \
-./run_single.py daytrader "${main_hosts}" 7 3 -j -n "${runs}" "${args[@]}" &
+./run_single.py daytrader "${main_hosts}" 0 0 -j "${args[@]}" &
+./run_single.py daytrader "${main_hosts}" 2 1 -j "${args[@]}" && \
+./run_single.py daytrader "${main_hosts}" 4 1 -j "${args[@]}" &
+./run_single.py daytrader "${main_hosts}" 1 2 -j "${args[@]}" && \
+./run_single.py daytrader "${main_hosts}" 5 2 -j "${args[@]}" &
+./run_single.py daytrader "${main_hosts}" 3 3 -j "${args[@]}" && \
+./run_single.py daytrader "${main_hosts}" 6 3 -j "${args[@]}" && \
+./run_single.py daytrader "${main_hosts}" 7 3 -j "${args[@]}" &
 
-./run_single.py acmeair "${main_hosts}" 0 4 -j -n "${runs}" "${args[@]}" && \
-./run_single.py acmeair "${main_hosts}" 2 4 -j -n "${runs}" "${args[@]}" && \
-./run_single.py acmeair "${main_hosts}" 4 4 -j -n "${runs}" "${args[@]}" && \
-./run_single.py acmeair "${main_hosts}" 6 4 -j -n "${runs}" "${args[@]}" &
-./run_single.py acmeair "${main_hosts}" 1 5 -j -n "${runs}" "${args[@]}" && \
-./run_single.py acmeair "${main_hosts}" 3 5 -j -n "${runs}" "${args[@]}" && \
-./run_single.py acmeair "${main_hosts}" 5 5 -j -n "${runs}" "${args[@]}" && \
-./run_single.py acmeair "${main_hosts}" 7 5 -j -n "${runs}" "${args[@]}" &
+./run_single.py acmeair   "${main_hosts}" 0 4 -j "${args[@]}" && \
+./run_single.py acmeair   "${main_hosts}" 2 4 -j "${args[@]}" && \
+./run_single.py acmeair   "${main_hosts}" 4 4 -j "${args[@]}" && \
+./run_single.py acmeair   "${main_hosts}" 6 4 -j "${args[@]}" &
+./run_single.py acmeair   "${main_hosts}" 1 5 -j "${args[@]}" && \
+./run_single.py acmeair   "${main_hosts}" 3 5 -j "${args[@]}" && \
+./run_single.py acmeair   "${main_hosts}" 5 5 -j "${args[@]}" && \
+./run_single.py acmeair   "${main_hosts}" 7 5 -j "${args[@]}" &
 
-./run_single.py petclinic "${main_hosts}" 0 6 -j -n "${runs}" "${args[@]}" && \
-./run_single.py petclinic "${main_hosts}" 2 6 -j -n "${runs}" "${args[@]}" && \
-./run_single.py petclinic "${main_hosts}" 4 6 -j -n "${runs}" "${args[@]}" && \
-./run_single.py petclinic "${main_hosts}" 6 6 -j -n "${runs}" "${args[@]}" &
-./run_single.py petclinic "${main_hosts}" 1 7 -j -n "${runs}" "${args[@]}" && \
-./run_single.py petclinic "${main_hosts}" 3 7 -j -n "${runs}" "${args[@]}" && \
-./run_single.py petclinic "${main_hosts}" 5 7 -j -n "${runs}" "${args[@]}" && \
-./run_single.py petclinic "${main_hosts}" 7 7 -j -n "${runs}" "${args[@]}" &
+./run_single.py petclinic "${main_hosts}" 0 6 -j "${args[@]}" && \
+./run_single.py petclinic "${main_hosts}" 2 6 -j "${args[@]}" && \
+./run_single.py petclinic "${main_hosts}" 4 6 -j "${args[@]}" && \
+./run_single.py petclinic "${main_hosts}" 6 6 -j "${args[@]}" &
+./run_single.py petclinic "${main_hosts}" 1 7 -j "${args[@]}" && \
+./run_single.py petclinic "${main_hosts}" 3 7 -j "${args[@]}" && \
+./run_single.py petclinic "${main_hosts}" 5 7 -j "${args[@]}" && \
+./run_single.py petclinic "${main_hosts}" 7 7 -j "${args[@]}" &
 
 wait
 
@@ -100,123 +104,127 @@ wait
 # 2: d_ne
 # 3: d_eq
 
-./run_cdf.py acmeair "${main_hosts}" 0 -j -n "${runs}" "${args[@]}" && \
-./run_cdf.py petclinic "${main_hosts}" 0 -j -n "${runs}" "${args[@]}" &
-./run_cdf.py acmeair "${main_hosts}" 1 -j -e -n "${runs}" "${args[@]}" && \
-./run_cdf.py petclinic "${main_hosts}" 1 -j -e -n "${runs}" "${args[@]}" &
-./run_cdf.py daytrader "${main_hosts}" 2 -j -n "${runs}" "${args[@]}" &
-./run_cdf.py daytrader "${main_hosts}" 3 -j -e -n "${runs}" "${args[@]}" &
+./run_cdf.py acmeair   "${main_hosts}" 0 -j    "${args[@]}" && \
+./run_cdf.py petclinic "${main_hosts}" 0 -j    "${args[@]}" &
+
+./run_cdf.py acmeair   "${main_hosts}" 1 -j -e "${args[@]}" && \
+./run_cdf.py petclinic "${main_hosts}" 1 -j -e "${args[@]}" &
+
+./run_cdf.py daytrader "${main_hosts}" 2 -j -n "${args[@]}" &
+
+./run_cdf.py daytrader "${main_hosts}" 3 -j -e "${args[@]}" &
+
 wait
 
-./host_cleanup.py acmeair "${main_hosts}"
+./host_cleanup.py acmeair   "${main_hosts}"
 ./host_cleanup.py daytrader "${main_hosts}"
 ./host_cleanup.py petclinic "${main_hosts}"
 
 
 # all latency localjit: ~1.5h
-./run_latency.py acmeair "${main_hosts}" 0 -l -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
-./run_latency.py daytrader "${main_hosts}" 1 -l -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
-./run_latency.py petclinic "${main_hosts}" 2 -l -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
+./run_latency.py acmeair   "${main_hosts}" 0 -j -S -l "${args[@]}" <<< "${password}" &
+./run_latency.py daytrader "${main_hosts}" 1 -j -S -l "${args[@]}" <<< "${password}" &
+./run_latency.py petclinic "${main_hosts}" 2 -j -S -l "${args[@]}" <<< "${password}" &
 wait
 
 # acmeair latency: ~4h
-./run_latency.py acmeair "${main_hosts}" 0 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
-./run_latency.py acmeair "${main_hosts}" 1 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
-./run_latency.py acmeair "${main_hosts}" 2 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
-./run_latency.py acmeair "${main_hosts}" 3 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
+./run_latency.py acmeair   "${main_hosts}" 0 -j -S    "${args[@]}" <<< "${password}" &
+./run_latency.py acmeair   "${main_hosts}" 1 -j -S    "${args[@]}" <<< "${password}" &
+./run_latency.py acmeair   "${main_hosts}" 2 -j -S    "${args[@]}" <<< "${password}" &
+./run_latency.py acmeair   "${main_hosts}" 3 -j -S    "${args[@]}" <<< "${password}" &
 wait
 
 # daytrader latency: ~9h
-./run_latency.py daytrader "${main_hosts}" 0 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
-./run_latency.py daytrader "${main_hosts}" 1 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
-./run_latency.py daytrader "${main_hosts}" 2 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
-./run_latency.py daytrader "${main_hosts}" 3 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
+./run_latency.py daytrader "${main_hosts}" 0 -j -S    "${args[@]}" <<< "${password}" &
+./run_latency.py daytrader "${main_hosts}" 1 -j -S    "${args[@]}" <<< "${password}" &
+./run_latency.py daytrader "${main_hosts}" 2 -j -S    "${args[@]}" <<< "${password}" &
+./run_latency.py daytrader "${main_hosts}" 3 -j -S    "${args[@]}" <<< "${password}" &
 wait
 
 # petclinic latency: ~4h
-./run_latency.py petclinic "${main_hosts}" 0 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
-./run_latency.py petclinic "${main_hosts}" 1 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
-./run_latency.py petclinic "${main_hosts}" 2 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
-./run_latency.py petclinic "${main_hosts}" 3 -j -n "${runs}" -S "${args[@]}" <<< "${password}" &
+./run_latency.py petclinic "${main_hosts}" 0 -j -S    "${args[@]}" <<< "${password}" &
+./run_latency.py petclinic "${main_hosts}" 1 -j -S    "${args[@]}" <<< "${password}" &
+./run_latency.py petclinic "${main_hosts}" 2 -j -S    "${args[@]}" <<< "${password}" &
+./run_latency.py petclinic "${main_hosts}" 3 -j -S    "${args[@]}" <<< "${password}" &
 wait
 
 
 # acmeair scale: ~8h
 ./host_cleanup.py acmeair "${all_hosts}"
-./run_scale.py acmeair "${all_hosts}" 0 -j -n "${runs}" "${args[@]}" &
+./run_scale.py acmeair "${all_hosts}" 0 -j "${args[@]}" &
 wait
 ./host_cleanup.py acmeair "${all_hosts}"
-./run_scale.py acmeair "${all_hosts}" 1 -j -n "${runs}" "${args[@]}" &
-./run_scale.py acmeair "${all_hosts}" 2 -j -n "${runs}" "${args[@]}" &
+./run_scale.py acmeair "${all_hosts}" 1 -j "${args[@]}" &
+./run_scale.py acmeair "${all_hosts}" 2 -j "${args[@]}" &
 wait
 ./host_cleanup.py acmeair "${all_hosts}"
-./run_scale.py acmeair "${all_hosts}" 3 -j -n "${runs}" "${args[@]}" &
-./run_scale.py acmeair "${all_hosts}" 4 -j -n "${runs}" "${args[@]}" &
+./run_scale.py acmeair "${all_hosts}" 3 -j "${args[@]}" &
+./run_scale.py acmeair "${all_hosts}" 4 -j "${args[@]}" &
 wait
 ./host_cleanup.py acmeair "${all_hosts}"
-./run_scale.py acmeair "${all_hosts}" 5 -j -n "${runs}" "${args[@]}" &
-./run_scale.py acmeair "${all_hosts}" 6 -j -n "${runs}" "${args[@]}" &
+./run_scale.py acmeair "${all_hosts}" 5 -j "${args[@]}" &
+./run_scale.py acmeair "${all_hosts}" 6 -j "${args[@]}" &
 wait
 ./host_cleanup.py acmeair "${all_hosts}"
-./run_scale.py acmeair "${all_hosts}" 7 -j -n "${runs}" "${args[@]}" &
-./run_scale.py acmeair "${all_hosts}" 8 -j -n "${runs}" "${args[@]}" &
-./run_scale.py acmeair "${all_hosts}" 9 -j -n "${runs}" "${args[@]}" &
+./run_scale.py acmeair "${all_hosts}" 7 -j "${args[@]}" &
+./run_scale.py acmeair "${all_hosts}" 8 -j "${args[@]}" &
+./run_scale.py acmeair "${all_hosts}" 9 -j "${args[@]}" &
 wait
 ./host_cleanup.py acmeair "${all_hosts}"
 
 # daytrader scale: ~21h
 ./host_cleanup.py daytrader "${all_hosts}"
-./run_scale.py daytrader "${all_hosts}" 0 -j -n "${runs}" "${args[@]}" &
+./run_scale.py daytrader "${all_hosts}" 0 -j "${args[@]}" &
 wait
 ./host_cleanup.py daytrader "${all_hosts}"
-./run_scale.py daytrader "${all_hosts}" 1 -j -n "${runs}" "${args[@]}" &
+./run_scale.py daytrader "${all_hosts}" 1 -j "${args[@]}" &
 wait
 ./host_cleanup.py daytrader "${all_hosts}"
-./run_scale.py daytrader "${all_hosts}" 2 -j -n "${runs}" "${args[@]}" &
-./run_scale.py daytrader "${all_hosts}" 3 -j -n "${runs}" "${args[@]}" &
+./run_scale.py daytrader "${all_hosts}" 2 -j "${args[@]}" &
+./run_scale.py daytrader "${all_hosts}" 3 -j "${args[@]}" &
 wait
 ./host_cleanup.py daytrader "${all_hosts}"
-./run_scale.py daytrader "${all_hosts}" 4 -j -n "${runs}" "${args[@]}" &
-./run_scale.py daytrader "${all_hosts}" 5 -j -n "${runs}" "${args[@]}" &
+./run_scale.py daytrader "${all_hosts}" 4 -j "${args[@]}" &
+./run_scale.py daytrader "${all_hosts}" 5 -j "${args[@]}" &
 wait
 ./host_cleanup.py daytrader "${all_hosts}"
-./run_scale.py daytrader "${all_hosts}" 6 -j -n "${runs}" "${args[@]}" &
-./run_scale.py daytrader "${all_hosts}" 7 -j -n "${runs}" "${args[@]}" &
-./run_scale.py daytrader "${all_hosts}" 8 -j -n "${runs}" "${args[@]}" &
-./run_scale.py daytrader "${all_hosts}" 9 -j -n "${runs}" "${args[@]}" &
+./run_scale.py daytrader "${all_hosts}" 6 -j "${args[@]}" &
+./run_scale.py daytrader "${all_hosts}" 7 -j "${args[@]}" &
+./run_scale.py daytrader "${all_hosts}" 8 -j "${args[@]}" &
+./run_scale.py daytrader "${all_hosts}" 9 -j "${args[@]}" &
 wait
 ./host_cleanup.py daytrader "${all_hosts}"
 
 # petclinic scale: ~7h
 ./host_cleanup.py petclinic "${all_hosts}"
-./run_scale.py petclinic "${all_hosts}" 0 -j -n "${runs}" "${args[@]}" &
-./run_scale.py petclinic "${all_hosts}" 1 -j -n "${runs}" "${args[@]}" &
-./run_scale.py petclinic "${all_hosts}" 2 -j -n "${runs}" "${args[@]}" &
+./run_scale.py petclinic "${all_hosts}" 0 -j "${args[@]}" &
+./run_scale.py petclinic "${all_hosts}" 1 -j "${args[@]}" &
+./run_scale.py petclinic "${all_hosts}" 2 -j "${args[@]}" &
 wait
 ./host_cleanup.py petclinic "${all_hosts}"
-./run_scale.py petclinic "${all_hosts}" 3 -j -n "${runs}" "${args[@]}" &
-./run_scale.py petclinic "${all_hosts}" 4 -j -n "${runs}" "${args[@]}" &
+./run_scale.py petclinic "${all_hosts}" 3 -j "${args[@]}" &
+./run_scale.py petclinic "${all_hosts}" 4 -j "${args[@]}" &
 wait
 ./host_cleanup.py petclinic "${all_hosts}"
-./run_scale.py petclinic "${all_hosts}" 5 -j -n "${runs}" "${args[@]}" &
-./run_scale.py petclinic "${all_hosts}" 6 -j -n "${runs}" "${args[@]}" &
+./run_scale.py petclinic "${all_hosts}" 5 -j "${args[@]}" &
+./run_scale.py petclinic "${all_hosts}" 6 -j "${args[@]}" &
 wait
 ./host_cleanup.py petclinic "${all_hosts}"
-./run_scale.py petclinic "${all_hosts}" 7 -j -n "${runs}" "${args[@]}" &
-./run_scale.py petclinic "${all_hosts}" 8 -j -n "${runs}" "${args[@]}" &
-./run_scale.py petclinic "${all_hosts}" 9 -j -n "${runs}" "${args[@]}" &
+./run_scale.py petclinic "${all_hosts}" 7 -j "${args[@]}" &
+./run_scale.py petclinic "${all_hosts}" 8 -j "${args[@]}" &
+./run_scale.py petclinic "${all_hosts}" 9 -j "${args[@]}" &
 wait
 ./host_cleanup.py petclinic "${all_hosts}"
 
 
 # acmeair density: ~60h
-./run_density.py acmeair "${all_hosts}" -n "${density_runs}" "${args[@]}"
-./run_density.py acmeair "${all_hosts}" -s -n "${density_runs}" "${args[@]}"
+./run_density.py acmeair   "${all_hosts}"    "${args[@]}"
+./run_density.py acmeair   "${all_hosts}" -s "${args[@]}"
 
 # daytrader density: ~60h
-./run_density.py daytrader "${all_hosts}" -n "${density_runs}" "${args[@]}"
-./run_density.py daytrader "${all_hosts}" -s -n "${density_runs}" "${args[@]}"
+./run_density.py daytrader "${all_hosts}"    "${args[@]}"
+./run_density.py daytrader "${all_hosts}" -s "${args[@]}"
 
 # petclinic density: ~60h
-./run_density.py petclinic "${all_hosts}" -n "${density_runs}" "${args[@]}"
-./run_density.py petclinic "${all_hosts}" -s -n "${density_runs}" "${args[@]}"
+./run_density.py petclinic "${all_hosts}"    "${args[@]}"
+./run_density.py petclinic "${all_hosts}" -s "${args[@]}"

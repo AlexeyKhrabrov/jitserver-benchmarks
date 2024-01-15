@@ -18,7 +18,8 @@ import util
 
 
 # local, ib, delay_us
-configurations = ((
+configurations = (
+	(
 		(False, True, 0, dict()),
 		(False, False, 0, dict()),
 		(False, False, 100, dict()),
@@ -61,7 +62,7 @@ bench_cls = {
 	"petclinic": petclinic.PetClinic
 }
 
-def get_config(benchmark, local, ib, delay_us, jmeter, n_runs, localjit=False, skip_complete_runs=False):
+def get_config(benchmark, local, ib, delay_us, jmeter, n_runs, localjit=False, skip_complete=False):
 	result = bench_cls[benchmark]().small_config()
 	result.name = "latency_{}_{}".format(
 		"full" if jmeter else "start",
@@ -84,12 +85,11 @@ def get_config(benchmark, local, ib, delay_us, jmeter, n_runs, localjit=False, s
 	result.cache_extra_instance = True
 	result.run_jmeter = jmeter
 	result.n_runs = n_runs
-	result.skip_complete_runs = skip_complete_runs
+	result.skip_complete = skip_complete
 
 	return result
 
-def make_cluster(benchmark, local, ib, delay_us, jmeter, n_runs, hosts,
-                 subset, localjit=False, skip_complete_runs=False):
+def make_cluster(benchmark, local, ib, delay_us, jmeter, n_runs, hosts, subset, localjit=False, skip_complete=False):
 	host0 = hosts[(2 * subset) % len(hosts)]
 	host1 = hosts[(2 * subset + 1) % len(hosts)]
 
@@ -101,14 +101,13 @@ def make_cluster(benchmark, local, ib, delay_us, jmeter, n_runs, hosts,
 		jitserver_hosts = [host0]
 
 	return shared.BenchmarkCluster(
-		get_config(benchmark, local, ib, delay_us, jmeter, n_runs, localjit, skip_complete_runs),
-		bench_cls[benchmark](), jitserver_hosts=jitserver_hosts,
-		db_hosts=[host0], application_hosts=[host1], jmeter_hosts=[host0]
+		get_config(benchmark, local, ib, delay_us, jmeter, n_runs, localjit, skip_complete), bench_cls[benchmark](),
+		jitserver_hosts=jitserver_hosts, db_hosts=[host0], application_hosts=[host1], jmeter_hosts=[host0]
 	)
 
 def measure_latency(benchmark, local, ib, cluster, *, passwd=None):
 	path = os.path.join(remote.RemoteHost.logs_dir, benchmark, cluster.config.name, "latency.log")
-	if cluster.config.skip_complete_runs and os.path.isfile(path):
+	if cluster.config.skip_complete and os.path.isfile(path):
 		return
 
 	latency = cluster.application_hosts[0].get_latency(cluster.jitserver_hosts[0],
@@ -120,7 +119,7 @@ def measure_latency(benchmark, local, ib, cluster, *, passwd=None):
 
 def measure_tcp_bandwidth(benchmark, local, ib, cluster, *, passwd=None):
 	path = os.path.join(remote.RemoteHost.logs_dir, benchmark, cluster.config.name, "bandwidth.log")
-	if cluster.config.skip_complete_runs and os.path.isfile(path):
+	if cluster.config.skip_complete and os.path.isfile(path):
 		return
 
 	bandwidth = cluster.application_hosts[0].get_tcp_bandwidth(cluster.jitserver_hosts[0],
@@ -138,8 +137,8 @@ def main():
 	parser.add_argument("hosts_file", nargs="?")
 	parser.add_argument("subset", type=int, nargs="?")
 
-	parser.add_argument("-n", "--n-runs", type=int, nargs="?", const=5)
-	parser.add_argument("--skip-complete-runs", action="store_true")
+	parser.add_argument("-n", "--n-runs", type=int, default=5)
+	parser.add_argument("--skip-complete", action="store_true")
 	parser.add_argument("-i", "--ib", action="store_true")
 	parser.add_argument("-c", "--cleanup", action="store_true")
 	parser.add_argument("-j", "--jmeter", action="store_true")
@@ -216,7 +215,7 @@ def main():
 	if args.localjit:
 		c = configurations[args.subset][0]
 		cluster = make_cluster(args.benchmark, *c[:-1], args.jmeter, args.n_runs,
-		                       hosts, args.subset, True, args.skip_complete_runs)
+		                       hosts, args.subset, True, args.skip_complete)
 		cluster.run_all_experiments([jitserver.Experiment.LocalJIT])
 		return
 
@@ -225,7 +224,7 @@ def main():
 			continue
 
 		cluster = make_cluster(args.benchmark, *c[:-1], args.jmeter, args.n_runs,
-		                       hosts, args.subset, False, args.skip_complete_runs)
+		                       hosts, args.subset, False, args.skip_complete)
 		cluster.check_sudo_passwd(passwd)
 
 		src = "../latency_{}_localjit/localjit".format("full" if args.jmeter else "start")

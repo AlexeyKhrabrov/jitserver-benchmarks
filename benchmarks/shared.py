@@ -309,8 +309,8 @@ class BenchmarkConfig:
 	def __init__(self, *,
 		name, jitserver_config, jitserver_docker_config, db_config, application_config, jmeter_config,
 		n_jitservers, n_dbs, n_instances, cache_extra_instance=False, populate_cache_bench=None,
-		run_jmeter, n_runs, attempts, skip_runs=None, skip_complete_runs=False,
-		n_invocations=None, idle_time=None, invocation_attempts=None, collect_stats=False
+		run_jmeter, n_runs, attempts, skip_runs=None, skip_complete=False, n_invocations=None,
+		idle_time=None, invocation_attempts=None, collect_stats=False
 	):
 		self.name = name
 		self.jitserver_config = jitserver_config
@@ -327,7 +327,7 @@ class BenchmarkConfig:
 		self.n_runs = n_runs
 		self.attempts = attempts
 		self.skip_runs = skip_runs or ()
-		self.skip_complete_runs = skip_complete_runs
+		self.skip_complete = skip_complete
 		self.n_invocations = n_invocations
 		self.idle_time = idle_time
 		self.invocation_attempts = invocation_attempts
@@ -573,7 +573,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 			      self.bench.name(), self.config.name, experiment.name, run_id))
 			return True
 
-		if not self.config.skip_complete_runs:
+		if not self.config.skip_complete:
 			return False
 
 		components = ("jitserver", self.bench.db_name(), self.bench.name(), "jmeter")

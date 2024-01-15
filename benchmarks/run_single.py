@@ -60,7 +60,7 @@ result_experiments = (
 )
 
 
-def get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs, skip_complete_runs=False):
+def get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs, skip_complete=False):
 	if size == "XS":
 		c = bench.xsmall_config()
 	elif size == "S":
@@ -85,7 +85,7 @@ def get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs, 
 	config.cache_extra_instance = True
 	config.run_jmeter = jmeter
 	config.n_runs = n_runs
-	config.skip_complete_runs = skip_complete_runs
+	config.skip_complete = skip_complete
 
 	return config
 
@@ -95,14 +95,13 @@ bench_cls = {
 	"petclinic": petclinic.PetClinic
 }
 
-def make_cluster(bench, hosts, subset, jmeter, size, warm, duration,
-                 scc_extra_duration, n_runs, skip_complete_runs=False):
+def make_cluster(bench, hosts, subset, jmeter, size, warm, duration, scc_extra_duration, n_runs, skip_complete=False):
 	host0 = hosts[subset % len(hosts)]
 	host1 = hosts[(subset + (1 if (subset % 2 == 0) else -1)) % len(hosts)]
 
 	return shared.BenchmarkCluster(
-		get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs, skip_complete_runs),
-		bench, jitserver_hosts=[host0], db_hosts=[host0], application_hosts=[host1], jmeter_hosts=[host0]
+		get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs, skip_complete), bench,
+		jitserver_hosts=[host0], db_hosts=[host0], application_hosts=[host1], jmeter_hosts=[host0]
 	)
 
 
@@ -114,8 +113,8 @@ def main():
 	parser.add_argument("config_idx", type=int, nargs="?")
 	parser.add_argument("subset", type=int, nargs="?")
 
-	parser.add_argument("-n", "--n-runs", type=int, nargs="?", const=5)
-	parser.add_argument("--skip-complete-runs", action="store_true")
+	parser.add_argument("-n", "--n-runs", type=int, default=5)
+	parser.add_argument("--skip-complete", action="store_true")
 	parser.add_argument("-c", "--cleanup", action="store_true")
 	parser.add_argument("-j", "--jmeter", action="store_true")
 	parser.add_argument("-v", "--verbose", action="store_true")
@@ -201,7 +200,7 @@ def main():
 		cluster.full_cleanup(passwd=passwd)
 		return
 
-	cluster = make_cluster(bench, hosts, args.subset, args.jmeter, *c[:-1], args.n_runs, args.skip_complete_runs)
+	cluster = make_cluster(bench, hosts, args.subset, args.jmeter, *c[:-1], args.n_runs, args.skip_complete)
 	cluster.run_all_experiments(run_experiments, skip_cleanup=True)
 
 

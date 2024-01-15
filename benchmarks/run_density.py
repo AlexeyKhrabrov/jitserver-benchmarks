@@ -55,7 +55,7 @@ hosts_lists = {
 	"petclinic": ([0], [0], [1, 2, 3, 4], [8, 9, 10]),
 }
 
-def get_config(benchmark, name, interval, duration, n_invocations, idle_time, scc, n_runs, skip_complete_runs=False):
+def get_config(benchmark, name, interval, duration, n_invocations, idle_time, scc, n_runs, skip_complete=False):
 	result = bench_cls[benchmark]().small_config()
 	result.name = "density_{}_{}".format("scc" if scc else "noscc", name)
 
@@ -76,7 +76,7 @@ def get_config(benchmark, name, interval, duration, n_invocations, idle_time, sc
 	result.n_instances = 64
 	result.run_jmeter = True
 	result.n_runs = n_runs
-	result.skip_complete_runs = skip_complete_runs
+	result.skip_complete = skip_complete
 	result.n_invocations = n_invocations
 	result.idle_time = idle_time
 	result.invocation_attempts = 2
@@ -106,8 +106,8 @@ def main():
 	parser.add_argument("hosts_file", nargs="?")
 
 	parser.add_argument("-s", "--scc", action="store_true")
-	parser.add_argument("-n", "--n-runs", type=int, nargs="?", const=3)
-	parser.add_argument("--skip-complete-runs", action="store_true")
+	parser.add_argument("-n", "--n-runs", type=int, default=3)
+	parser.add_argument("--skip-complete", action="store_true")
 	parser.add_argument("-c", "--cleanup", action="store_true")
 	parser.add_argument("-v", "--verbose", action="store_true")
 	parser.add_argument("-L", "--logs-path")
@@ -188,7 +188,7 @@ def main():
 		return
 
 	for c in configs:
-		cluster = make_cluster(args.benchmark, hosts, *c[:-1], args.scc, args.n_runs, args.skip_complete_runs)
+		cluster = make_cluster(args.benchmark, hosts, *c[:-1], args.scc, args.n_runs, args.skip_complete)
 		cluster.run_all_density_experiments(experiments)
 
 

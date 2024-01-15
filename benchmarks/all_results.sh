@@ -19,7 +19,7 @@ runs="${1}"
 density_runs="${2}"
 
 format="png"
-args=("--format=${format}")
+args=(-r "--format=${format}")
 
 #NOTE: These options generate the plots as presented in the paper - with a
 # single legend per figure (not per plot), and with the same Y axis scale for
@@ -40,17 +40,21 @@ else
 	results_path="results"
 fi
 
+density_args=("${args[@]}")
+args+=(-n "${runs}")
+density_args+=(-n "${density_runs}")
+
 
 benchmarks=("acmeair" "daytrader" "petclinic")
 
 for b in "${benchmarks[@]}"; do
-	./run_single.py "${b}" -r -j -n "${runs}" "${args[@]}" &
-	./run_cdf.py "${b}" -r -j -n "${runs}" "${args[@]}" &
-	./run_cdf.py "${b}" -r -j -e -n "${runs}" "${args[@]}" &
-	./run_scale.py "${b}" -r -j -n "${runs}" "${args[@]}" &
-	./run_latency.py "${b}" -r -j -n "${runs}" "${args[@]}" &
-	./run_density.py "${b}" -r -n "${density_runs}" "${args[@]}" &
-	./run_density.py "${b}" -r -s -n "${density_runs}" "${args[@]}" &
+	./run_single.py  "${b}" -j    "${args[@]}"         &
+	./run_cdf.py     "${b}" -j    "${args[@]}"         &
+	./run_cdf.py     "${b}" -j -e "${args[@]}"         &
+	./run_scale.py   "${b}" -j    "${args[@]}"         &
+	./run_latency.py "${b}" -j    "${args[@]}"         &
+	./run_density.py "${b}"       "${density_args[@]}" &
+	./run_density.py "${b}" -s    "${density_args[@]}" &
 done
 
 wait

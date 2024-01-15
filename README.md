@@ -170,7 +170,7 @@ where:
 - `JITmode` is one of: `localjit` | `jitserver` (remote JIT without caching) | `aotcache` (remote JIT with caching).
 - `component` is one of: `<benchmark>` (application JVM) | `jitserver` | `jmeter` (workload generator) | `<database>` (e.g. `mongo` or `db2`).
 
-The main log file `<component>.log` captures the `stdout` and `stderr` of the corresponding instance. Some of the components produce additional log files. The `all_experiments.sh` script skips complete experiment runs (for which all the logs are already present), and only runs the missing ones. This behaviour is enabled with the `--skip-complete-runs` option passed to the `run_*.py` scripts (see the source code).
+The main log file `<component>.log` captures the `stdout` and `stderr` of the corresponding instance. Some of the components produce additional log files. The `all_experiments.sh` script skips complete experiment runs (for which all the logs are already present), and only runs the missing ones. This behaviour is enabled with the `--skip-complete` option passed to the `run_*.py` scripts (see the source code).
 
 
 ## Generating results
