@@ -605,10 +605,12 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		if self.config.jmeter_config.latency_data or self.config.jmeter_config.report_data:
 			jmeter_files.append("results.jtl")
 
-		if self.config.collect_stats:
+		if self.config.collect_stats or self.config.jitserver_config.server_resource_stats:
 			jitserver_files.append("stats.log")
 			if self.config.jitserver_docker_config is not None:
 				jitserver_files.append("docker_stats.log")
+
+		if self.config.collect_stats:
 			db_files.extend(("stats.log", "docker_stats.log"))
 			app_files.extend(("stats.log", "docker_stats.log"))
 			jmeter_files.extend(("stats.log", "docker_stats.log"))
