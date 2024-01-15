@@ -20,13 +20,13 @@ import util
 # local, ib, delay_us
 configurations = (
 	(
-		(False, True, 0, dict()),
-		(False, False, 0, dict()),
-		(False, False, 100, dict()),
+		(False, True,  0,    dict()),
+		(False, False, 0,    dict()),
+		(False, False, 100,  dict()),
 	), (
-		(False, False, 200, dict()),
-		(False, False, 400, dict()),
-		(False, False, 800, dict()),
+		(False, False, 200,  dict()),
+		(False, False, 400,  dict()),
+		(False, False, 800,  dict()),
 	), (
 		(False, False, 1200, dict()),
 		(False, False, 2000, dict()),
@@ -39,9 +39,9 @@ configurations = (
 )
 
 jmeter_durations = {
-	"acmeair": 4 * 60, # seconds
+	"acmeair":   4  * 60, # seconds
 	"daytrader": 10 * 60, # seconds
-	"petclinic": 4 * 60, # seconds
+	"petclinic": 4  * 60, # seconds
 }
 
 
@@ -57,9 +57,9 @@ result_experiments = (
 
 
 bench_cls = {
-	"acmeair": acmeair.AcmeAir,
+	"acmeair":   acmeair.AcmeAir,
 	"daytrader": daytrader.DayTrader,
-	"petclinic": petclinic.PetClinic
+	"petclinic": petclinic.PetClinic,
 }
 
 def get_config(benchmark, local, ib, delay_us, jmeter, n_runs, localjit=False, skip_complete=False):

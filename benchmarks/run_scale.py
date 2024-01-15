@@ -16,58 +16,58 @@ import util
 # n_instances, n_dbs, jitserver_hosts, db_hosts, application_hosts, jmeter_hosts
 configurations = {
 	"acmeair": (
-		(64, 2, [0], [1, 2], [3, 4, 5, 6], [8, 9, 10], dict()),
+		(64, 2,  [0], [1, 2],    [3, 4, 5, 6], [8, 9, 10],    dict()),
 
-		(48, 2, [0], [1, 2], [3, 4, 5], [8, 9, 10], dict()),
-		(1, 1, [6], [6], [7], [6], dict()),
+		(48, 2,  [0], [1, 2],    [3, 4, 5],    [8, 9, 10],    dict()),
+		(1,  1,  [6], [6],       [7],          [6],           dict()),
 
-		(32, 1, [0], [1], [2, 3], [8, 9], dict()),
-		(12, 1, [4], [5], [6], [10], dict()),
+		(32, 1,  [0], [1],       [2, 3],       [8, 9],        dict()),
+		(12, 1,  [4], [5],       [6],          [10],          dict()),
 
-		(24, 1, [0], [1], [2, 3], [8, 9], dict()),
-		(16, 1, [4], [5], [6], [10], dict()),
+		(24, 1,  [0], [1],       [2, 3],       [8, 9],        dict()),
+		(16, 1,  [4], [5],       [6],          [10],          dict()),
 
-		(8, 1, [0], [1], [2], [8], dict()),
-		(4, 1, [3], [4], [5], [9], dict()),
-		(2, 1, [6], [6], [7], [10], dict()),
+		(8,  1,  [0], [1],       [2],          [8],           dict()),
+		(4,  1,  [3], [4],       [5],          [9],           dict()),
+		(2,  1,  [6], [6],       [7],          [10],          dict()),
 	),
 	"daytrader": (
-		(64, 12, [0], [1, 2, 3], [4, 5, 6, 7], [8, 9, 10], dict()),
+		(64, 12, [0], [1, 2, 3], [4, 5, 6, 7], [8, 9, 10],    dict()),
 
-		(48, 12, [0], [1, 2, 3], [4, 5, 6], [8, 9, 10], dict()),
+		(48, 12, [0], [1, 2, 3], [4, 5, 6],    [8, 9, 10],    dict()),
 
-		(32, 8, [0], [1, 2], [3, 4], [8, 9], dict()),
-		(12, 3, [5], [6], [7], [10], dict()),
+		(32, 8,  [0], [1, 2],    [3, 4],       [8, 9],        dict()),
+		(12, 3,  [5], [6],       [7],          [10],          dict()),
 
-		(24, 6, [0], [1, 2], [3, 4], [8, 9], dict()),
-		(16, 4, [5], [6], [7], [10], dict()),
+		(24, 6,  [0], [1, 2],    [3, 4],       [8, 9],        dict()),
+		(16, 4,  [5], [6],       [7],          [10],          dict()),
 
-		(8, 2, [0], [1], [2], [8], dict()),
-		(4, 1, [3], [4], [5], [9], dict()),
-		(2, 1, [6], [6], [7], [10], dict()),
-		(1, 1, [7], [7], [6], [7], dict()),
+		(8,  2,  [0], [1],       [2],          [8],           dict()),
+		(4,  1,  [3], [4],       [5],          [9],           dict()),
+		(2,  1,  [6], [6],       [7],          [10],          dict()),
+		(1,  1,  [7], [7],       [6],          [7],           dict()),
 	),
 	"petclinic": (
-		(64, 1, [0], [0], [1, 2, 3, 4], [5, 8, 9, 10], dict()),
-		(2, 1, [6], [6], [7], [6], dict()),
-		(1, 1, [7], [7], [6], [7], dict()),
+		(64, 1,  [0], [0],       [1, 2, 3, 4], [5, 8, 9, 10], dict()),
+		(2,  1,  [6], [6],       [7],          [6],           dict()),
+		(1,  1,  [7], [7],       [6],          [7],           dict()),
 
-		(48, 1, [0], [0], [1, 2, 3], [8, 9, 10], dict()),
-		(16, 1, [4], [4], [5], [6, 7], dict()),
+		(48, 1,  [0], [0],       [1, 2, 3],    [8, 9, 10],    dict()),
+		(16, 1,  [4], [4],       [5],          [6, 7],        dict()),
 
-		(32, 1, [0], [0], [1, 2], [3, 4], dict()),
-		(24, 1, [5], [5], [6, 7], [8, 9], dict()),
+		(32, 1,  [0], [0],       [1, 2],       [3, 4],        dict()),
+		(24, 1,  [5], [5],       [6, 7],       [8, 9],        dict()),
 
-		(12, 1, [0], [0], [1], [8, 9], dict()),
-		(8, 1, [2], [2], [3], [4], dict()),
-		(4, 1, [5], [6], [6], [7], dict()),
+		(12, 1,  [0], [0],       [1],          [8, 9],        dict()),
+		(8,  1,  [2], [2],       [3],          [4],           dict()),
+		(4,  1,  [5], [6],       [6],          [7],           dict()),
 	),
 }
 
 jmeter_durations = {
-	"acmeair": 6 * 60, # seconds
+	"acmeair":   6  * 60, # seconds
 	"daytrader": 15 * 60, # seconds
-	"petclinic": 5 * 60 # seconds
+	"petclinic": 5  * 60, # seconds
 }
 
 
@@ -79,9 +79,9 @@ experiments = (
 
 
 bench_cls = {
-	"acmeair": acmeair.AcmeAir,
+	"acmeair":   acmeair.AcmeAir,
 	"daytrader": daytrader.DayTrader,
-	"petclinic": petclinic.PetClinic
+	"petclinic": petclinic.PetClinic,
 }
 
 def get_config(benchmark, n_instances, n_dbs, jmeter, n_runs, skip_complete=False):
@@ -107,10 +107,8 @@ def make_cluster(benchmark, hosts, n_instances, n_dbs, jitserver_hosts, db_hosts
 		config.db_config.docker_config.ncpus = hosts[db_hosts[0]].get_ncpus() // (config.n_dbs // len(db_hosts))
 
 	return shared.BenchmarkCluster(
-		config, bench_cls[benchmark](),
-		jitserver_hosts=[hosts[i] for i in jitserver_hosts],
-		db_hosts=[hosts[i] for i in db_hosts],
-		application_hosts=[hosts[i] for i in application_hosts],
+		config, bench_cls[benchmark](), jitserver_hosts=[hosts[i] for i in jitserver_hosts],
+		db_hosts=[hosts[i] for i in db_hosts], application_hosts=[hosts[i] for i in application_hosts],
 		jmeter_hosts=[hosts[i] for i in jmeter_hosts]
 	)
 

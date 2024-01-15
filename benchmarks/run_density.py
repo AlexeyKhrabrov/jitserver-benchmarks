@@ -16,19 +16,19 @@ import util
 # name, start_interval, duration, n_invocations, idle_time
 configurations = {
 	"acmeair": (
-		("short", 10.0, 2 * 60, 25, 1.0, dict()),
-		("medium", 10.0, 5 * 60, 10, 1.0, dict()),
-		("long", 10.0, 10 * 60, 5, 1.0, dict()),
+		("short",  10.0, 2  * 60, 25, 1.0, dict()),
+		("medium", 10.0, 5  * 60, 10, 1.0, dict()),
+		("long",   10.0, 10 * 60, 5,  1.0, dict()),
 	),
 	"daytrader": (
-		("short", 10.0, 2 * 60, 25, 1.0, dict()),
-		("medium", 10.0, 5 * 60, 10, 1.0, dict()),
-		("long", 10.0, 10 * 60, 5, 1.0, dict()),
+		("short",  10.0, 2  * 60, 25, 1.0, dict()),
+		("medium", 10.0, 5  * 60, 10, 1.0, dict()),
+		("long",   10.0, 10 * 60, 5,  1.0, dict()),
 	),
 	"petclinic": (
-		("short", 10.0, 2 * 60, 25, 1.0, dict()),
-		("medium", 10.0, 5 * 60, 10, 1.0, dict()),
-		("long", 10.0, 10 * 60, 5, 1.0, dict()),
+		("short",  10.0, 2  * 60, 25, 1.0, dict()),
+		("medium", 10.0, 5  * 60, 10, 1.0, dict()),
+		("long",   10.0, 10 * 60, 5,  1.0, dict()),
 	),
 }
 
@@ -50,9 +50,9 @@ dbs_per_host = {"acmeair": 1, "daytrader": 4, "petclinic": 1}
 
 # jitserver_hosts, db_hosts, application_hosts, jmeter_hosts
 hosts_lists = {
-	"acmeair": ([0], [1, 2], [3, 4, 5, 6], [8, 9, 10]),
+	"acmeair":   ([0], [1, 2],    [3, 4, 5, 6], [8, 9, 10]),
 	"daytrader": ([0], [1, 2, 7], [3, 4, 5, 6], [8, 9, 10]),
-	"petclinic": ([0], [0], [1, 2, 3, 4], [8, 9, 10]),
+	"petclinic": ([0], [0],       [1, 2, 3, 4], [8, 9, 10]),
 }
 
 def get_config(benchmark, name, interval, duration, n_invocations, idle_time, scc, n_runs, skip_complete=False):
@@ -91,10 +91,8 @@ def make_cluster(benchmark, hosts, *args):
 		config.db_config.docker_config.ncpus = hosts[db_hosts[0]].get_ncpus() // (config.n_dbs // len(db_hosts))
 
 	return shared.BenchmarkCluster(
-		config, bench_cls[benchmark](),
-		jitserver_hosts=[hosts[i] for i in hosts_lists[benchmark][0]],
-		db_hosts=[hosts[i] for i in db_hosts],
-		application_hosts=[hosts[i] for i in hosts_lists[benchmark][2]],
+		config, bench_cls[benchmark](), jitserver_hosts=[hosts[i] for i in hosts_lists[benchmark][0]],
+		db_hosts=[hosts[i] for i in db_hosts], application_hosts=[hosts[i] for i in hosts_lists[benchmark][2]],
 		jmeter_hosts=[hosts[i] for i in hosts_lists[benchmark][3]]
 	)
 

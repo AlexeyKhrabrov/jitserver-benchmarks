@@ -15,9 +15,9 @@ import util
 
 
 jmeter_durations = {
-	"acmeair": 6 * 60, # seconds
+	"acmeair":   6  * 60, # seconds
 	"daytrader": 15 * 60, # seconds
-	"petclinic": 5 * 60, # seconds
+	"petclinic": 5  * 60, # seconds
 }
 
 run_experiments = (
@@ -58,9 +58,9 @@ def get_config(bench, jmeter, experiment, n_runs, equal_resources, skip_complete
 	return result
 
 bench_cls = {
-	"acmeair": acmeair.AcmeAir,
+	"acmeair":   acmeair.AcmeAir,
 	"daytrader": daytrader.DayTrader,
-	"petclinic": petclinic.PetClinic
+	"petclinic": petclinic.PetClinic,
 }
 
 def make_cluster(bench, hosts, subset, jmeter, experiment, n_runs, equal_resources, skip_complete=False):

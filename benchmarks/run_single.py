@@ -16,34 +16,34 @@ import util
 # size, warm, duration, scc_extra_duration
 configurations = {
 	"acmeair": (
-		("XS", False, 7 * 60, 0,      dict()),
-		("XS", True,  4 * 60, 3 * 60, dict()),
-		("S",  False, 6 * 60, 0,      dict()),
-		("S",  True,  3 * 60, 3 * 60, dict()),
-		("M",  False, 3 * 60, 0,      dict()),
-		("M",  True,  150,    30,     dict()),
-		("L",  False, 2 * 60, 0,      dict()),
-		("L",  True,  90,     30,     dict()),
+		("XS", False, 7 * 60,  0,       dict()),
+		("XS", True,  4 * 60,  3  * 60, dict()),
+		("S",  False, 6 * 60,  0,       dict()),
+		("S",  True,  3 * 60,  3  * 60, dict()),
+		("M",  False, 3 * 60,  0,       dict()),
+		("M",  True,  150,     30,      dict()),
+		("L",  False, 2 * 60,  0,       dict()),
+		("L",  True,  90,      30,      dict()),
 	),
 	"daytrader": (
 		("XS", False, 25 * 60, 0,       dict()),
 		("XS", True,  15 * 60, 10 * 60, dict()),
 		("S",  False, 15 * 60, 0,       dict()),
-		("S",  True,  10 * 60, 5 * 60,  dict()),
-		("M",  False, 7 * 60,  0,       dict()),
-		("M",  True,  4 * 60,  3 * 60,  dict()),
-		("L",  False, 5 * 60,  0,       dict()),
-		("L",  True,  3 * 60,  2 * 60,  dict()),
+		("S",  True,  10 * 60, 5  * 60, dict()),
+		("M",  False, 7  * 60, 0,       dict()),
+		("M",  True,  4  * 60, 3  * 60, dict()),
+		("L",  False, 5  * 60, 0,       dict()),
+		("L",  True,  3  * 60, 2  * 60, dict()),
 	),
 	"petclinic": (
-		("XS", False, 8 * 60, 0,      dict()),
-		("XS", True,  6 * 60, 2 * 60, dict()),
-		("S",  False, 5 * 60, 0,      dict()),
-		("S",  True,  3 * 60, 2 * 60, dict()),
-		("M",  False, 3 * 60, 0,      dict()),
-		("M",  True,  150,    30,     dict()),
-		("L",  False, 150,    0,      dict()),
-		("L",  True,  2 * 60, 30,     dict()),
+		("XS", False, 8  * 60, 0,       dict()),
+		("XS", True,  6  * 60, 2  * 60, dict()),
+		("S",  False, 5  * 60, 0,       dict()),
+		("S",  True,  3  * 60, 2  * 60, dict()),
+		("M",  False, 3  * 60, 0,       dict()),
+		("M",  True,  150,     30,      dict()),
+		("L",  False, 150,     0,       dict()),
+		("L",  True,  2  * 60, 30,      dict()),
 	),
 }
 
@@ -90,9 +90,9 @@ def get_config(bench, jmeter, size, warm, duration, scc_extra_duration, n_runs, 
 	return config
 
 bench_cls = {
-	"acmeair": acmeair.AcmeAir,
+	"acmeair":   acmeair.AcmeAir,
 	"daytrader": daytrader.DayTrader,
-	"petclinic": petclinic.PetClinic
+	"petclinic": petclinic.PetClinic,
 }
 
 def make_cluster(bench, hosts, subset, jmeter, size, warm, duration, scc_extra_duration, n_runs, skip_complete=False):
