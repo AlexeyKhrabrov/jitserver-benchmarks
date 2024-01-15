@@ -310,7 +310,7 @@ class BenchmarkConfig:
 		name, jitserver_config, jitserver_docker_config, db_config, application_config, jmeter_config,
 		n_jitservers, n_dbs, n_instances, cache_extra_instance=False, populate_cache_bench=None,
 		run_jmeter, n_runs, attempts, skip_runs=None, skip_complete=False, n_invocations=None,
-		idle_time=None, invocation_attempts=None, collect_stats=False
+		idle_time=None, invocation_interval=None, invocation_attempts=None, collect_stats=False
 	):
 		self.name = name
 		self.jitserver_config = jitserver_config
@@ -330,6 +330,7 @@ class BenchmarkConfig:
 		self.skip_complete = skip_complete
 		self.n_invocations = n_invocations
 		self.idle_time = idle_time
+		self.invocation_interval = invocation_interval
 		self.invocation_attempts = invocation_attempts
 		self.collect_stats = collect_stats
 
@@ -686,11 +687,22 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		application_instance = jmeter_instance.application_instance
 		application_instance.instance_id = current_id
 
+		t0 = time.monotonic()
 		for i in range(self.config.invocation_attempts):
 			success = self.run_application_and_jmeter(jmeter_instance, experiment, self.config.run_jmeter,
 			                                          run_id, attempt_id, invocation_attempt=i)
+			t1 = time.monotonic()
+
 			if success:
-				util.sleep(self.config.idle_time)
+				if self.config.invocation_interval:
+					sleep_time = max(0.0, self.config.invocation_interval - (t1 - t0))
+					print("{} {} {} instance {} invocation {}: sleeping for {:.2f}/{:.2f} seconds".format(
+					      self.bench.name(), self.config.name, experiment.name, instance_id,
+					      invocation_id, sleep_time, self.config.invocation_interval))
+					util.sleep(sleep_time)
+				else:
+					util.sleep(self.config.idle_time)
+
 				return True
 
 		return False

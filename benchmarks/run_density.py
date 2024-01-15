@@ -13,7 +13,7 @@ import shared
 import util
 
 
-# name, interval, duration, n_invocations, idle_time
+# name, start_interval, duration, n_invocations, idle_time
 configurations = {
 	"acmeair": (
 		("short", 10.0, 2 * 60, 25, 1.0, dict()),

@@ -165,6 +165,7 @@ def main():
 		skip_complete=True,
 		n_invocations=None,
 		idle_time=None,
+		invocation_interval=None,
 		collect_stats=True,
 	)
 
