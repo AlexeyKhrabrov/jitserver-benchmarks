@@ -8,7 +8,6 @@ import docker
 import jitserver
 import openj9
 import remote
-import results
 import shared
 import util
 
@@ -46,8 +45,6 @@ def main():
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
-	results.results_dir = args.results_path or results.results_dir
-	results.plot_format = args.format or results.plot_format
 
 	config = shared.BenchmarkConfig(
 		name="test",
@@ -164,6 +161,11 @@ def main():
 	)
 
 	if args.result:
+		import results
+
+		results.results_dir = args.results_path or results.results_dir
+		results.plot_format = args.format or results.plot_format
+
 		assert args.n_instances == 1
 		results.SingleInstanceExperimentResult(
 			result_experiments, petclinic.PetClinic, config, args.details

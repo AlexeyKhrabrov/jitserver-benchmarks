@@ -9,7 +9,6 @@ import docker
 import jitserver
 import petclinic
 import remote
-import results
 import shared
 import util
 
@@ -96,12 +95,15 @@ def main():
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
-	results.results_dir = args.results_path or results.results_dir
-	results.plot_format = args.format or results.plot_format
 
 	bench = bench_cls[args.benchmark]()
 
 	if args.result:
+		import results
+
+		results.results_dir = args.results_path or results.results_dir
+		results.plot_format = args.format or results.plot_format
+
 		results.SingleInstanceExperimentResult(
 			result_experiments, bench,
 			get_config(bench, args.jmeter, result_experiments[0], args.n_runs, args.equal_resources),

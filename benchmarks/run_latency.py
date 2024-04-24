@@ -11,7 +11,6 @@ import acmeair
 import daytrader
 import jitserver
 import petclinic
-import results
 import remote
 import shared
 import util
@@ -155,12 +154,15 @@ def main():
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
-	results.results_dir = args.results_path or results.results_dir
-	results.plot_format = args.format or results.plot_format
 
 	bench = bench_cls[args.benchmark]()
 
 	if args.result is not None:
+		import results
+
+		results.results_dir = args.results_path or results.results_dir
+		results.plot_format = args.format or results.plot_format
+
 		all_configs = list(c for c in itertools.chain.from_iterable(configurations) if args.ib or not c[1])
 
 		if args.result >= 0:

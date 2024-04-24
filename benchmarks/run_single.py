@@ -8,7 +8,6 @@ import daytrader
 import jitserver
 import petclinic
 import remote
-import results
 import shared
 import util
 
@@ -128,13 +127,16 @@ def main():
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
-	results.results_dir = args.results_path or results.results_dir
-	results.plot_format = args.format or results.plot_format
 
 	configs = configurations[args.benchmark]
 	bench = bench_cls[args.benchmark]()
 
 	if args.result is not None:
+		import results
+
+		results.results_dir = args.results_path or results.results_dir
+		results.plot_format = args.format or results.plot_format
+
 		if args.result >= 0:
 			c = configs[args.result]
 			results.SingleInstanceExperimentResult(
