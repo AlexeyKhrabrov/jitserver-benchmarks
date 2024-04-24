@@ -1,0 +1,215 @@
+#!/usr/bin/env python3
+
+import argparse
+import getpass
+
+import acmeair
+import daytrader
+import jitserver
+import petclinic
+import remote
+import shared
+import util
+
+
+# shared_romclasses, perclient_allocators
+servermem_configs = (
+	(False, False),
+	(False, True),
+	(True,  False),
+	(True,  True),
+)
+
+# n_instances, n_dbs, jitserver_hosts, db_hosts, application_hosts, jmeter_hosts
+configurations = {
+	"acmeair": (
+		(64, 2,  [0], [1, 2],    [3, 4, 5, 6], [8, 9, 10],    dict()),
+
+		(48, 2,  [0], [1, 2],    [3, 4, 5],    [8, 9, 10],    dict()),
+		(1,  1,  [6], [6],       [7],          [6],           dict()),
+
+		(32, 1,  [0], [1],       [2, 3],       [8, 9],        dict()),
+		(12, 1,  [4], [5],       [6],          [10],          dict()),
+
+		(24, 1,  [0], [1],       [2, 3],       [8, 9],        dict()),
+		(16, 1,  [4], [5],       [6],          [10],          dict()),
+
+		(8,  1,  [0], [1],       [2],          [8],           dict()),
+		(4,  1,  [3], [4],       [5],          [9],           dict()),
+		(2,  1,  [6], [6],       [7],          [10],          dict()),
+	),
+	"daytrader": (
+		(64, 12, [0], [1, 2, 3], [4, 5, 6, 7], [8, 9, 10],    dict()),
+
+		(48, 12, [0], [1, 2, 3], [4, 5, 6],    [8, 9, 10],    dict()),
+
+		(32, 8,  [0], [1, 2],    [3, 4],       [8, 9],        dict()),
+		(12, 3,  [5], [6],       [7],          [10],          dict()),
+
+		(24, 6,  [0], [1, 2],    [3, 4],       [8, 9],        dict()),
+		(16, 4,  [5], [6],       [7],          [10],          dict()),
+
+		(8,  2,  [0], [1],       [2],          [8],           dict()),
+		(4,  1,  [3], [4],       [5],          [9],           dict()),
+		(2,  1,  [6], [6],       [7],          [10],          dict()),
+		(1,  1,  [7], [7],       [6],          [7],           dict()),
+	),
+	"petclinic": (
+		(64, 1,  [0], [0],       [1, 2, 3, 4], [5, 8, 9, 10], dict()),
+		(2,  1,  [6], [6],       [7],          [6],           dict()),
+		(1,  1,  [7], [7],       [6],          [7],           dict()),
+
+		(48, 1,  [0], [0],       [1, 2, 3],    [8, 9, 10],    dict()),
+		(16, 1,  [4], [4],       [5],          [6, 7],        dict()),
+
+		(32, 1,  [0], [0],       [1, 2],       [3, 4],        dict()),
+		(24, 1,  [5], [5],       [6, 7],       [8, 9],        dict()),
+
+		(12, 1,  [0], [0],       [1],          [8, 9],        dict()),
+		(8,  1,  [2], [2],       [3],          [4],           dict()),
+		(4,  1,  [5], [5],       [6],          [7],           dict()),
+	),
+}
+
+jmeter_durations = {
+	"acmeair":   4 * 60, # seconds
+	"daytrader": 8 * 60, # seconds
+	"petclinic": 4 * 60, # seconds
+}
+
+
+experiments = (
+	jitserver.Experiment.JITServer,
+)
+
+
+bench_cls = {
+	"acmeair":   acmeair.AcmeAir,
+	"daytrader": daytrader.DayTrader,
+	"petclinic": petclinic.PetClinic,
+}
+
+def get_config(benchmark, shared_romclasses, perclient_allocators,
+               n_instances, n_dbs, jmeter, n_runs, skip_complete=False):
+	result = bench_cls[benchmark]().small_config()
+	result.name = "servermem_{}_{}_{}_{}".format(
+		"full" if jmeter else "start", "shared" if shared_romclasses else "private",
+		"perclient" if perclient_allocators else "global", n_instances
+	)
+
+	result.jitserver_config.server_threads = 128
+	result.jitserver_config.share_romclasses = shared_romclasses
+	result.jitserver_config.disable_perclient_allocators = not perclient_allocators
+	result.jitserver_config.server_resource_stats = True
+
+	result.jmeter_config.duration = jmeter_durations[benchmark]
+
+	result.n_instances = n_instances
+	result.n_dbs = n_dbs
+	result.run_jmeter = jmeter
+	result.n_runs = n_runs
+	result.skip_complete = skip_complete
+
+	return result
+
+def make_cluster(benchmark, hosts, shared_romclasses, perclient_allocators, n_instances, n_dbs, jitserver_hosts,
+                 db_hosts, application_hosts, jmeter_hosts, jmeter, n_runs, skip_complete=False):
+	config = get_config(benchmark, shared_romclasses, perclient_allocators,
+	                    n_instances, n_dbs, jmeter, n_runs, skip_complete)
+	if config.n_dbs > len(db_hosts):
+		#NOTE: assuming db hosts are homogeneous
+		config.db_config.docker_config.ncpus = hosts[db_hosts[0]].get_ncpus() // (config.n_dbs // len(db_hosts))
+
+	return shared.BenchmarkCluster(
+		config, bench_cls[benchmark](), jitserver_hosts=[hosts[i] for i in jitserver_hosts],
+		db_hosts=[hosts[i] for i in db_hosts], application_hosts=[hosts[i] for i in application_hosts],
+		jmeter_hosts=[hosts[i] for i in jmeter_hosts]
+	)
+
+
+def main():
+	parser = argparse.ArgumentParser()
+
+	parser.add_argument("benchmark")
+	parser.add_argument("hosts_file", nargs="?")
+	parser.add_argument("config_idx", type=int, nargs="?")
+
+	parser.add_argument("-n", "--n-runs", type=int, default=5)
+	parser.add_argument("--skip-complete", action="store_true")
+	parser.add_argument("-c", "--cleanup", action="store_true")
+	parser.add_argument("-j", "--jmeter", action="store_true")
+	parser.add_argument("-v", "--verbose", action="store_true")
+	parser.add_argument("-L", "--logs-path")
+	parser.add_argument("-r", "--result", type=int, nargs="?", const=-1)
+	parser.add_argument("-R", "--results-path")
+	parser.add_argument("-f", "--format")
+	parser.add_argument("-d", "--details", action="store_true")
+	parser.add_argument("--single-legend", action="store_true")
+	parser.add_argument("--same-limits", action="store_true") # unused
+
+	args = parser.parse_args()
+	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
+
+	configs = configurations[args.benchmark]
+	bench = bench_cls[args.benchmark]()
+
+	if args.result is not None:
+		import results
+
+		results.results_dir = args.results_path or results.results_dir
+		results.plot_format = args.format or results.plot_format
+
+		if args.result >= 0:
+			c = configs[args.result]
+			for sc in servermem_configs:
+				results.ScaleExperimentResult(
+					experiments, bench_cls[args.benchmark](),
+					get_config(args.benchmark, *sc, c[0], c[1], args.jmeter, args.n_runs), args.details, **(c[-1] or {})
+				).save_results()
+			return
+
+		if args.details:
+			cmd = [__file__, args.benchmark, "-n", str(args.n_runs), "-d"]
+			if args.jmeter:
+				cmd.append("-j")
+			if args.logs_path is not None:
+				cmd.extend(("-L", args.logs_path))
+			if args.results_path is not None:
+				cmd.extend(("-R", args.results_path))
+			if args.format is not None:
+				cmd.extend(("-f", args.format))
+
+			util.parallelize(lambda i: util.run(cmd + ["-r", str(i)], check=True), range(len(configs)))
+
+		sorted_configs = sorted(configs, key=lambda c: c[0])
+		all_configs = [[get_config(args.benchmark, *sc, c[0], c[1], args.jmeter, args.n_runs)
+		                for c in sorted_configs] for sc in servermem_configs]
+
+		results.ServerMemAllExperimentsResult(
+			bench, all_configs, args.details, [c[-1] for c in sorted_configs]
+		).save_results(
+			legends={"jitserver_mem": args.benchmark == "petclinic"} if args.single_legend else None
+		)
+		return
+
+	hosts = [bench.new_host(*h) for h in remote.load_hosts(args.hosts_file)]
+	c = configs[args.config_idx]
+
+	util.verbose = args.verbose
+	util.set_sigint_handler()
+
+	if args.cleanup:
+		cluster = make_cluster(args.benchmark, hosts, *sc[0], *c[:-1], args.jmeter, args.n_runs)
+		#NOTE: assuming same credentials for all hosts
+		passwd = getpass.getpass()
+		cluster.check_sudo_passwd(passwd)
+		cluster.full_cleanup(passwd=passwd)
+		return
+
+	for sc in servermem_configs:
+		cluster = make_cluster(args.benchmark, hosts, *sc, *c[:-1], args.jmeter, args.n_runs, args.skip_complete)
+		cluster.run_all_experiments(experiments, skip_cleanup=True)
+
+
+if __name__ == "__main__":
+	main()

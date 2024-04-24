@@ -228,3 +228,71 @@ wait
 # petclinic density: ~60h
 ./run_density.py petclinic "${all_hosts}"    "${args[@]}"
 ./run_density.py petclinic "${all_hosts}" -s "${args[@]}"
+
+
+# acmeair servermem: ~8h
+./host_cleanup.py acmeair "${all_hosts}"
+./run_servermem.py acmeair "${all_hosts}" 0 -j "${args[@]}" &
+wait
+./host_cleanup.py acmeair "${all_hosts}"
+./run_servermem.py acmeair "${all_hosts}" 1 -j "${args[@]}" &
+./run_servermem.py acmeair "${all_hosts}" 2 -j "${args[@]}" &
+wait
+./host_cleanup.py acmeair "${all_hosts}"
+./run_servermem.py acmeair "${all_hosts}" 3 -j "${args[@]}" &
+./run_servermem.py acmeair "${all_hosts}" 4 -j "${args[@]}" &
+wait
+./host_cleanup.py acmeair "${all_hosts}"
+./run_servermem.py acmeair "${all_hosts}" 5 -j "${args[@]}" &
+./run_servermem.py acmeair "${all_hosts}" 6 -j "${args[@]}" &
+wait
+./host_cleanup.py acmeair "${all_hosts}"
+./run_servermem.py acmeair "${all_hosts}" 7 -j "${args[@]}" &
+./run_servermem.py acmeair "${all_hosts}" 8 -j "${args[@]}" &
+./run_servermem.py acmeair "${all_hosts}" 9 -j "${args[@]}" &
+wait
+./host_cleanup.py acmeair "${all_hosts}"
+
+# daytrader servermem: ~15h
+./host_cleanup.py daytrader "${all_hosts}"
+./run_servermem.py daytrader "${all_hosts}" 0 -j "${args[@]}" &
+wait
+./host_cleanup.py daytrader "${all_hosts}"
+./run_servermem.py daytrader "${all_hosts}" 1 -j "${args[@]}" &
+wait
+./host_cleanup.py daytrader "${all_hosts}"
+./run_servermem.py daytrader "${all_hosts}" 2 -j "${args[@]}" &
+./run_servermem.py daytrader "${all_hosts}" 3 -j "${args[@]}" &
+wait
+./host_cleanup.py daytrader "${all_hosts}"
+./run_servermem.py daytrader "${all_hosts}" 4 -j "${args[@]}" &
+./run_servermem.py daytrader "${all_hosts}" 5 -j "${args[@]}" &
+wait
+./host_cleanup.py daytrader "${all_hosts}"
+./run_servermem.py daytrader "${all_hosts}" 6 -j "${args[@]}" &
+./run_servermem.py daytrader "${all_hosts}" 7 -j "${args[@]}" &
+./run_servermem.py daytrader "${all_hosts}" 8 -j "${args[@]}" &
+./run_servermem.py daytrader "${all_hosts}" 9 -j "${args[@]}" &
+wait
+./host_cleanup.py daytrader "${all_hosts}"
+
+# petclinic servermem: ~8h
+./host_cleanup.py petclinic "${all_hosts}"
+./run_servermem.py petclinic "${all_hosts}" 0 -j "${args[@]}" &
+./run_servermem.py petclinic "${all_hosts}" 1 -j "${args[@]}" &
+./run_servermem.py petclinic "${all_hosts}" 2 -j "${args[@]}" &
+wait
+./host_cleanup.py petclinic "${all_hosts}"
+./run_servermem.py petclinic "${all_hosts}" 3 -j "${args[@]}" &
+./run_servermem.py petclinic "${all_hosts}" 4 -j "${args[@]}" &
+wait
+./host_cleanup.py petclinic "${all_hosts}"
+./run_servermem.py petclinic "${all_hosts}" 5 -j "${args[@]}" &
+./run_servermem.py petclinic "${all_hosts}" 6 -j "${args[@]}" &
+wait
+./host_cleanup.py petclinic "${all_hosts}"
+./run_servermem.py petclinic "${all_hosts}" 7 -j "${args[@]}" &
+./run_servermem.py petclinic "${all_hosts}" 8 -j "${args[@]}" &
+./run_servermem.py petclinic "${all_hosts}" 9 -j "${args[@]}" &
+wait
+./host_cleanup.py petclinic "${all_hosts}"

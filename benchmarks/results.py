@@ -1495,3 +1495,81 @@ class DensityAllExperimentsResult:
 
 	def save_results(self, limits=None, legends=None, dry_run=False, overlays=False):
 		return self.save_all_bar_plots(limits, legends, dry_run, overlays)
+
+
+servermem_mode_names = (
+	"Baseline",
+	"Per-client allocators",
+	"Shared ROMClasses",
+	"Both optimizations",
+)
+
+max_servermem_mode_name_len = max(len(n) for n in servermem_mode_names)
+
+
+class ServerMemAllExperimentsResult:
+	def __init__(self, bench, configs, details=False, kwargs_list=None):
+		self.benchmark = bench.name()
+		self.warmup = configs[0][0].run_jmeter
+		self.experiment = Experiment.JITServer
+
+		self.results = [[
+			ScaleExperimentResult([self.experiment], bench, configs[m][i], details, keep_throughput_data=False,
+			                      **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
+			for i in range(len(configs[m]))] for m in range(len(configs))
+		]
+
+		self.fields = ("jitserver_mem", "jitserver_cpu_perclient")
+
+	def get_df(self, field, suffix):
+		data = {servermem_mode_names[m]: [r.values[field + suffix][self.experiment] for r in self.results[m]]
+		        for m in range(len(self.results))}
+		return pd.DataFrame(data, index=[r.config.n_instances for r in self.results[0]])
+
+	def save_line_plot(self, field, legend=True):
+		ax = self.get_df(field, "_means").plot(yerr=self.get_df(field, "_stdevs"), xlim=(0, None), legend=False)
+
+		if field == "jitserver_mem":
+			ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter("%.0f"))
+		ax.set(xlabel="{}: Number of instances".format(benchmark_full_names[self.benchmark]), ylabel=field_label(field))
+
+		ax.set_ylim(0, ax.get_ylim()[1] * 1.1)
+		for i, line in enumerate(ax.get_lines()):
+			line.set_marker(experiment_markers[i])
+		if legend:
+			ax.legend()
+
+		name = "servermem_{}_{}".format("full" if self.warmup else "start", field)
+		save_plot(ax, name, self.benchmark)
+
+	def save_all_line_plots(self, legends=None):
+		for f in self.fields:
+			self.save_line_plot(f, legends.get(f) if legends else True)
+
+	def summary(self):
+		s = ""
+		e = self.experiment
+
+		for n in range(len(self.results[0])):
+			s += "{} instances:\n".format(self.results[0][n].config.n_instances)
+
+			for f in self.fields:
+				s += "\t{} ({}):\n".format(field_label(f, True), f)
+
+				for m in range(len(self.results)):
+					s += "\t\t{}:{} {:.2f} ±{:.2f}".format(
+						servermem_mode_names[m], " " * (max_servermem_mode_name_len - len(servermem_mode_names[m])),
+						self.results[m][n].values[f + "_means"][e], self.results[m][n].values[f + "_stdevs"][e]
+					)
+					if m:
+						s += " ({:+2.1f}%)".format(rel_change_p(self.results[m][n].values[f + "_means"][e],
+						                                        self.results[0][n].values[f + "_means"][e]))
+
+					s += "\n"
+				s += "\n"
+
+		return s
+
+	def save_results(self, legends=None):
+		save_summary(self.summary(), self.benchmark, name="servermem_summary")
+		self.save_all_line_plots(legends)
