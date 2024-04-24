@@ -18,17 +18,15 @@ import numpy as np
 import pandas as pd
 
 plt.rcParams.update({
-	"axes.labelpad": 3.0,
-	"figure.figsize": (1.8, 1.2),
-	"font.size": 6,
+	"figure.constrained_layout.use": True,
+	"figure.figsize": (3.0, 2.25),
+	"font.size": 9,
 	"hatch.linewidth": 0.5,
-	"legend.fontsize": 5,
+	"legend.fontsize": 8,
 	"legend.framealpha": 0.5,
 	"lines.linewidth": 1.0,
-	"lines.markersize": 3.0,
-	"savefig.bbox": "tight",
+	"lines.markersize": 4.0,
 	"savefig.dpi": 300,
-	"savefig.pad_inches": 0.05,
 })
 
 from jitserver import Experiment
@@ -64,11 +62,16 @@ def save_summary(s, *args, name=None):
 
 plot_format = "png"
 
-def save_plot(ax, name, *args):
+def save_plot(ax, name, *args, size=None):
 	path = os.path.join(results_path(*args), "{}.{}".format(name, plot_format))
 	os.makedirs(os.path.dirname(path), exist_ok=True)
-	ax.get_figure().savefig(path)
-	plt.close(ax.get_figure())
+
+	fig = ax.get_figure()
+	if size is not None:
+		fig.set_size_inches(*size)
+
+	fig.savefig(path)
+	plt.close(fig)
 
 
 class ProcessStats:
@@ -112,7 +115,7 @@ class ProcessStats:
 
 	def save_plot(self, ax, name, label):
 		ax.set(xlabel="Time, sec", ylabel=label)
-		save_plot(ax, "{}_{}".format(name, self.kind()), *self.id)
+		save_plot(ax, "{}_{}".format(name, self.kind()), *self.id, size=(4.5, 2.25))
 
 	def save_cpu_plot(self):
 		self.save_plot(self.cpu_df().plot(legend=False, xlim=(0, None), ylim=(0, None)), "cpu", "CPU usage, %")
@@ -909,7 +912,7 @@ class SingleInstanceExperimentResult:
 		ax.set(xlabel="Time, sec", ylabel="Throughput, req/sec")
 		ax.set_xlim(0)
 		ax.set_ylim(0, ymax)
-		save_plot(ax, "throughput_{}".format(name), self.benchmark, self.config)
+		save_plot(ax, "throughput_{}".format(name), self.benchmark, self.config, size=(4.5, 2.25))
 
 	def save_run_throughput_plots(self, ymax=None):
 		for r in range(self.config.n_runs):
