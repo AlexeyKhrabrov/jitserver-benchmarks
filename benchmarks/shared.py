@@ -521,7 +521,9 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 
 	def run_single_experiment(self, experiment, run_id, attempt_id):
 		if experiment.is_jitserver():
-			util.parallelize(lambda i: i.start(experiment, run_id, attempt_id), self.jitserver_instances)
+			results = util.parallelize(lambda i: i.start(experiment, run_id, attempt_id), self.jitserver_instances)
+			if not all(r is None for r in results):
+				return False
 
 			if experiment.is_warm_cache() and not self.populate_all_cache(experiment, run_id, attempt_id):
 				return False
@@ -729,7 +731,9 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 
 	def run_single_density_experiment(self, experiment, run_id, attempt_id):
 		if experiment.is_jitserver():
-			util.parallelize(lambda i: i.start(experiment, run_id, attempt_id), self.jitserver_instances)
+			results = util.parallelize(lambda i: i.start(experiment, run_id, attempt_id), self.jitserver_instances)
+			if not all(r is None for r in results):
+				return False
 
 		util.parallelize(lambda i: i.start(experiment, run_id, attempt_id), self.db_instances)
 
