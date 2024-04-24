@@ -113,7 +113,8 @@ def main():
 	parser.add_argument("-f", "--format")
 	parser.add_argument("-d", "--details", action="store_true")
 	parser.add_argument("--single-legend", action="store_true")
-	parser.add_argument("--same-limits", action="store_true")
+	parser.add_argument("--no-warm-scc", action="store_true")
+	parser.add_argument("--no-aotcache", action="store_true")
 	parser.add_argument("-o", "--overlays", action="store_true")
 
 	args = parser.parse_args()
@@ -151,25 +152,22 @@ def main():
 
 		result = results.DensityAllExperimentsResult(
 			experiments, bench, [get_config(args.benchmark, *c[:-1], args.scc, args.n_runs) for c in configs],
-			args.details, [c[-1] for c in configs]
+			args.details, args.no_aotcache, [c[-1] for c in configs]
 		)
 
 		limits = None
-		if args.same_limits:
+		if not args.no_warm_scc:
 			other_result = results.DensityAllExperimentsResult(
 				experiments, bench,
 				[get_config(args.benchmark, *c[:-1], not args.scc, args.n_runs) for c in configs],
-				args.details, [c[-1] for c in configs]
+				args.details, args.no_aotcache, [c[-1] for c in configs]
 			)
 			current_limits = result.save_results(dry_run=True)
 			other_limits = other_result.save_results(dry_run=True)
 			limits = {f: max(current_limits[f], other_limits[f]) for f in current_limits.keys()}
 
 		result.save_results(
-			limits=limits, legends={
-				"cpu_time_per_req": args.benchmark == "daytrader",
-				"total_peak_mem": False,
-			} if args.single_legend else None,
+			limits=limits, legends={"cpu_time_per_req": args.benchmark == "daytrader"} if args.single_legend else None,
 			overlays=args.overlays
 		)
 		return

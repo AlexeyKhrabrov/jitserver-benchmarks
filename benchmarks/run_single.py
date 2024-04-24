@@ -123,7 +123,8 @@ def main():
 	parser.add_argument("-f", "--format")
 	parser.add_argument("-d", "--details", action="store_true")
 	parser.add_argument("--single-legend", action="store_true")
-	parser.add_argument("--same-limits", action="store_true")
+	parser.add_argument("--no-warm-scc", action="store_true")
+	parser.add_argument("--no-aotcache", action="store_true")
 
 	args = parser.parse_args()
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
@@ -164,28 +165,29 @@ def main():
 		cold_result = results.SingleInstanceAllExperimentsResult(
 			result_experiments, bench, "cold",
 			[get_config(bench, args.jmeter, *c[:-1], args.n_runs) for c in cold_configs],
-			["XS", "S", "M", "L"], args.details, [c[-1] for c in cold_configs],
+			["XS", "S", "M", "L"], args.details, args.no_aotcache, args.no_warm_scc, [c[-1] for c in cold_configs],
 		)
 		warm_result = results.SingleInstanceAllExperimentsResult(
 			result_experiments, bench, "warm",
 			[get_config(bench, args.jmeter, *c[:-1], args.n_runs) for c in warm_configs],
-			["XS", "S", "M", "L"], args.details, [c[-1] for c in warm_configs]
-		)
+			["XS", "S", "M", "L"], args.details, args.no_aotcache, args.no_warm_scc, [c[-1] for c in warm_configs]
+		) if not args.no_warm_scc else None
 
 		limits = None
-		if args.same_limits:
+		if not args.no_warm_scc:
 			cold_limits = cold_result.save_results(dry_run=True)
 			warm_limits = warm_result.save_results(dry_run=True)
 			limits = {f: max(cold_limits[f], warm_limits[f]) for f in cold_limits.keys()}
 
 		cold_result.save_results(
 			limits=limits,
-			legends={"start_time": False, "warmup_time": False, "peak_mem": False} if args.single_legend else None
+			legends={"start_time": args.no_warm_scc} if args.single_legend else None
 		)
-		warm_result.save_results(
-			limits=limits,
-			legends={"start_time": True, "warmup_time": False, "peak_mem": False} if args.single_legend else None
-		)
+		if not args.no_warm_scc:
+			warm_result.save_results(
+				limits=limits,
+				legends={"start_time": True} if args.single_legend else None
+			)
 		return
 
 	hosts = [bench.new_host(*h) for h in remote.load_hosts(args.hosts_file)]

@@ -1,12 +1,10 @@
 import datetime
-import copy
 import csv
 import itertools
 import math
 import os
 import os.path
 import re
-import statistics
 
 import matplotlib
 matplotlib.use("agg")
@@ -103,7 +101,7 @@ class ProcessStats:
 				except:
 					pass
 
-		self.max_cpu_p = max(self.cpu_data)
+		self.peak_cpu_p = max(self.cpu_data)
 
 	def cpu_df(self):
 		idx = [self.period * i for i in range(len(self.cpu_data))]
@@ -341,29 +339,32 @@ class WarmupData:
 				if outliers > math.ceil((i - idx) * self.outlier_limit):
 					return False
 
-		return idx < len(data) - 1
+		return idx + self.min_plateau < len(data)
 
 	def reached_threshold(self, data, idx):
 		return ((data[idx] >= self.threshold * self.peak_throughput) and
 		        ((idx + 1 >= len(data)) or (data[idx + 1] >= self.next_threshold * self.peak_throughput)))
 
-	def __init__(self, throughput_data, duration=None, *, keep_throughput_data=True, threshold=None,
-	             next_threshold=None, margin=None, outlier_limit=None, window=None):
+	def __init__(self, throughput_data, duration=None, *, keep_throughput_data=True,
+	             threshold=None, next_threshold=None, margin=None, outlier_limit=None,
+	             min_plateau=None, window=None, exclude_outliers=False):
 		self.throughput_data = throughput_data
 		self.threshold = threshold or 0.9
 		self.next_threshold = next_threshold or 0.8
 		self.margin = margin or 0.1
 		self.outlier_limit = outlier_limit or 0.1
+		self.min_plateau = max(1, min_plateau or 3)
 
 		data = [d[1] for d in self.throughput_data]
 		if window is not None:
 			data = pd.DataFrame(data).rolling(window, 1, True).mean()[0].to_list()
 
-		plateau_start = next((i for i in range(len(data)) if self.is_plateau(data, i)), len(data) - 1)
-		self.peak_throughput = mean(d for d in data[plateau_start:])
+		self.plateau_start = next((i for i in range(len(data)) if self.is_plateau(data, i)), len(data) - 1)
+		self.peak_throughput = mean(d for d in data[self.plateau_start:]
+		                            if not exclude_outliers or self.is_within_margin(d, data[self.plateau_start]))
 
-		warmup_end = next((i for i in range(len(data)) if self.reached_threshold(data, i)), len(data) - 1)
-		self.warmup_time = self.throughput_data[warmup_end][0] or self.throughput_data[-1][0]
+		self.warmup_end = next((i for i in range(len(data)) if self.reached_threshold(data, i)), len(data) - 1)
+		self.warmup_time = self.throughput_data[self.warmup_end][0] or self.throughput_data[-1][0]
 
 		if not keep_throughput_data:
 			self.throughput_data = None
@@ -470,21 +471,24 @@ class DBOutput:
 		return ContainerRUsage(*self.id)
 
 
-# label, suffix, detailed, kind
+# label, unit, detailed
 field_descriptors = {
-	"start_time":       ("Start time",           ", sec",      False, -1),
-	"peak_mem":         ("Memory usage",         ", MB",       False,  0),
-	"n_comps":          ("Compiled methods",     None,         True,   0),
-	"cpu_time":         ("CPU time",             ", sec",      True,  -1),
-	"jit_time":         ("JIT CPU time",         ", sec",      True,  -1),
-	"warmup_time":      ("Warm-up time",         ", sec",      False, -1),
-	"full_warmup_time": ("Full warm-up time",    ", sec",      False, -1),
-	"peak_throughput":  ("Peak throughput",      ", req/sec",  False, +1),
-	"requests":         ("Requests served",      None,         False, +1),
-	"jitserver_mem":    ("JITServer mem. usage", ", MB",       False,  0),
-	"jitserver_cpu":    ("JITServer CPU time",   ", sec",      False,  0),
-	"peak_total_mem":   ("Memory usage",         ", GB",       False,  0),
-	"cpu_time_per_req": ("CPU cost",             ", msec/req", False, -1),
+	"start_time":           ("Start time",           "sec",      False),
+	"peak_mem":             ("Memory usage",         "MB",       False),
+	"n_comps":              ("Compiled methods",     None,       True ),
+	"cpu_time":             ("CPU time",             "sec",      True ),
+	"jit_time":             ("JIT CPU time",         "sec",      True ),
+	"warmup_time":          ("Warm-up time",         "min",      False),
+	"warmup_end":           ("Warm-up iterations",   None,       True ),
+	"full_warmup_time":     ("Full warm-up time",    "min",      False),
+	"peak_throughput":      ("Peak throughput",      "req/sec",  False),
+	"requests":             ("Requests served",      None,       True ),
+	"jitserver_mem":        ("JITServer memory",     "GB",       False),
+	"jitserver_cpu":        ("JITServer CPU",        "min",      False),
+	"jitserver_peak_cpu_p": ("JITServer peak CPU",   "%",        False),
+	"data_transferred":     ("Data transferred",     "MB",       True ),
+	"peak_total_mem":       ("Memory usage",         "GB",       False),
+	"cpu_time_per_req":     ("CPU cost",             "msec/req", False),
 }
 
 # field, label, log, cut
@@ -504,22 +508,33 @@ def base_field(field):
 
 	if field.endswith("_normalized"):
 		field = field[:field.rindex("_")]
+	if field.endswith("_perclient"):
+		field = field[:field.rindex("_")]
 
 	return field
 
 def field_label(field):
 	desc = field_descriptors[base_field(field)]
 	normalized = field.endswith("_normalized")
+	per_client = "_perclient" in field
 
-	return "".join(("Total " if field.startswith("total_") else "", "Overall " if field.startswith("overall_") else "",
-	                desc[0], desc[1] or "" if not normalized else "", " (normalized)" if normalized else ""))
+	return "".join((
+		"Total " if field.startswith("total_") else "",
+		"Overall " if field.startswith("overall_") else "",
+		desc[0],
+		" per JVM" if per_client else "",
+		(", " + desc[1] if desc[1] is not None else "") if not normalized else "",
+		" (norm.)" if normalized else ""
+	))
 
 
 def mean(data):
-	return statistics.mean(d for d in data if d is not None)
+	data = [d for d in data if d is not None]
+	return np.mean(data) if data else 0.0
 
 def stdev(data):
-	return statistics.stdev(d for d in data if d is not None) if len(data) > 1 else 0.0
+	data = [d for d in data if d is not None]
+	return np.std(data) if len(data) > 1 else 0.0
 
 def rel_change(x, x_ref):
 	return ((x - x_ref) / x_ref) if x_ref else 0.0
@@ -567,8 +582,8 @@ def summary(values, fields, experiments, details=False):
 	s = ""
 
 	for f in fields:
-		if details or not field_descriptors[base_field(f)][2]:
-			s += "{}:\n{}\n".format(field_label(f), field_summary(f, values, experiments))
+		if details or f.startswith("overall_") or not field_descriptors[base_field(f)][2]:
+			s += "{} ({}):\n{}\n".format(field_label(f), f, field_summary(f, values, experiments))
 
 	return s
 
@@ -599,9 +614,9 @@ def add_mean_stdev_lists(result, results_per_e, field, in_values=False):
 def add_normalized_results(result, fields=None):
 	for f in fields or result.fields:
 		m = result.values[f + "_means"][Experiment.LocalJIT]
-		result.values[f + "_normalized_means"]  = [(v / m if m else 0.0) if v is not None else None
+		result.values[f + "_normalized_means"]  = [((v / m) if m else 0.0) if v is not None else None
 		                                           for v in result.values[f + "_means"]]
-		result.values[f + "_normalized_stdevs"] = [(v / m if m else 0.0) if v is not None else None
+		result.values[f + "_normalized_stdevs"] = [((v / m) if m else 0.0) if v is not None else None
 		                                           for v in result.values[f + "_stdevs"]]
 
 	result.fields.extend([f + "_normalized" for f in fields or result.fields])
@@ -612,6 +627,7 @@ benchmark_full_names = {
 	"daytrader":   "DayTrader",
 	"petclinic":   "PetClinic",
 }
+
 
 experiment_names = (
 	"Local JIT",
@@ -634,12 +650,13 @@ experiment_names_multi = (
 	"Remote JIT + cache",
 )
 
-experiment_markers = ("o", "s", "x", "+")
-assert len(experiment_markers) == len(Experiment)
 
+experiment_markers = ("o", "s", "x", "+")
+assert len(experiment_markers) >= len(Experiment)
+
+throughput_time_index = True
 throughput_marker_interval = 5
 throughput_alpha = 0.33
-throughput_time_index = True
 
 
 class ApplicationRunResult:
@@ -656,8 +673,6 @@ class ApplicationRunResult:
 		self.peak_mem = rusage.peak_mem
 		self.cpu_time = rusage.cpu_time()
 		self.jit_time = self.application_output.jit_time
-		self.jitserver_mem = 0.0
-		self.jitserver_cpu = 0.0
 		self.data_transferred = self.application_output.bytes_recv / (1024 * 1024) # MB
 
 		self.warmup_data = None
@@ -667,8 +682,9 @@ class ApplicationRunResult:
 			self.warmup_data = self.jmeter_output.warmup_data
 
 		if self.warmup_data is not None:
-			self.warmup_time = self.warmup_data.warmup_time
-			self.full_warmup_time = self.warmup_time + self.start_time
+			self.warmup_time = self.warmup_data.warmup_time / 60 # minutes
+			self.warmup_end = self.warmup_data.warmup_end
+			self.full_warmup_time = self.warmup_time + self.start_time / 60 # minutes
 			self.peak_throughput = self.warmup_data.peak_throughput
 
 		self.vlog = self.application_output.vlog() if config.jitserver_config.client_vlog else None
@@ -676,17 +692,25 @@ class ApplicationRunResult:
 
 	def throughput_df(self):
 		data = self.warmup_data.throughput_data
-		index = [d[0] for d in data] if throughput_time_index else range(len(data))
+		index = [self.start_time + d[0] for d in data] if throughput_time_index else range(len(data))
 		return pd.DataFrame([d[1] for d in data], index=index, columns=[experiment_names[self.actual_experiment]])
 
-	def plot_run_throughput(self, ax):
+	def plot_throughput(self, ax):
+		self.throughput_df().plot(
+			ax=ax, color="C{}".format(self.actual_experiment.value), legend=False,
+			marker=experiment_markers[self.actual_experiment] if throughput_marker_interval is not None else None,
+			markevery=throughput_marker_interval
+		)
+
+	def plot_peak_throughput_warmup_time(self, ax, ymax):
 		c = "C{}".format(self.actual_experiment.value)
-
-		self.throughput_df().plot(ax=ax, color=c, marker=experiment_markers[self.actual_experiment],
-		                          markevery=throughput_marker_interval)
-
 		ax.hlines(self.peak_throughput, 0, 1, transform=ax.get_yaxis_transform(), colors=c)
-		ax.vlines(self.warmup_time, 0, 1, transform=ax.get_xaxis_transform(), colors=c)
+
+		if throughput_time_index:
+			ax.vlines(self.warmup_time * 60, 0, ymax, colors=c) # seconds
+		else:
+			ax.vlines(self.warmup_end, 0, ymax, colors=c)
+			ax.vlines(self.warmup_data.plateau_start, 0, ymax, colors=c, linestyles="dashed")
 
 	def save_stats_plots(self):
 		if self.config.collect_stats:
@@ -706,13 +730,15 @@ class JITServerRunResult:
 		self.peak_mem = rusage.peak_mem
 		self.cpu_time = rusage.cpu_time()
 		self.jit_time = self.cpu_time
-		self.jitserver_mem = self.peak_mem
-		self.jitserver_cpu = self.cpu_time
+		self.jitserver_mem = self.peak_mem / 1024 # GB
+		self.jitserver_cpu = self.cpu_time / 60 # minutes
+		self.jitserver_mem_perclient = self.jitserver_mem / (config.n_instances / config.n_jitservers)
+		self.jitserver_cpu_perclient = self.jitserver_cpu / (config.n_instances / config.n_jitservers)
 		self.data_transferred = self.jitserver_output.bytes_recv / (1024 * 1024) # MB
 
 		collect_stats = config.collect_stats or config.jitserver_config.server_resource_stats
 		self.process_stats = self.jitserver_output.process_stats() if collect_stats else None
-		self.max_cpu_p = self.process_stats.max_cpu_p if collect_stats else 0.0
+		self.jitserver_peak_cpu_p = self.process_stats.peak_cpu_p if collect_stats else 0.0
 
 	def save_stats_plots(self):
 		if self.process_stats:
@@ -739,7 +765,7 @@ class DBRunResult:
 
 
 def app_result_fields(config, bench):
-	fields = ["start_time", "peak_mem", "n_comps", "cpu_time", "jit_time", "jitserver_mem", "jitserver_cpu"]
+	fields = ["start_time", "peak_mem", "n_comps", "cpu_time", "jit_time"]
 
 	if config.run_jmeter:
 		fields.extend(("warmup_time", "full_warmup_time", "peak_throughput", "requests"))
@@ -747,7 +773,7 @@ def app_result_fields(config, bench):
 	return fields
 
 def jitserver_result_fields():
-	return ["peak_mem", "cpu_time", "jit_time", "jitserver_mem", "jitserver_cpu"]
+	return ["peak_mem", "cpu_time", "jit_time", "jitserver_mem", "jitserver_cpu", "jitserver_peak_cpu_p"]
 
 def db_result_fields():
 	return ["peak_mem", "cpu_time"]
@@ -780,7 +806,7 @@ class ApplicationInstanceResult:
 	def avg_throughput_df_groups(self):
 		return pd.concat(self.aligned_throughput_df(r) for r in range(self.config.n_runs)).groupby(level=0)
 
-	def plot_peak_throughput_warmup_time(self, ax):
+	def plot_peak_throughput_warmup_time(self, ax, ymax):
 		c = "C{}".format(self.actual_experiment.value)
 
 		m = self.values["peak_throughput_mean"]
@@ -788,19 +814,18 @@ class ApplicationInstanceResult:
 		ax.hlines(m, 0, 1, transform=ax.get_yaxis_transform(), colors=c)
 		ax.axhspan(m - s, m + s, alpha=throughput_alpha, color=c)
 
-		m = self.values["warmup_time_mean"]
-		s = self.values["warmup_time_stdev"]
-		ax.vlines(m, 0, 1, transform=ax.get_xaxis_transform(), colors=c)
+		m = self.values["warmup_time_mean"]  * 60 if throughput_time_index else self.values["warmup_end_mean"]  # seconds
+		s = self.values["warmup_time_stdev"] * 60 if throughput_time_index else self.values["warmup_end_stdev"] # seconds
+		ax.vlines(m, 0, ymax, colors=c)
 		ax.axvspan(m - s, m + s, alpha=throughput_alpha, color=c)
 
 	def plot_all_throughput(self, ax):
 		for r in range(self.config.n_runs):
 			self.results[r].throughput_df().plot(
 				ax=ax, color="C{}".format(self.actual_experiment.value), alpha=throughput_alpha, legend=False,
-				marker=experiment_markers[self.actual_experiment], markevery=throughput_marker_interval
+				marker=experiment_markers[self.actual_experiment] if throughput_marker_interval is not None else None,
+				markevery=throughput_marker_interval
 			)
-
-		self.plot_peak_throughput_warmup_time(ax)
 
 	def plot_avg_throughput(self, ax):
 		groups = self.avg_throughput_df_groups()
@@ -808,13 +833,14 @@ class ApplicationInstanceResult:
 		yerr_df = groups.std()
 		c = "C{}".format(self.actual_experiment.value)
 
-		x_df.plot(ax=ax, color=c, markevery=throughput_marker_interval,
-		          marker=experiment_markers[self.actual_experiment])
+		x_df.plot(
+			ax=ax, color=c,
+			marker=experiment_markers[self.actual_experiment] if throughput_marker_interval is not None else None,
+			markevery=throughput_marker_interval
+		)
 
 		name = experiment_names[self.actual_experiment]
 		ax.fill_between(x_df.index, (x_df - yerr_df)[name], (x_df + yerr_df)[name], color=c, alpha=throughput_alpha)
-
-		self.plot_peak_throughput_warmup_time(ax)
 
 	def save_stats_plots(self):
 		for r in self.results:
@@ -825,7 +851,7 @@ class ApplicationInstanceResult:
 		s = pd.Series(data).sort_values()
 		if cut is not None:
 			s = s[:math.floor(len(s) * cut)]
-		e = self.actual_experiment.cdf_report_experiment()
+		e = self.actual_experiment.to_non_warm()
 		df = pd.DataFrame(np.linspace(0.0, 1.0, len(s)), index=s, columns=[experiment_names[e]])
 		df.plot(ax=ax, logx=log, legend=False, color="C{}".format(e.value))
 
@@ -839,7 +865,7 @@ class JITServerInstanceResult:
 		for f in self.fields:
 			add_mean_stdev(self, self.results, f)
 
-		self.max_cpu_p = max(r.max_cpu_p for r in self.results)
+		self.jitserver_max_peak_cpu_p = max(r.jitserver_peak_cpu_p for r in self.results)
 
 	def save_stats_plots(self):
 		for r in self.results:
@@ -864,6 +890,8 @@ def bar_plot_df(result, field):
 	return pd.DataFrame({experiment_names[e]: [result.values[field][e]] for e in result.experiments}).iloc[0]
 
 
+min_throughput_ratio = 0.9
+
 class SingleInstanceExperimentResult:
 	def __init__(self, experiments, bench, config, details=False, normalized=False, **kwargs):
 		self.experiments = experiments
@@ -875,27 +903,45 @@ class SingleInstanceExperimentResult:
 		                                              details, actual_experiment=e, **kwargs)
 		                    if e in experiments else None for e in Experiment]
 
-		self.jitserver_results = [JITServerInstanceResult(self.benchmark, config, e.to_single_instance()[0], 0)
-		                          if (e.is_jitserver() and e in experiments) else None for e in Experiment]
+		jr = [JITServerInstanceResult(self.benchmark, config, e.to_single_instance()[0], 0)
+		      if (e.is_jitserver() and e in experiments) else None for e in Experiment]
+		self.jitserver_results = jr
 
 		self.db_results = ([DBInstanceResult(bench, config, e.to_single_instance()[0], 0)
 		                    if e in experiments else None for e in Experiment]
 		                   if bench.db_name() is not None else [])
 
-		self.fields = copy.copy(next(r for r in self.app_results if r is not None).fields)
+		self.fields = app_result_fields(config, bench)
 		self.values = {}
 		for f in self.fields:
 			add_mean_stdev_lists(self, self.app_results, f, True)
 
+		if config.run_jmeter and (Experiment.LocalJIT in experiments):
+			lj_throughput = self.values["peak_throughput_means"][Experiment.LocalJIT]
+
+			for e in experiments:
+				if e.is_jitserver() and (self.values["peak_throughput_means"][e] < min_throughput_ratio * lj_throughput):
+					duration = config.jmeter_config.duration / 60 # minutes
+					self.values["warmup_time_means"][e] = duration # minutes
+					self.values["warmup_time_stdevs"][e] = 0.0
+					self.values["full_warmup_time_means"][e] = duration + self.values["start_time_means"][e] / 60 # minutes
+					self.values["full_warmup_time_stdevs"][e] = self.values["start_time_stdevs"][e] / 60 # minutes
+
 		if normalized and (Experiment.LocalJIT in experiments):
 			add_normalized_results(self)
 
-		self.jitserver_max_cpu_p = max(r.max_cpu_p if r is not None else 0.0 for r in self.jitserver_results)
+		jitserver_fields = ("jitserver_mem", "jitserver_cpu", "jitserver_peak_cpu_p")
+		for f in jitserver_fields:
+			self.values[f + "_means"]  = [jr[e].values[f + "_mean"]  if jr[e] is not None else 0.0 for e in Experiment]
+			self.values[f + "_stdevs"] = [jr[e].values[f + "_stdev"] if jr[e] is not None else 0.0 for e in Experiment]
+		self.fields.extend(jitserver_fields)
+
+		self.jitserver_max_peak_cpu_p = max(r.jitserver_max_peak_cpu_p if r is not None else 0.0 for r in jr)
 
 	def summary(self):
 		s = summary(self.values, self.fields, self.experiments, self.details)
-		if self.jitserver_max_cpu_p:
-			s += "JITServer max CPU usage: {}%\n".format(self.jitserver_max_cpu_p)
+		if self.jitserver_max_peak_cpu_p:
+			s += "JITServer max peak CPU usage: {}%\n".format(self.jitserver_max_peak_cpu_p)
 		return s
 
 	def save_bar_plot(self, field, ymax=None):
@@ -908,33 +954,50 @@ class SingleInstanceExperimentResult:
 		for f in self.fields:
 			self.save_bar_plot(f, (limits or {}).get(f))
 
-	def save_throughput_plot(self, ax, name, ymax=None):
-		ax.set(xlabel="Time, sec", ylabel="Throughput, req/sec")
+	def save_throughput_plot(self, ax, name):
+		ax.set(xlabel="Time, sec" if throughput_time_index else "Iteration", ylabel="Throughput, req/sec")
 		ax.set_xlim(0)
-		ax.set_ylim(0, ymax)
+		ax.set_ylim(0)
 		save_plot(ax, "throughput_{}".format(name), self.benchmark, self.config, size=(4.5, 2.25))
 
-	def save_run_throughput_plots(self, ymax=None):
+	def save_run_throughput_plots(self, plot_warmup_peak=True):
 		for r in range(self.config.n_runs):
 			ax = plt.gca()
 			for e in self.experiments:
-				self.app_results[e].results[r].plot_run_throughput(ax)
-			self.save_throughput_plot(ax, "run_{}".format(r), ymax)
+				self.app_results[e].results[r].plot_throughput(ax)
 
-	def save_all_throughput_plot(self, ymax=None):
+			if plot_warmup_peak:
+				ymax = ax.get_ylim()[1]
+				for e in self.experiments:
+					self.app_results[e].results[r].plot_peak_throughput_warmup_time(ax, ymax)
+
+			self.save_throughput_plot(ax, "run_{}".format(r))
+
+	def save_all_throughput_plot(self, plot_warmup_peak=True):
 		ax = plt.gca()
 		for e in self.experiments:
 			self.app_results[e].plot_all_throughput(ax)
 
-		ax.legend((matplotlib.lines.Line2D([0], [0], color="C{}".format(e.value)) for e in self.experiments),
-		          (experiment_names[e] for e in self.experiments))
-		self.save_throughput_plot(ax, "all", ymax)
+		if plot_warmup_peak:
+			ymax = ax.get_ylim()[1]
+			for e in self.experiments:
+				self.app_results[e].plot_peak_throughput_warmup_time(ax, ymax)
 
-	def save_avg_throughput_plot(self, ymax=None):
+		ax.legend([matplotlib.lines.Line2D([0], [0], color="C{}".format(e.value)) for e in self.experiments],
+		          [experiment_names[e] for e in self.experiments])
+		self.save_throughput_plot(ax, "all")
+
+	def save_avg_throughput_plot(self, plot_warmup_peak=True):
 		ax = plt.gca()
 		for e in self.experiments:
 			self.app_results[e].plot_avg_throughput(ax)
-		self.save_throughput_plot(ax, "avg", ymax)
+
+		if plot_warmup_peak:
+			ymax = ax.get_ylim()[1]
+			for e in self.experiments:
+				self.app_results[e].plot_peak_throughput_warmup_time(ax, ymax)
+
+		self.save_throughput_plot(ax, "avg")
 
 	def save_stats_plots(self):
 		for r in (self.app_results + self.jitserver_results + self.db_results):
@@ -947,24 +1010,26 @@ class SingleInstanceExperimentResult:
 			self.app_results[e].plot_cdf(ax, field, log, cut)
 		ax.set(xlabel=label + (" (log scale)" if log else ""), ylabel="CDF", title="")
 
-		if (legends or {}).get(field, True):
-			ax.legend((matplotlib.lines.Line2D([0], [0], color="C{}".format(e.cdf_report_experiment().value))
-			          for e in self.experiments), (experiment_names_single[e] for e in self.experiments))
+		ax.minorticks_off()
+		if not legends or legends.get(field):
+			ax.legend(
+				[matplotlib.lines.Line2D([0], [0], color="C{}".format(e.to_non_warm().value)) for e in self.experiments],
+				[experiment_names_single[e] for e in self.experiments]
+			)
 
 		name = field + ("_log" if log else "") + ("_cut" if cut is not None else "")
 		save_plot(ax, name, self.benchmark, self.config)
 
-	def save_results(self, limits=None, legends=None, cdf_plots=False):
+	def save_results(self, limits=None, legends=None, cdf_plots=False, plot_warmup_peak=True):
 		save_summary(self.summary(), self.benchmark, self.config)
 
 		if self.details:
 			self.save_all_bar_plots(limits)
 
 			if self.config.run_jmeter:
-				ymax = (limits or {}).get("peak_throughput")
-				self.save_run_throughput_plots(ymax)
-				self.save_all_throughput_plot(ymax)
-				self.save_avg_throughput_plot(ymax)
+				self.save_run_throughput_plots(plot_warmup_peak)
+				self.save_all_throughput_plot(plot_warmup_peak)
+				self.save_avg_throughput_plot(plot_warmup_peak)
 
 			self.save_stats_plots()
 
@@ -986,13 +1051,16 @@ class SingleInstanceExperimentResult:
 
 
 class SingleInstanceAllExperimentsResult:
-	def __init__(self, experiments, bench, mode, configs, config_names, details=False, kwargs_list=None):
-		self.experiments = experiments
+	def __init__(self, experiments, bench, mode, configs, config_names, details=False,
+	             no_aotcache=False, no_warm_scc=False, kwargs_list=None):
+		self.experiments = [e for e in experiments if not e.is_warm_cache()] if no_aotcache else experiments
 		self.benchmark = bench.name()
 		self.mode = mode
 		self.configs = configs
 		self.config_names = config_names
 		self.warmup = configs[0].run_jmeter
+		self.no_aotcache = no_aotcache
+		self.no_warm_scc = no_warm_scc
 
 		self.results = [SingleInstanceExperimentResult(experiments, bench, configs[i], details,
 		                                               **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
@@ -1008,21 +1076,25 @@ class SingleInstanceAllExperimentsResult:
 	def save_bar_plot(self, field, ymax=None, legend=True, dry_run=False):
 		ax = self.get_df(field, "_means").plot.bar(yerr=self.get_df(field, "_stdevs"),
 		                 rot=0, ylim=(0, ymax), legend=legend)
-		ax.set(xlabel="{} {}: Container size".format(benchmark_full_names[self.benchmark], self.mode),
-		       ylabel=field_label(field))
+
+		xlabel = "{}{}: Container size".format(benchmark_full_names[self.benchmark],
+		                                       "" if self.no_warm_scc else (" " + self.mode))
+		ax.set(xlabel=xlabel, ylabel=field_label(field))
 		result = ax.get_ylim()[1]
 
 		if dry_run:
 			plt.close(ax.get_figure())
 		else:
-			save_plot(ax, "single_{}_{}_{}".format("full" if self.warmup else "start", self.mode, field), self.benchmark)
+			name = "{}single_{}_{}_{}".format("jitserver_" if self.no_aotcache else "",
+			                                  "full" if self.warmup else "start", self.mode, field)
+			save_plot(ax, name, self.benchmark)
 
 		return result
 
 	def save_all_bar_plots(self, limits=None, legends=None, dry_run=False):
 		result = {}
 		for f in self.results[0].fields:
-			result[f] = self.save_bar_plot(f, (limits or {}).get(f), (legends or {}).get(f, True), dry_run)
+			result[f] = self.save_bar_plot(f, (limits or {}).get(f), legends.get(f) if legends else True)
 		return result
 
 	def save_results(self, limits=None, legends=None, dry_run=False):
@@ -1048,7 +1120,7 @@ class ApplicationAllInstancesResult:
 			total += t[1] * t[2]
 			max_total = max(max_total, total)
 
-		return max_total / 1024.0 # GB
+		return max_total / 1024 # GB
 
 	def __init__(self, bench, config, experiment, details=False, *, n_instances=None, **kwargs):
 		self.config = config
@@ -1089,15 +1161,23 @@ class JITServerAllInstancesResult:
 		self.values = {}
 		for f in self.fields:
 			add_mean_stdev(self, self.all_results, f)
+
+		total_fields = ("peak_mem", "cpu_time", "jit_time", "jitserver_mem", "jitserver_cpu")
+		for f in total_fields:
 			add_total_mean_stdev(self, self.results, f)
-		self.fields.extend(["total_" + f for f in self.fields])
+		self.fields.extend("total_" + f for f in total_fields)
+
+		per_client_fields = ("jitserver_cpu", "jitserver_mem")
+		for f in per_client_fields:
+			add_mean_stdev(self, self.all_results, f + "_perclient")
+		self.fields.extend(f + "_perclient" for f in per_client_fields)
 
 		if config.n_invocations is not None:
 			self.fields.append("peak_total_mem")
-			self.values["peak_total_mem_mean"]  = self.values["total_peak_mem_mean"]
-			self.values["peak_total_mem_stdev"] = self.values["total_peak_mem_stdev"]
+			self.values["peak_total_mem_mean"]  = self.values["total_peak_mem_mean"]  / 1024 # GB
+			self.values["peak_total_mem_stdev"] = self.values["total_peak_mem_stdev"] / 1024 # GB
 
-		self.max_cpu_p = max(r.max_cpu_p for r in itertools.chain.from_iterable(self.results))
+		self.jitserver_max_peak_cpu_p = max(r.jitserver_peak_cpu_p for r in itertools.chain.from_iterable(self.results))
 
 	def save_stats_plots(self):
 		for r in self.all_results:
@@ -1142,17 +1222,10 @@ class MultiInstanceExperimentResult:
 		self.db_results = ([DBAllInstancesResult(bench, config, e) if e in experiments else None for e in Experiment]
 		                   if bench.db_name() is not None else [])
 
-		self.fields = copy.copy(next(r for r in self.app_results if r is not None).fields)
+		self.fields = app_result_fields(config, bench)
 		self.values = {}
 		for f in self.fields:
 			add_mean_stdev_lists(self, self.app_results, f, True)
-
-		jitserver_fields = ["jitserver_mem", "jitserver_cpu"]
-		jitserver_fields += ["total_" + f for f in jitserver_fields]
-		self.fields.extend(jitserver_fields)
-		for f in jitserver_fields:
-			self.values[f + "_means"]  = [jr[e].values[f + "_mean"]  if jr[e] is not None else 0.0 for e in Experiment]
-			self.values[f + "_stdevs"] = [jr[e].values[f + "_stdev"] if jr[e] is not None else 0.0 for e in Experiment]
 
 		overall_fields = ["total_" + f for f in ("peak_mem", "cpu_time", "jit_time")]
 		if config.n_invocations is not None:
@@ -1170,8 +1243,8 @@ class MultiInstanceExperimentResult:
 				if ar[e] is not None else None for e in Experiment
 			]
 
-		if config.run_jmeter:
-			self.fields.extend(("cpu_time_per_req", "jit_time_per_req"))
+		if config.run_jmeter and config.n_invocations is not None:
+			self.fields.append("cpu_time_per_req")
 
 			reqs = [[
 				sum(ar[e].results[i][r].requests for i in range(ar[e].n_instances))
@@ -1180,28 +1253,15 @@ class MultiInstanceExperimentResult:
 			cpu_times = [[
 				(sum(ar[e].results[i][r].cpu_time for i in range(ar[e].n_instances)) +
 				(sum(jr[e].results[i][r].cpu_time for i in range(config.n_jitservers)) if jr[e] is not None else 0.0))
-				if ar[e] is not None else None for r in range(config.n_runs)
-			] for e in Experiment]
-			jit_times = [[
-				(sum(ar[e].results[i][r].jit_time for i in range(ar[e].n_instances)) +
-				(sum(jr[e].results[i][r].jit_time for i in range(config.n_jitservers)) if jr[e] is not None else 0.0))
-				if ar[e] is not None else None for r in range(config.n_runs)
-			] for e in Experiment]
-
-			cpu_times_per_req = [[1000 * cpu_times[e][r] / reqs[e][r] for r in range(config.n_runs)] # msec/req
-			                     if cpu_times[e] is not None else None for e in Experiment]
-			jit_times_per_req = [[1000 * jit_times[e][r] / reqs[e][r] for r in range(config.n_runs)] # msec/req
-			                     if jit_times[e] is not None else None for e in Experiment]
+				if ar[e] is not None else None for r in range(config.n_runs)] for e in Experiment
+			]
+			cpu_times_per_req = [[1000 * cpu_times[e][r] / reqs[e][r] if cpu_times[e][r] is not None else None # msec/req
+			                      for r in range(config.n_runs)] for e in Experiment]
 
 			self.values["cpu_time_per_req_means"]  = [mean(cpu_times_per_req[e][r] for r in range(config.n_runs))
 			                                          if cpu_times_per_req[e] is not None else None for e in Experiment]
 			self.values["cpu_time_per_req_stdevs"] = [stdev(cpu_times_per_req[e][r] for r in range(config.n_runs))
 			                                          if cpu_times_per_req[e] is not None else None for e in Experiment]
-
-			self.values["jit_time_per_req_means"]  = [mean(jit_times_per_req[e][r] for r in range(config.n_runs))
-			                                          if jit_times_per_req[e] is not None else None for e in Experiment]
-			self.values["jit_time_per_req_stdevs"] = [stdev(jit_times_per_req[e][r] for r in range(config.n_runs))
-			                                          if jit_times_per_req[e] is not None else None for e in Experiment]
 
 		if Experiment.LocalJIT in experiments:
 			if normalized:
@@ -1209,12 +1269,22 @@ class MultiInstanceExperimentResult:
 			elif normalized_fields is not None and config.run_jmeter:
 				add_normalized_results(self, normalized_fields)
 
-		self.jitserver_max_cpu_p = max(r.max_cpu_p if r is not None else 0.0 for r in self.jitserver_results)
+		extra_fields = ["jitserver_mem", "jitserver_cpu"]
+		jitserver_fields = (extra_fields + ["total_" + f for f in extra_fields] +
+		                    [f + "_perclient" for f in extra_fields])
+		self.fields.extend(jitserver_fields)
+
+		for f in jitserver_fields:
+			self.values[f + "_means"]  = [jr[e].values[f + "_mean"]  if jr[e] is not None else 0.0 for e in Experiment]
+			self.values[f + "_stdevs"] = [jr[e].values[f + "_stdev"] if jr[e] is not None else 0.0 for e in Experiment]
+
+		self.jitserver_max_peak_cpu_p = max(r.jitserver_max_peak_cpu_p if r is not None else 0.0
+		                                    for r in self.jitserver_results)
 
 	def summary(self):
 		s = summary(self.values, self.fields, self.experiments, self.details)
-		if self.jitserver_max_cpu_p:
-			s += "JITServer max CPU usage: {}%\n".format(self.jitserver_max_cpu_p)
+		if self.jitserver_max_peak_cpu_p:
+			s += "JITServer max peak CPU usage: {}%\n".format(self.jitserver_max_peak_cpu_p)
 		return s
 
 	def save_bar_plot(self, field, ymax=None):
@@ -1232,7 +1302,7 @@ class MultiInstanceExperimentResult:
 			if r is not None:
 				r.save_stats_plots()
 
-	def save_results(self, limits=None, legends=None):
+	def save_results(self, limits=None):
 		save_summary(self.summary(), self.benchmark, self.config)
 
 		if self.details:
@@ -1255,21 +1325,20 @@ class ScaleAllExperimentsResult:
 		                                      **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
 		                for i in range(len(configs))]
 
-		self.fields = copy.copy(next(r for r in self.results if r is not None).fields)
-
-	def get_df(self, results, field, suffix, name_suffix=None):
+	def get_df(self, field, suffix, name_suffix=None):
 		return pd.DataFrame({experiment_names_multi[e] + (name_suffix or ""):
-		                     [r.values[field + suffix][e] for r in results] for e in self.experiments},
-		                    index=[r.config.n_instances for r in results])
+		                     [r.values[field + suffix][e] for r in self.results] for e in self.experiments},
+		                    index=[r.config.n_instances for r in self.results])
 
 	def save_line_plot(self, field, ymax=None, legend=True):
 		name = "scale_{}_{}".format("full" if self.warmup else "start", field)
-		ax = self.get_df(self.results, field, "_means").plot(yerr=self.get_df(self.results, field, "_stdevs"),
-		                                                     ylim=(0, ymax), xlim=(0, None), legend=legend)
+		ax = self.get_df(field, "_means").plot(yerr=self.get_df(field, "_stdevs"),
+		                                       ylim=(0, ymax), xlim=(0, None), legend=False)
 
-		if field == "full_warmup_time_normalized":
-			ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=0.25))
+		if field.endswith("_normalized"):
+			ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter("%.1f"))
 		ax.set(xlabel="{}: Number of instances".format(benchmark_full_names[self.benchmark]), ylabel=field_label(field))
+
 		for i, line in enumerate(ax.get_lines()):
 			line.set_marker(experiment_markers[i])
 		if legend:
@@ -1278,8 +1347,8 @@ class ScaleAllExperimentsResult:
 		save_plot(ax, name, self.benchmark)
 
 	def save_all_line_plots(self, limits=None, legends=None):
-		for f in self.fields:
-			self.save_line_plot(f, (limits or {}).get(f), (legends or {}).get(f, True))
+		for f in self.results[0].fields:
+			self.save_line_plot(f, (limits or {}).get(f), legends.get(f) if legends else True)
 
 	def save_results(self, limits=None, legends=None):
 		self.save_all_line_plots(limits, legends)
@@ -1311,18 +1380,11 @@ class LatencyAllExperimentsResult:
 	def get_df(self, field, suffix, f):
 		data = {experiment_names_single[e]: [r.values[field + suffix][e] for r in self.results]
 		        for e in self.experiments}
-
-		if Experiment.LocalJIT in self.experiments:
-			values = [getattr(r.app_results[Experiment.LocalJIT].results[i], field)
-			          for r in self.results for i in range(r.config.n_runs)]
-			val = f(values)
-			data[experiment_names_single[Experiment.LocalJIT]] = [val for r in self.results]
-
 		return pd.DataFrame(data, index=[r.latency for r in self.results])
 
 	def save_line_plot(self, field, ymax=None, legend=True):
 		ax = self.get_df(field, "_means", mean).plot(yerr=self.get_df(field, "_stdevs", stdev),
-		                                             ylim=(0, ymax), xlim=(0, None), legend=legend)
+		                                             ylim=(0, ymax), xlim=(0, None), legend=False)
 		ax.set(xlabel="{}: Latency, microsec".format(benchmark_full_names[self.benchmark]), ylabel=field_label(field))
 
 		for i, line in enumerate(ax.get_lines()):
@@ -1335,7 +1397,7 @@ class LatencyAllExperimentsResult:
 
 	def save_all_line_plots(self, limits=None, legends=None):
 		for f in self.results[0].fields:
-			self.save_line_plot(f, (limits or {}).get(f), (legends or {}).get(f, True))
+			self.save_line_plot(f, (limits or {}).get(f), legends.get(f) if legends else True)
 
 	def save_results(self, limits=None, legends=None):
 		self.save_all_line_plots(limits, legends)
@@ -1348,10 +1410,11 @@ class DensityExperimentResult(MultiInstanceExperimentResult):
 
 
 class DensityAllExperimentsResult:
-	def __init__(self, experiments, bench, configs, details=False, kwargs_list=None):
-		self.experiments = experiments
+	def __init__(self, experiments, bench, configs, details=False, no_aotcache=False, kwargs_list=None):
+		self.experiments = [e for e in experiments if not e.is_cache()] if no_aotcache else experiments
 		self.benchmark = bench.name()
 		self.configs = configs
+		self.no_aotcache = no_aotcache
 
 		self.results = [DensityExperimentResult(experiments, bench, configs[i], details,
 		                                        **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
@@ -1365,43 +1428,68 @@ class DensityAllExperimentsResult:
 		index = ["{:g} min".format(c.jmeter_config.duration / 60) for c in self.configs]
 		return pd.DataFrame(data, index=index)
 
-	def save_bar_plot(self, field, ymax=None, legend=True, dry_run=False, overlay_field=None):
+	def get_overlay_df(self, field, part_f, total_f, factor):
+		v = [self.results[i].values for i in range(len(self.configs))]
+		values = [[((factor or 1) * v[i][field + "_means"][e] * v[i][part_f + "_means"][e] / v[i][total_f + "_means"][e])
+		           if v[i][part_f + "_means"][e] else 0.0 for i in range(len(self.configs))] for e in Experiment]
+
+		data = {experiment_names_multi[e]: [values[e][i] for i in range(len(self.configs))] for e in self.experiments}
+		index = ["{:g} min".format(c.jmeter_config.duration / 60) for c in self.configs]
+		return pd.DataFrame(data, index=index)
+
+	def save_bar_plot(self, field, ymax=None, legend=True, dry_run=False,
+	                  overlay_label=None, part_f=None, total_f=None, factor=None):
 		ax = self.get_df(field, "_means").plot.bar(yerr=self.get_df(field, "_stdevs"), rot=0, ylim=(0, ymax),
-		                                           legend=legend and overlay_field is None)
+		                                           legend=legend and overlay_label is None)
 
-		if overlay_field is not None:
-			self.get_df(overlay_field, "_means").plot.bar(
-				ax=ax, yerr=self.get_df(overlay_field, "_stdevs"), rot=0, ylim=(0, ymax),
-				legend=False, edgecolor="black", linewidth=0.5, hatch="xxxxxxxx"
+		if overlay_label is not None:
+			self.get_overlay_df(field, part_f, total_f, factor).plot.bar(
+				ax=ax, rot=0, ylim=(0, ymax), legend=False, edgecolor="black", linewidth=0.5, hatch="xxxxxx", alpha=0.5
 			)
-			ax.legend(
-				[matplotlib.patches.Patch(color="C{}".format(e.value)) for e in self.experiments] +
-				[matplotlib.patches.Patch(edgecolor="black", facecolor="none", linewidth=0.5, hatch="xxxxxxxx")],
-				[experiment_names_multi[e] for e in self.experiments] + [overlay_field[1]]
-			)
+			if legend:
+				ax.legend(
+					[matplotlib.patches.Patch(color="C{}".format(e.value)) for e in self.experiments] +
+					[matplotlib.patches.Patch(edgecolor="black", facecolor="none",
+					                          linewidth=0.5, hatch="xxxxxx", alpha=0.5)],
+					[experiment_names_multi[e] for e in self.experiments] + [overlay_label]
+				)
 
+		if (self.benchmark == "acmeair") and (field == "cpu_time_per_req"):
+			ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter("%.1f"))
 		ax.set(xlabel="{}: Application lifespan".format(benchmark_full_names[self.benchmark]), ylabel=field_label(field))
-		result = ax.get_ylim()[1]
 
+		result = ax.get_ylim()[1]
 		if dry_run:
 			plt.close(ax.get_figure())
 		else:
-			scc = self.configs[0].application_config.populate_scc
-			save_plot(ax, "density_{}_{}".format("scc" if scc else "noscc", field), self.benchmark)
+			name = "{}density_{}_{}".format("jitserver_" if self.no_aotcache else "",
+			                                "scc" if self.configs[0].application_config.populate_scc else "noscc", field)
+			save_plot(ax, name, self.benchmark)
+
 		return result
 
 	def save_all_bar_plots(self, limits=None, legends=None, dry_run=False, overlays=False):
 		result = {}
 
 		for f in self.results[0].fields:
-			overlay_field = None
-			if f == "overall_peak_mem":
-				overlay_field = ("jitserver_peak_mem", "JITServer memory")
-			elif f == "cpu_time_per_req":
-				overlay_field = ("jit_time_per_req", "JIT CPU time")
+			overlay_label = None
+			part_f = None
+			total_f = None
+			factor = None
 
-			result[f] = self.save_bar_plot(f, (limits or {}).get(f), (legends or {}).get(f, True),
-			                               dry_run, overlay_field if overlays else None)
+			if overlays:
+				if f == "cpu_time_per_req":
+					overlay_label = "JITServer resources" if legends else "JITServer CPU"
+					part_f = "total_jitserver_cpu"
+					total_f = "overall_total_cpu_time"
+					factor = 60
+				elif f == "overall_peak_total_mem":
+					overlay_label = "JITServer resources" if legends else "JITServer memory"
+					part_f = "total_jitserver_mem"
+					total_f = "overall_peak_total_mem"
+
+			result[f] = self.save_bar_plot(f, (limits or {}).get(f), legends.get(f) if legends else True,
+			                               dry_run, overlay_label, part_f, total_f, factor)
 
 		return result
 

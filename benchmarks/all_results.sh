@@ -21,10 +21,9 @@ density_runs="${2}"
 format="png"
 args=(-r "--format=${format}")
 
-#NOTE: These options generate the plots as presented in the paper - with a
-# single legend per figure (not per plot), and with the same Y axis scale for
-# "cold" and "warm" configurations in "single" and "density" experiments.
-args+=("--single-legend" "--same-limits")
+#NOTE: This option generates the plots with a single legend per figure (not per plot)
+args+=("--single-legend")
+
 
 if (( $# >= 3 )); then
 	logs_path="${3}"
@@ -42,32 +41,39 @@ fi
 
 density_args=("${args[@]}")
 args+=(-n "${runs}")
-density_args+=(-n "${density_runs}")
+density_args+=(-n "${density_runs}" "--overlays")
+extra_args=("--no-aotcache" "--no-warm-scc")
 
 
 benchmarks=("acmeair" "daytrader" "petclinic")
 
 for b in "${benchmarks[@]}"; do
-	./run_single.py  "${b}" -j    "${args[@]}"         &
-	./run_cdf.py     "${b}" -j    "${args[@]}"         &
-	./run_cdf.py     "${b}" -j -e "${args[@]}"         &
-	./run_scale.py   "${b}" -j    "${args[@]}"         &
-	./run_latency.py "${b}" -j    "${args[@]}"         &
-	./run_density.py "${b}"       "${density_args[@]}" &
-	./run_density.py "${b}" -s    "${density_args[@]}" &
+	./run_single.py    "${b}"       "${args[@]}"                            &
+	./run_single.py    "${b}"       "${args[@]}" "${extra_args[@]}"         &
+	./run_single.py    "${b}" -j    "${args[@]}"                            &
+	./run_single.py    "${b}" -j    "${args[@]}" "${extra_args[@]}"         &
+	./run_cdf.py       "${b}" -j    "${args[@]}"                            &
+	./run_cdf.py       "${b}" -j -e "${args[@]}"                            &
+	./run_scale.py     "${b}" -j    "${args[@]}"                            &
+	./run_latency.py   "${b}" -j    "${args[@]}"                            &
+	./run_density.py   "${b}"       "${density_args[@]}"                    &
+	./run_density.py   "${b}"       "${density_args[@]}" "${extra_args[@]}" &
+	./run_density.py   "${b}" -s    "${density_args[@]}"                    &
 done
 
 wait
 
 
 plots=(
-	"single_full_cold_start_time" "single_full_cold_warmup_time" "single_full_cold_peak_mem"
-	"single_full_warm_start_time" "single_full_warm_warmup_time" "single_full_warm_peak_mem"
+	"single_start_cold_start_time" "single_full_cold_warmup_time" "single_full_cold_peak_mem"
+	"jitserver_single_start_cold_start_time" "jitserver_single_full_cold_warmup_time" "jitserver_single_full_cold_peak_mem"
+	"single_start_warm_start_time" "single_full_warm_warmup_time" "single_full_warm_peak_mem"
 	"cdf_ne_full/comp_times_log" "cdf_ne_full/queue_times_log"
 	"cdf_eq_full/comp_times_log" "cdf_eq_full/queue_times_log"
-	"latency_full_full_warmup_time" "scale_full_full_warmup_time_normalized"
-	"density_noscc_cpu_time_per_req" "density_noscc_total_peak_mem"
-	"density_scc_cpu_time_per_req" "density_scc_total_peak_mem"
+	"scale_full_full_warmup_time_normalized" "latency_full_full_warmup_time"
+	"density_noscc_cpu_time_per_req" "density_noscc_overall_peak_total_mem"
+	"jitserver_density_noscc_cpu_time_per_req" "jitserver_density_noscc_overall_peak_total_mem"
+	"density_scc_cpu_time_per_req" "density_scc_overall_peak_total_mem"
 )
 
 for b in "${benchmarks[@]}"; do

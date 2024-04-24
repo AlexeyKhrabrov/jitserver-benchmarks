@@ -35,7 +35,7 @@ class Experiment(enum.IntEnum):
 		else:
 			return (self, 0)
 
-	def cdf_report_experiment(self):
+	def to_non_warm(self):
 		if self.is_warm_cache():
 			return Experiment(self.value - 1)
 		elif self.is_cache():

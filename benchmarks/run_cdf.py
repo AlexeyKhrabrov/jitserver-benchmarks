@@ -109,7 +109,7 @@ def main():
 			get_config(bench, args.jmeter, result_experiments[0], args.n_runs, args.equal_resources),
 			args.details
 		).save_results(
-			legends={"comp_times": False} if args.single_legend else None, cdf_plots=True
+			legends={"queue_times": True} if args.single_legend else None, cdf_plots=True
 		)
 		return
 
