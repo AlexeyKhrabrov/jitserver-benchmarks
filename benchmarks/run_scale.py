@@ -59,7 +59,7 @@ configurations = {
 
 		(12, 1,  [0], [0],       [1],          [8, 9],        dict()),
 		(8,  1,  [2], [2],       [3],          [4],           dict()),
-		(4,  1,  [5], [6],       [6],          [7],           dict()),
+		(4,  1,  [5], [5],       [6],          [7],           dict()),
 	),
 }
 
@@ -89,6 +89,7 @@ def get_config(benchmark, n_instances, n_dbs, jmeter, n_runs, skip_complete=Fals
 
 	result.jitserver_config.server_threads = 128
 	result.jmeter_config.duration = jmeter_durations[benchmark]
+	result.jitserver_config.server_resource_stats = True
 
 	result.n_instances = n_instances
 	result.n_dbs = n_dbs

@@ -61,6 +61,7 @@ def get_config(benchmark, name, interval, duration, n_invocations, idle_time, sc
 	result.jitserver_config.server_threads = 128
 	result.jitserver_config.session_purge_time = (duration + 10) * 1000 # milliseconds
 	result.jitserver_config.session_purge_interval = 10 * 1000 # milliseconds
+	result.jitserver_config.server_resource_stats = True
 
 	result.application_config.start_interval = interval
 	if scc:

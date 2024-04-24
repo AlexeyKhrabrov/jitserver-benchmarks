@@ -65,7 +65,7 @@ def get_config(benchmark, local, ib, delay_us, jmeter, n_runs, localjit=False, s
 	result = bench_cls[benchmark]().small_config()
 	result.name = "latency_{}_{}".format(
 		"full" if jmeter else "start",
-		"localjit" if localjit else "{}_{}_{}".format("tcp", "local" if local else ("ib" if ib else "eth"), delay_us)
+		"localjit" if localjit else "{}_{}".format("local" if local else ("ib" if ib else "eth"), delay_us)
 	)
 
 	result.jitserver_config.server_extra_stats = True
