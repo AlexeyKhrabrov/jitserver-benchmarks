@@ -296,3 +296,25 @@ wait
 ./run_servermem.py petclinic "${all_hosts}" 9 -j "${args[@]}" &
 wait
 ./host_cleanup.py petclinic "${all_hosts}"
+
+
+# acmeair nthreads: ~5h
+./run_nthreads.py acmeair   "${main_hosts}" 0 -j -S "${args[@]}" <<< "${password}" &
+./run_nthreads.py acmeair   "${main_hosts}" 1 -j -S "${args[@]}" <<< "${password}" &
+./run_nthreads.py acmeair   "${main_hosts}" 2 -j -S "${args[@]}" <<< "${password}" &
+./run_nthreads.py acmeair   "${main_hosts}" 3 -j -S "${args[@]}" <<< "${password}" &
+wait
+
+# daytrader nthreads: ~12h
+./run_nthreads.py daytrader "${main_hosts}" 0 -j -S "${args[@]}" <<< "${password}" &
+./run_nthreads.py daytrader "${main_hosts}" 1 -j -S "${args[@]}" <<< "${password}" &
+./run_nthreads.py daytrader "${main_hosts}" 2 -j -S "${args[@]}" <<< "${password}" &
+./run_nthreads.py daytrader "${main_hosts}" 3 -j -S "${args[@]}" <<< "${password}" &
+wait
+
+# petclinic nthreads: ~5h
+./run_nthreads.py petclinic "${main_hosts}" 0 -j -S "${args[@]}" <<< "${password}" &
+./run_nthreads.py petclinic "${main_hosts}" 1 -j -S "${args[@]}" <<< "${password}" &
+./run_nthreads.py petclinic "${main_hosts}" 2 -j -S "${args[@]}" <<< "${password}" &
+./run_nthreads.py petclinic "${main_hosts}" 3 -j -S "${args[@]}" <<< "${password}" &
+wait

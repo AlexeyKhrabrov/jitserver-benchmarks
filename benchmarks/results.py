@@ -1573,3 +1573,97 @@ class ServerMemAllExperimentsResult:
 	def save_results(self, legends=None):
 		save_summary(self.summary(), self.benchmark, name="servermem_summary")
 		self.save_all_line_plots(legends)
+
+
+class NThreadsAllExperimentsResult:
+	def __init__(self, experiments, bench, configs, details=False, kwargs_list=None):
+		self.experiments = experiments
+		self.benchmark = bench.name()
+		self.nthreads = [configs[n][0].jitserver_config.client_threads for n in range(len(configs))]
+		self.warmup = configs[0][0].run_jmeter
+
+		self.results = [[LatencyExperimentResult(experiments, bench, configs[n][c], details,
+		                                         **((kwargs_list[c] or {}) if kwargs_list is not None else {}))
+		                for c in range(len(configs[n]))] for n in range(len(configs))]
+
+	def get_df(self, e, n, field, suffix):
+		label = "{} threads".format(self.nthreads[n]) if e.is_jitserver() else experiment_names[e]
+		data = {label: [r.values[field + suffix][e] for r in self.results[n]]}
+		return pd.DataFrame(data, index=[r.latency for r in self.results[n]])
+
+	def get_agg_mean_df(self, field):
+		values = [[mean(r.values[field + "_means"][e] for r in self.results[n]) for n in range(len(self.results))]
+		          if e.is_jitserver() and (e in self.experiments) else None for e in Experiment]
+
+		data = {experiment_names[e]: values[e] for e in self.experiments if e.is_jitserver()}
+		return pd.DataFrame(data, index=[self.nthreads[n] for n in range(len(self.results))])
+
+	def get_agg_stdev_df(self, field):
+		values = [[[r.values[field + "_means"][e] for r in self.results[n]] for n in range(len(self.results))]
+		          if e.is_jitserver() and (e in self.experiments) else None for e in Experiment]
+		stdevs = [[stdev(values[e][n][i] for i in range(len(self.results[n]))) for n in range(len(self.results))]
+		          if e.is_jitserver() and (e in self.experiments) else None for e in Experiment]
+
+		data = {experiment_names[e]: stdevs[e] for e in self.experiments if e.is_jitserver()}
+		return pd.DataFrame(data, index=[self.nthreads[n] for n in range(len(self.results))])
+
+	def save_line_plot(self, field, legend=True):
+		ax = plt.gca()
+
+		if not field.startswith("jitserver_"):
+			self.get_df(Experiment.LocalJIT, 0, field, "_means").plot(
+				ax=ax, yerr=self.get_df(Experiment.LocalJIT, 0, field, "_stdevs"),
+				color="C0", xlim=(0, None), legend=False
+			)
+
+		for n in range(len(self.results)):
+			self.get_df(Experiment.JITServer, n, field, "_means").plot(
+				ax=ax, yerr=self.get_df(Experiment.JITServer, n, field, "_stdevs"),
+				xlim=(0, None), legend=False, color="C{}".format(n + 1)
+			)
+
+		ax.set(xlabel="{}: Latency, microsec".format(benchmark_full_names[self.benchmark]), ylabel=field_label(field))
+		ax.set_ylim(0)
+		for i, line in enumerate(ax.get_lines()):
+			line.set_marker(experiment_markers[i + (1 if field.startswith("jitserver_") else 0)])
+
+		if legend:
+			handles = [matplotlib.lines.Line2D([0], [0], color="C0", marker=experiment_markers[0])]
+			labels = [experiment_names[Experiment.LocalJIT]]
+
+			handles.extend(matplotlib.lines.Line2D([0], [0], color="C{}".format(n + 1), marker=experiment_markers[n + 1])
+			               for n in range(len(self.results)))
+			labels.extend("{} threads".format(self.nthreads[n]) for n in range(len(self.results)))
+
+			ax.legend(handles, labels)
+
+		name = "nthreads_{}_{}".format("full" if self.warmup else "start", field)
+		save_plot(ax, name, self.benchmark)
+
+	def save_agg_line_plot(self, field, legend=True):
+		ax = self.get_agg_mean_df(field).plot(
+			yerr=self.get_agg_stdev_df(field), logx=True, legend=False,
+			color=["C{}".format(e.value) for e in self.experiments if e.is_jitserver()]
+		)
+		ax.set(xlabel="{}: Client threads".format(benchmark_full_names[self.benchmark]), ylabel=field_label(field))
+
+		ax.set_ylim(0, ax.get_ylim()[1] * 1.1)
+		ax.set_xticks(self.nthreads)
+		ax.xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
+		ax.minorticks_off()
+
+		for i, line in enumerate(ax.get_lines()):
+			line.set_marker(experiment_markers[i])
+		if legend:
+			ax.legend()
+
+		name = "nthreads_{}_{}_agg".format("full" if self.warmup else "start", field)
+		save_plot(ax, name, self.benchmark)
+
+	def save_all_line_plots(self, legends=None):
+		for f in self.results[0][0].fields:
+			self.save_line_plot(f, legends.get(f) if legends else True)
+			self.save_agg_line_plot(f, legends.get(f) if legends else True)
+
+	def save_results(self, legends=None):
+		self.save_all_line_plots(legends)

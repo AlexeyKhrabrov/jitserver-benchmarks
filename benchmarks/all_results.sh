@@ -60,6 +60,7 @@ for b in "${benchmarks[@]}"; do
 	./run_density.py   "${b}"       "${density_args[@]}" "${extra_args[@]}" &
 	./run_density.py   "${b}" -s    "${density_args[@]}"                    &
 	./run_servermem.py "${b}" -j    "${args[@]}"                            &
+	./run_nthreads.py  "${b}" -j    "${args[@]}"                            &
 done
 
 wait
@@ -76,6 +77,8 @@ plots=(
 	"jitserver_density_noscc_cpu_time_per_req" "jitserver_density_noscc_overall_peak_total_mem"
 	"density_scc_cpu_time_per_req" "density_scc_overall_peak_total_mem"
 	"servermem_full_jitserver_mem"
+	"nthreads_full_full_warmup_time" "nthreads_full_jitserver_peak_cpu_p"
+	"nthreads_full_peak_mem_agg" "nthreads_full_jitserver_mem_agg"
 )
 
 for b in "${benchmarks[@]}"; do
