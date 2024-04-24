@@ -1,9 +1,11 @@
 import itertools
 import json
 import math
+import os
 import os.path
 import shutil
 import signal
+import stat
 import time
 
 import docker
@@ -348,10 +350,19 @@ class BenchmarkConfig:
 		else:
 			return 0
 
-	def save_json(self, path):
+	def save_json(self, benchmark, experiment=None, run_id=None):
+		assert (experiment is None) == (run_id is None)
+		path = os.path.join(
+			remote.RemoteHost.logs_dir, benchmark, self.name, experiment.name.lower() if experiment is not None else "",
+			"run_{}".format(run_id) if run_id is not None else "", "config.json"
+		)
+
 		os.makedirs(os.path.dirname(path), exist_ok=True)
 		with open(path, "w") as f:
 			json.dump(self, f, default=vars, indent="\t")
+
+		if run_id is not None:
+			os.chmod(path, os.stat(path).st_mode & ~(stat.S_IWRITE | stat.S_IWGRP | stat.S_IWOTH))
 
 
 class BenchmarkCluster(openj9.OpenJ9Cluster):
@@ -628,7 +639,9 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		for r in range(self.config.n_runs):
 			if self.skip_run(experiment, r, False):
 				continue
+
 			shutil.rmtree(self.run_logs_path(experiment, r), ignore_errors=True)
+			self.config.save_json(self.bench.name(), experiment, r)
 
 			for i in range(self.config.attempts):
 				print("Running experiment {} {} {} run {}/{} attempt {}/{}...".format(self.bench.name(),
@@ -652,8 +665,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 			print("Skipping complete benchmark {} configuration {}".format(self.bench.name(), self.config.name))
 			return
 
-		self.config.save_json(os.path.join(remote.RemoteHost.logs_dir,
-		                      self.bench.name(), self.config.name, "config.json"))
+		self.config.save_json(self.bench.name())
 
 		print("Running benchmark {} configuration {}...".format(self.bench.name(), self.config.name))
 
@@ -741,7 +753,9 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 		for r in range(self.config.n_runs):
 			if self.skip_run(experiment, r, True):
 				continue
+
 			shutil.rmtree(self.run_logs_path(experiment, r), ignore_errors=True)
+			self.config.save_json(self.bench.name(), experiment, r)
 
 			for i in range(self.config.attempts):
 				print("Running experiment {} {} {} run {}/{} attempt {}/{}...".format(self.bench.name(),
@@ -765,8 +779,7 @@ class BenchmarkCluster(openj9.OpenJ9Cluster):
 			print("Skipping complete benchmark {} configuration {}".format(self.bench.name(), self.config.name))
 			return
 
-		self.config.save_json(os.path.join(remote.RemoteHost.logs_dir,
-		                      self.bench.name(), self.config.name, "config.json"))
+		self.config.save_json(self.bench.name())
 
 		print("Running benchmark {} configuration {}...".format(self.bench.name(), self.config.name))
 
