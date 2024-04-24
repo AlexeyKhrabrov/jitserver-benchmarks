@@ -70,7 +70,7 @@ def save_plot(ax, name, *args, size=None):
 	if size is not None:
 		fig.set_size_inches(*size)
 
-	fig.savefig(path)
+	fig.savefig(path, backend="pgf" if plot_format == "pdf" else None)
 	plt.close(fig)
 
 
