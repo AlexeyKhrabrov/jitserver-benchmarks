@@ -5,8 +5,8 @@ set -e -u -o pipefail
 
 usage_str="\
 Usage: ${0} jdk_dir jdk_ver jitserver_addr [-d|--debug] [-g|--gdb]
-       [-b|--break] [-v|--valgrind] [-s|--stderr-vlog]
-       [-P|--purge-scc] [-a|--aotcache] [<jvm args>]"
+       [-b|--break] [-v|--valgrind] [-s|--stderr-vlog] [-P|--purge-scc]
+       [-a|--aotcache] [-p|--profilecache] [-e|--eager] [<jvm args>]"
 
 function usage()
 {
@@ -27,6 +27,8 @@ use_valgrind=false
 stderr_vlog=false
 purge_scc=false
 use_aotcache=false
+use_profilecache=false
+eager=false
 
 jvm_args=("-XX:+UseJITServer" "-XX:+RequireJITServer" "-XX:JITServerAddress=${jitserver_addr}" "-XX:JITServerTimeout=0")
 extra_args=()
@@ -60,12 +62,27 @@ for arg in "${@:4}"; do
 			use_aotcache=true
 			jvm_args+=("-XX:+JITServerUseAOTCache")
 			;;
+		"-p" | "--profilecache" )
+			use_profilecache=true
+			jvm_args+=("-XX:+JITServerShareProfilingData")
+			;;
+		"-e" | "--eager" )
+			eager=true
+			jvm_args+=("-XX:+JITServerPrefetchAllData" "-Xjit:aotPrefetcherDoNotRequestAtClassLoad")
 			;;
 		*)
 			extra_args+=("${arg}")
 			;;
 	esac
 done
+
+if [[ "${eager}" == true ]]; then
+	if [[ "${use_aotcache}" == true ]]; then
+		jvm_args+=("-XX:+JITServerUseAOTPrefetcher")
+	fi
+	if [[ "${use_profilecache}" == true ]]; then
+		jvm_args+=("-XX:+JITServerPreCompileProfiledMethods")
+	fi
 
 jvm_args+=("${extra_args[@]}")
 

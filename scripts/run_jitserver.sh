@@ -5,7 +5,8 @@ set -e -u -o pipefail
 
 usage_str="\
 Usage: ${0} jdk_dir jdk_ver [-d|--debug] [-g|--gdb] [-b|--break]
-       [-v|--valgrind] [-s|--stderr-vlog] [-a|--aotcache] [<jitserver args>]"
+       [-v|--valgrind] [-s|--stderr-vlog] [-a|--aotcache]
+       [-p|--profilecache] [-e|--eager] [<jitserver args>]"
 
 function usage()
 {
@@ -24,6 +25,8 @@ do_break=false
 use_valgrind=false
 stderr_vlog=false
 use_aotcache=false
+use_profilecache=false
+eager=false
 
 jitserver_args=("-Xshareclasses:none" "-Xdump:jit:events=user" "-XX:JITServerTimeout=0")
 
@@ -53,12 +56,27 @@ for arg in "${@:3}"; do
 			use_aotcache=true
 			jitserver_args+=("-XX:+JITServerUseAOTCache")
 			;;
+		"-p" | "--profilecache" )
+			use_profilecache=true
+			jitserver_args+=("-XX:+JITServerShareProfilingData" "-XX:JITServerProfileReuseThresholdClients=1")
+			;;
+		"-e" | "--eager" )
+			eager=true
+			;;
 		*)
 			jitserver_args+=("${arg}")
 			;;
 	esac
 done
 
+if [[ "${eager}" == true ]]; then
+	if [[ "${use_aotcache}" == true ]]; then
+		jitserver_args+=("-XX:+JITServerUseAOTPrefetcher")
+	fi
+	if [[ "${use_profilecache}" == true ]]; then
+		jitserver_args+=("-XX:+JITServerPreCompileProfiledMethods")
+	fi
+fi
 
 
 if [[ "${debug}" == true ]]; then
@@ -83,6 +101,7 @@ export TR_PrintCompTime=1
 export TR_PrintJITServerMsgStats=1
 export TR_PrintJITServerAOTCacheStats=1
 export TR_PrintResourceUsageStats=1
+export TR_PrintJITServerIPMsgStats=1
 
 
 if [[ "${use_gdb}" == true ]]; then

@@ -575,6 +575,12 @@ def field_summary(field, values, experiments):
 	s += experiment_summary(field, values, experiments, Experiment.JITServer, Experiment.LocalJIT, None)
 	s += experiment_summary(field, values, experiments, Experiment.AOTCache, Experiment.JITServer)
 	s += experiment_summary(field, values, experiments, Experiment.AOTCacheWarm, Experiment.JITServer)
+	s += experiment_summary(field, values, experiments, Experiment.ProfileCache, Experiment.JITServer)
+	s += experiment_summary(field, values, experiments, Experiment.ProfileCacheWarm, Experiment.JITServer)
+	s += experiment_summary(field, values, experiments, Experiment.AOTPrefetcher, Experiment.AOTCache)
+	s += experiment_summary(field, values, experiments, Experiment.AOTPrefetcherWarm, Experiment.AOTCacheWarm)
+	s += experiment_summary(field, values, experiments, Experiment.FullCache, Experiment.AOTCache)
+	s += experiment_summary(field, values, experiments, Experiment.FullCacheWarm, Experiment.AOTCacheWarm)
 
 	return s
 
@@ -632,26 +638,44 @@ benchmark_full_names = {
 experiment_names = (
 	"Local JIT",
 	"Remote JIT",
-	"Remote JIT + cold cache",
-	"Remote JIT + warm cache",
+	"Cold AOT cache",
+	"Warm AOT cache",
+	"Cold profile cache",
+	"Warm profile cache",
+	"Cold AOT prefetcher",
+	"Warm AOT prefetcher",
+	"Cold full cache",
+	"Warm full cache",
 )
 
 experiment_names_single = (
 	"Local JIT",
 	"Remote JIT",
 	"Remote JIT",
-	"Remote JIT + cache",
+	"AOT cache",
+	"Remote JIT",
+	"Profile cache",
+	"Remote JIT",
+	"AOT prefetcher",
+	"Remote JIT",
+	"Full cache",
 )
 
 experiment_names_multi = (
 	"Local JIT",
 	"Remote JIT",
-	"Remote JIT + cache",
-	"Remote JIT + cache",
+	"AOT cache",
+	"AOT cache",
+	"Profile cache",
+	"Profile cache",
+	"AOT prefetcher",
+	"AOT prefetcher",
+	"Full cache",
+	"Full cache",
 )
 
 
-experiment_markers = ("o", "s", "x", "+")
+experiment_markers = ("o", "s", "x", "+", "D", "*", "v", "^", "<", ">")
 assert len(experiment_markers) >= len(Experiment)
 
 throughput_time_index = True

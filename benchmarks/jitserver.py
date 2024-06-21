@@ -16,18 +16,38 @@ class Experiment(enum.IntEnum):
 	JITServer = 1
 	AOTCache = 2
 	AOTCacheWarm = 3
+	ProfileCache = 4
+	ProfileCacheWarm = 5
+	AOTPrefetcher = 6
+	AOTPrefetcherWarm = 7
+	FullCache = 8
+	FullCacheWarm = 9
 
 	def is_jitserver(self):
 		return self is not Experiment.LocalJIT
 
 	def is_aotcache(self):
-		return self in (Experiment.AOTCache, Experiment.AOTCacheWarm)
+		return self in (Experiment.AOTCache, Experiment.AOTCacheWarm,
+		                Experiment.AOTPrefetcher, Experiment.AOTPrefetcherWarm,
+		                Experiment.FullCache, Experiment.FullCacheWarm)
+
+	def is_profilecache(self):
+		return self in (Experiment.ProfileCache, Experiment.ProfileCacheWarm,
+		                Experiment.FullCache, Experiment.FullCacheWarm)
+
+	def is_aotprefetcher(self):
+		return self in (Experiment.AOTPrefetcher, Experiment.AOTPrefetcherWarm,
+		                Experiment.FullCache, Experiment.FullCacheWarm)
+
+	def is_eager(self):
+		return self.is_profilecache() or self.is_aotprefetcher()
 
 	def is_cache(self):
-		return self.is_aotcache()
+		return self.is_aotcache() or self.is_profilecache()
 
 	def is_warm_cache(self):
-		return self is Experiment.AOTCacheWarm
+		return self in (Experiment.AOTCacheWarm, Experiment.ProfileCacheWarm,
+		                Experiment.AOTPrefetcherWarm, Experiment.FullCacheWarm)
 
 	def to_single_instance(self):
 		if self.is_warm_cache():
@@ -46,20 +66,29 @@ class Experiment(enum.IntEnum):
 
 class JITServerConfig:
 	def __init__(self, *,
-		server_vlog=False, client_vlog=False, detailed_vlog=False, server_extra_stats=False, client_extra_stats=False,
-		server_resource_stats=False, jdk_ver=8, debug=False, portable_scc=False, noaot=False, forceaot=False,
-		nodelay_aotload=False, svm_at_startup=False, client_threads=None, client_thread_activation_factor=None,
+		server_vlog=False, detailed_server_vlog=False, client_vlog=False, detailed_client_vlog=False,
+		server_extra_stats=False, client_extra_stats=False, server_resource_stats=False, jdk_ver=8, debug=False,
+		portable_scc=False, noaot=False, forceaot=False, nodelay_aotload=False, aot_default_counts=False,
+		store_remote_aot=False, svm_at_startup=False, client_threads=None, client_thread_activation_factor=None,
 		localjit_memlimit=None, server_threads=None, server_codecache=None, server_memlimit=None,
 		require_jitserver=False, disable_active_thread_thresholds=False, disable_gcr_threshold=False,
 		server_scratch_space_factor=None, reconnect_wait_time=None, client_socket_timeout=None,
 		server_socket_timeout=None, session_purge_time=None, session_purge_interval=None, encryption=False,
 		use_internal_addr=False, share_romclasses=False, romclass_cache_partitions=None, aotcache_name=None,
 		stop_sleep_time=None, stop_timeout=None, stop_attempts=None, kill_remote_on_timeout=False, save_jitdump=False,
-		save_javacore=False, disable_jit_profiling=False, comp_stats_on_jitdump=False, exclude_methods=None
+		save_javacore=False, prefetch_all=False, prefetch_start_only=False, scount=None, pcount=None,
+		profile_reuse_threshold=None, aot_prefetcher_no_profile_cache=False, bytecode_keep_other_weight=False,
+		fanin_keep_other_weight=False, disable_inlining=False, disable_fanin=False, disable_jit_profiling=False,
+		disable_per_client_allocators=False, disable_recompilation=False, disable_preexistence=False,
+		disable_known_objects=False, disable_nooptserver=False, disable_inlining_aggressiveness=False,
+		disable_unresolved_is_cold=False, noclassgc=False, throughput_mode=False, profile_more=False,
+		client_malloc_trim_time=None, comp_stats_on_jitdump=False, exclude_methods=None,
+		aotcache_detailed_memory_usage=False
 	):
 		self.server_vlog = server_vlog
+		self.detailed_server_vlog = detailed_server_vlog
 		self.client_vlog = client_vlog
-		self.detailed_vlog = detailed_vlog
+		self.detailed_client_vlog = detailed_client_vlog
 		self.server_extra_stats = server_extra_stats
 		self.client_extra_stats = client_extra_stats
 		self.server_resource_stats = server_resource_stats
@@ -69,6 +98,8 @@ class JITServerConfig:
 		self.noaot = noaot
 		self.forceaot = forceaot
 		self.nodelay_aotload = nodelay_aotload
+		self.aot_default_counts = aot_default_counts
+		self.store_remote_aot = store_remote_aot
 		self.svm_at_startup = svm_at_startup
 		self.client_threads = client_threads
 		self.client_thread_activation_factor = client_thread_activation_factor
@@ -96,13 +127,34 @@ class JITServerConfig:
 		self.kill_remote_on_timeout = kill_remote_on_timeout
 		self.save_jitdump = save_jitdump
 		self.save_javacore = save_javacore
+		self.prefetch_all = prefetch_all
+		self.prefetch_start_only = prefetch_start_only
+		self.scount = scount
+		self.pcount = pcount
+		self.profile_reuse_threshold = profile_reuse_threshold
+		self.bytecode_keep_other_weight = bytecode_keep_other_weight
+		self.fanin_keep_other_weight = fanin_keep_other_weight
+		self.disable_inlining = disable_inlining
+		self.disable_fanin = disable_fanin
 		self.disable_jit_profiling = disable_jit_profiling
+		self.disable_per_client_allocators = disable_per_client_allocators
+		self.disable_recompilation = disable_recompilation
+		self.disable_preexistence = disable_preexistence
+		self.disable_known_objects = disable_known_objects
+		self.disable_nooptserver = disable_nooptserver
+		self.disable_inlining_aggressiveness = disable_inlining_aggressiveness
+		self.disable_unresolved_is_cold = disable_unresolved_is_cold
+		self.noclassgc = noclassgc
+		self.throughput_mode = throughput_mode
+		self.profile_more = profile_more
+		self.client_malloc_trim_time = client_malloc_trim_time # milliseconds
 		self.comp_stats_on_jitdump = comp_stats_on_jitdump
 		self.exclude_methods = exclude_methods
+		self.aotcache_detailed_memory_usage = aotcache_detailed_memory_usage
 
-	def verbose_args(self, vlog_path):
+	def verbose_args(self, vlog_path, detailed):
 		tags = ["compilePerformance"]
-		if self.detailed_vlog:
+		if detailed:
 			tags.extend(("failures", "JITServer"))
 		return "verbose={{{}}},vlog={}".format("|".join(tags), vlog_path)
 
@@ -111,7 +163,7 @@ class JITServerConfig:
 		jit_opts = []
 
 		if self.server_vlog:
-			jit_opts.append(self.verbose_args(vlog_path))
+			jit_opts.append(self.verbose_args(vlog_path, self.detailed_server_vlog))
 		if jitserver_port is not None:
 			args.append("-XX:JITServerPort={}".format(jitserver_port))
 		if self.server_threads is not None:
@@ -145,10 +197,26 @@ class JITServerConfig:
 
 		if experiment.is_aotcache():
 			args.append("-XX:+JITServerUseAOTCache")
+		if experiment.is_profilecache() or experiment.is_aotprefetcher():
+			args.append("-XX:+JITServerShareProfilingData")
+		if experiment.is_aotprefetcher():
+			args.append("-XX:+JITServerUseAOTPrefetcher")
+		if experiment.is_profilecache():
+			args.append("-XX:+JITServerPreCompileProfiledMethods")
+		if self.profile_reuse_threshold is not None:
+			args.append("-XX:JITServerProfileReuseThresholdClients={}".format(self.profile_reuse_threshold))
 
 		if self.disable_jit_profiling:
 			jit_opts.extend(("disableJProfiling", "disableJProfilingThread",
 			                 "disableProfiling", "disableSamplingJProfiling"))
+		if self.disable_recompilation or self.disable_preexistence:
+			jit_opts.append("disableInvariantArgumentPreexistence")
+		if self.disable_known_objects:
+			jit_opts.append("disableKnownObjectTable")
+		if self.disable_inlining:
+			jit_opts.extend(("disableInlining", "disableInliningDuringVPAtWarm"))
+		if self.disable_fanin:
+			jit_opts.append("disableInlinerFanIn")
 
 		if jit_opts:
 			opts = ",".join(jit_opts)
@@ -161,13 +229,15 @@ class JITServerConfig:
 		jit_opts = []
 
 		if self.client_vlog:
-			jit_opts.append(self.verbose_args(vlog_path))
+			jit_opts.append(self.verbose_args(vlog_path, self.detailed_client_vlog))
 		if self.noaot or scc_no_aot:
 			jit_opts.extend(("noload", "nostore"))
 		if self.forceaot:
 			jit_opts.append("forceAOT")
 		if self.nodelay_aotload:
 			jit_opts.append("disableDelayRelocationForAOTCompilations")
+		if self.aot_default_counts:
+			jit_opts.append("dontLowerCountsForAotCold")
 		if self.disable_gcr_threshold:
 			jit_opts.append("GCRQueuedThresholdForCounting=1000000000")
 		if save_jitdump:
@@ -198,12 +268,42 @@ class JITServerConfig:
 
 		if experiment.is_aotcache():
 			args.append("-XX:+JITServerUseAOTCache")
+		if experiment.is_eager():
+			args.append("-XX:+JITServerShareProfilingData") # need full profiling data for recompilations after AOT loads
+			if self.prefetch_all:
+				args.append("-XX:+JITServerPrefetchAllData")
+			if self.prefetch_start_only:
+				jit_opts.append("aotPrefetcherDoNotRequestAtClassLoad")
+		if experiment.is_aotprefetcher():
+			args.append("-XX:+JITServerUseAOTPrefetcher")
+			if self.scount is not None:
+				jit_opts.append("aotPrefetcherSCount={}".format(self.scount))
+		if experiment.is_profilecache():
+			args.append("-XX:+JITServerPreCompileProfiledMethods")
+			if self.pcount is not None:
+				jit_opts.append("aotPrefetcherPCount={}".format(self.pcount))
 		if experiment.is_cache() and self.aotcache_name:
 			args.append("-XX:JITServerAOTCacheName={}".format(self.aotcache_name))
 
 		if self.disable_jit_profiling:
 			jit_opts.extend(("disableJProfiling", "disableJProfilingThread",
 			                 "disableProfiling", "disableSamplingJProfiling"))
+		if self.disable_recompilation:
+			jit_opts.append("inhibitRecompilation")
+		if self.disable_recompilation or self.disable_preexistence:
+			jit_opts.append("disableInvariantArgumentPreexistence")
+		if self.disable_known_objects:
+			jit_opts.append("disableKnownObjectTable")
+		if self.disable_inlining:
+			jit_opts.extend(("disableInlining", "disableInliningDuringVPAtWarm"))
+		if self.disable_fanin:
+			jit_opts.append("disableInlinerFanIn")
+		if self.disable_nooptserver:
+			jit_opts.append("disableSelectiveNoServer")
+		if self.disable_inlining_aggressiveness:
+			jit_opts.append("dontVaryInlinerAggressivenessWithTime")#TODO: ? can remove (should be off by default)
+		if self.noclassgc:
+			args.append("-Xnoclassgc")
 
 		if self.exclude_methods:
 			jit_opts.extend("exclude={{{}}}".format(m) for m in self.exclude_methods)
@@ -215,7 +315,7 @@ class JITServerConfig:
 		return args
 
 	common_stats_env_vars = ("TR_silentEnv", "TR_PrintResourceUsageStats", "TR_PrintJITServerAOTCacheStats")
-	extra_stats_env_vars = ("TR_PrintJITServerMsgStats")
+	extra_stats_env_vars = ("TR_PrintJITServerMsgStats", "TR_PrintJITServerIPMsgStats")
 
 	@staticmethod
 	def env(env_vars):
@@ -226,6 +326,18 @@ class JITServerConfig:
 
 		if self.server_extra_stats:
 			env_vars.extend(self.extra_stats_env_vars)
+		if self.disable_per_client_allocators:
+			env_vars.append("TR_DisablePerClientPersistentAllocation")
+		if self.bytecode_keep_other_weight:
+			env_vars.append("TR_SharedBytecodeDataKeepOtherWeight")
+		if self.fanin_keep_other_weight:
+			env_vars.append("TR_SharedFanInDataKeepOtherWeight")
+		if self.disable_unresolved_is_cold:
+			env_vars.append("TR_DisableUnresolvedIsCold")
+		if self.throughput_mode:
+			env_vars.append("TR_ThroughputMode")
+		if self.aotcache_detailed_memory_usage:
+			env_vars.append("TR_JITServerAOTCacheDetailedMemoryUsage")
 
 		return self.env(env_vars)
 
@@ -239,10 +351,22 @@ class JITServerConfig:
 
 		if self.client_extra_stats:
 			env_vars.extend(self.extra_stats_env_vars)
+		if self.store_remote_aot:
+			env_vars.append("TR_enableRemoteAOTMethodStorage")
 		if self.svm_at_startup:
 			env_vars.append("TR_DontDisableSVMDuringStartup")
+		if self.disable_unresolved_is_cold:
+			env_vars.append("TR_DisableUnresolvedIsCold")
+		if self.throughput_mode:
+			env_vars.append("TR_ThroughputMode")
+		if self.profile_more:
+			env_vars.append("TR_IProfileMore")
 
-		return self.env(env_vars)
+		result = self.env(env_vars)
+		if self.client_malloc_trim_time is not None:
+			result["TR_MallocTrimTimeMs"] = self.client_malloc_trim_time
+
+		return result
 
 
 #NOTE: assuming single instance per host

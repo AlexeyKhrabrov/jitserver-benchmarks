@@ -16,6 +16,9 @@ experiments = (
 	jitserver.Experiment.LocalJIT,
 	jitserver.Experiment.JITServer,
 	jitserver.Experiment.AOTCache,
+	jitserver.Experiment.ProfileCache,
+	jitserver.Experiment.AOTPrefetcher,
+	jitserver.Experiment.FullCache,
 )
 
 result_experiments = (
@@ -23,6 +26,12 @@ result_experiments = (
 	jitserver.Experiment.JITServer,
 	jitserver.Experiment.AOTCache,
 	jitserver.Experiment.AOTCacheWarm,
+	jitserver.Experiment.ProfileCache,
+	jitserver.Experiment.ProfileCacheWarm,
+	jitserver.Experiment.AOTPrefetcher,
+	jitserver.Experiment.AOTPrefetcherWarm,
+	jitserver.Experiment.FullCache,
+	jitserver.Experiment.FullCacheWarm,
 )
 
 
@@ -50,8 +59,9 @@ def main():
 		name="test",
 		jitserver_config=jitserver.JITServerConfig(
 			server_vlog=True,
+			detailed_server_vlog=True,
 			client_vlog=True,
-			detailed_vlog=True,
+			detailed_client_vlog=True,
 			server_extra_stats=True,
 			client_extra_stats=True,
 			server_resource_stats=True,
@@ -61,6 +71,8 @@ def main():
 			noaot=False,
 			forceaot=False,
 			nodelay_aotload=True,
+			aot_default_counts=False,
+			store_remote_aot=False,
 			svm_at_startup=False,
 			client_threads=None,
 			client_thread_activation_factor=None,
@@ -88,9 +100,29 @@ def main():
 			kill_remote_on_timeout=False,
 			save_jitdump=True, # since stats output at shutdown can be truncated
 			save_javacore=False,
+			prefetch_all=True,
+			prefetch_start_only=True,
+			pcount=0,
+			scount=0,
+			profile_reuse_threshold=1,
+			bytecode_keep_other_weight=True,
+			fanin_keep_other_weight=True,
+			disable_inlining=False,
+			disable_fanin=False,
 			disable_jit_profiling=True,
+			disable_recompilation=False,
+			disable_preexistence=True,
+			disable_known_objects=True,
+			disable_nooptserver=True,
+			disable_inlining_aggressiveness=True,
+			disable_unresolved_is_cold=True,
+			noclassgc=True,
+			throughput_mode=False,
+			profile_more=False,
+			client_malloc_trim_time=None,
 			comp_stats_on_jitdump=False,
 			exclude_methods=None,
+			aotcache_detailed_memory_usage=False,
 		),
 		jitserver_docker_config=None,
 		db_config=shared.DBConfig(

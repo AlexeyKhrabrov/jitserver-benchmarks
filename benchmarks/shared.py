@@ -830,6 +830,12 @@ def base_config():
 			stop_attempts=6,
 			kill_remote_on_timeout=True,
 			save_jitdump=True, # since stats output at shutdown can be truncated
+			prefetch_all=True,
+			prefetch_start_only=True,
+			pcount=0,
+			scount=0,
+			bytecode_keep_other_weight=True,
+			fanin_keep_other_weight=True,
 			disable_jit_profiling=True,
 		),
 		jitserver_docker_config=None,
