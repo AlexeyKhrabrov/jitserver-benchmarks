@@ -82,8 +82,8 @@ class JITServerConfig:
 		disable_per_client_allocators=False, disable_recompilation=False, disable_preexistence=False,
 		disable_known_objects=False, disable_nooptserver=False, disable_inlining_aggressiveness=False,
 		disable_unresolved_is_cold=False, noclassgc=False, throughput_mode=False, profile_more=False,
-		client_malloc_trim_time=None, comp_stats_on_jitdump=False, exclude_methods=None,
-		aotcache_detailed_memory_usage=False
+		client_malloc_trim_time=None, client_duplicate_stdouterr=False, comp_stats_on_jitdump=False,
+		exclude_methods=None, aotcache_detailed_memory_usage=False
 	):
 		self.server_vlog = server_vlog
 		self.detailed_server_vlog = detailed_server_vlog
@@ -148,6 +148,7 @@ class JITServerConfig:
 		self.throughput_mode = throughput_mode
 		self.profile_more = profile_more
 		self.client_malloc_trim_time = client_malloc_trim_time # milliseconds
+		self.client_duplicate_stdouterr = client_duplicate_stdouterr
 		self.comp_stats_on_jitdump = comp_stats_on_jitdump
 		self.exclude_methods = exclude_methods
 		self.aotcache_detailed_memory_usage = aotcache_detailed_memory_usage
@@ -361,6 +362,8 @@ class JITServerConfig:
 			env_vars.append("TR_ThroughputMode")
 		if self.profile_more:
 			env_vars.append("TR_IProfileMore")
+		if self.client_duplicate_stdouterr:
+			env_vars.append("TR_DuplicateStdOutErr")
 
 		result = self.env(env_vars)
 		if self.client_malloc_trim_time is not None:

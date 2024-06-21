@@ -1,4 +1,5 @@
 import datetime
+import copy
 import csv
 import itertools
 import math
@@ -29,6 +30,7 @@ plt.rcParams.update({
 
 from jitserver import Experiment
 import remote
+import renaissance
 import util
 
 #TODO: factor out common code
@@ -423,6 +425,34 @@ class JMeterOutput:
 		return ProcessRUsage("jmeter.log", *self.id)
 
 
+class RenaissanceOutput:
+	def __init__(self, *args, keep_throughput_data=True, **kwargs):
+		self.id = list(args) + ["renaissance"]
+
+		self.iteration_data = []
+		throughput_data = [(0.0, 0.0)] # time (sec), throughput (iter/sec)
+		regex = re.compile(r"iteration (\d+) completed \((\d+\.\d+) ms\)")
+		t = 0.0
+
+		with open(os.path.join(logs_path(*self.id), "renaissance.log"), "r") as f:
+			for line in f:
+				m = regex.search(line)
+				if m:
+					assert int(m.group(1)) == len(self.iteration_data)
+					runtime = float(m.group(2)) / 1000.0 # sec
+					self.iteration_data.append(runtime)
+					t += runtime
+					throughput_data.append((t, 1.0 / runtime)) # iter/sec
+
+		self.iterations = len(self.iteration_data)
+		self.first_time = self.iteration_data[0]
+		self.complete_time = t
+		self.warmup_data = WarmupData(throughput_data, keep_throughput_data=keep_throughput_data, **kwargs)
+
+		if not keep_throughput_data:
+			self.iteration_data = None
+
+
 class JITServerOutput:
 	def __init__(self, *args):
 		self.id = list(args) + ["jitserver"]
@@ -483,6 +513,10 @@ field_descriptors = {
 	"full_warmup_time":     ("Full warm-up time",    "min",      False),
 	"peak_throughput":      ("Peak throughput",      "req/sec",  False),
 	"requests":             ("Requests served",      None,       True ),
+	"first_time":           ("1st iteration time",   "sec",      False),
+	"full_first_time":      ("Full 1st iter. time",  "sec",      False),
+	"complete_time":        ("Complete time",        "min",      False),
+	"full_complete_time":   ("Full complete time",   "min",      False),
 	"jitserver_mem":        ("JITServer memory",     "GB",       False),
 	"jitserver_cpu":        ("JITServer CPU",        "min",      False),
 	"jitserver_peak_cpu_p": ("JITServer peak CPU",   "%",        False),
@@ -542,6 +576,14 @@ def rel_change(x, x_ref):
 def rel_change_p(x, x_ref):
 	return 100.0 * rel_change(x, x_ref)
 
+def gmean(data):
+	data = [d for d in data if d]
+	return np.exp(np.log(data).mean()) if data else 0.0
+
+def gstdev(data):
+	data = [d for d in data if d]
+	return np.exp(np.std(np.log(data))) if len(data) > 1 else 1.0
+
 
 max_experiment_name_len = max(len(e.name) for e in Experiment)
 
@@ -589,7 +631,12 @@ def summary(values, fields, experiments, details=False):
 
 	for f in fields:
 		if details or f.startswith("overall_") or not field_descriptors[base_field(f)][2]:
-			s += "{} ({}):\n{}\n".format(field_label(f), f, field_summary(f, values, experiments))
+			s += "{} ({}):\n{}".format(field_label(f), f, field_summary(f, values, experiments))
+
+			if f == "complete_time":
+				s += "Total for all experiments: ~{:.2f} sec\n".format(sum(values[f + "_means"][e] for e in experiments))
+
+			s += "\n"
 
 	return s
 
@@ -632,6 +679,7 @@ benchmark_full_names = {
 	"acmeair":     "AcmeAir",
 	"daytrader":   "DayTrader",
 	"petclinic":   "PetClinic",
+	"renaissance": "Renaissance",
 }
 
 
@@ -704,6 +752,14 @@ class ApplicationRunResult:
 			self.jmeter_output = JMeterOutput(bench.name(), config, experiment, *args, **kwargs)
 			self.requests = self.jmeter_output.requests
 			self.warmup_data = self.jmeter_output.warmup_data
+		elif bench.name() == "renaissance":
+			self.renaissance_output = RenaissanceOutput(bench.name(), config, experiment, *args, **kwargs)
+			self.requests = self.renaissance_output.iterations
+			self.warmup_data = self.renaissance_output.warmup_data
+			self.first_time = self.renaissance_output.first_time
+			self.full_first_time = self.first_time + self.start_time
+			self.complete_time = self.renaissance_output.complete_time / 60 # minutes
+			self.full_complete_time = self.complete_time + self.start_time / 60 # minutes
 
 		if self.warmup_data is not None:
 			self.warmup_time = self.warmup_data.warmup_time / 60 # minutes
@@ -791,8 +847,12 @@ class DBRunResult:
 def app_result_fields(config, bench):
 	fields = ["start_time", "peak_mem", "n_comps", "cpu_time", "jit_time"]
 
+	if config.run_jmeter or bench.name() == "renaissance":
+		fields.extend(("warmup_time", "full_warmup_time", "peak_throughput"))
 	if config.run_jmeter:
-		fields.extend(("warmup_time", "full_warmup_time", "peak_throughput", "requests"))
+		fields.append("requests")
+	if bench.name() == "renaissance":
+		fields.extend(("first_time", "full_first_time", "complete_time", "full_complete_time", "warmup_end"))
 
 	return fields
 
@@ -940,12 +1000,13 @@ class SingleInstanceExperimentResult:
 		for f in self.fields:
 			add_mean_stdev_lists(self, self.app_results, f, True)
 
-		if config.run_jmeter and (Experiment.LocalJIT in experiments):
+		if (config.run_jmeter or (self.benchmark == "renaissance")) and (Experiment.LocalJIT in experiments):
 			lj_throughput = self.values["peak_throughput_means"][Experiment.LocalJIT]
 
 			for e in experiments:
 				if e.is_jitserver() and (self.values["peak_throughput_means"][e] < min_throughput_ratio * lj_throughput):
-					duration = config.jmeter_config.duration / 60 # minutes
+					duration = (config.jmeter_config.duration / 60 if config.run_jmeter
+					            else self.values["complete_time_means"][e]) # minutes
 					self.values["warmup_time_means"][e] = duration # minutes
 					self.values["warmup_time_stdevs"][e] = 0.0
 					self.values["full_warmup_time_means"][e] = duration + self.values["start_time_means"][e] / 60 # minutes
@@ -1050,9 +1111,10 @@ class SingleInstanceExperimentResult:
 		if self.details:
 			self.save_all_bar_plots(limits)
 
-			if self.config.run_jmeter:
+			if self.config.run_jmeter or (self.benchmark == "renaissance"):
 				self.save_run_throughput_plots(plot_warmup_peak)
 				self.save_all_throughput_plot(plot_warmup_peak)
+			if self.config.run_jmeter:
 				self.save_avg_throughput_plot(plot_warmup_peak)
 
 			self.save_stats_plots()
@@ -1082,7 +1144,7 @@ class SingleInstanceAllExperimentsResult:
 		self.mode = mode
 		self.configs = configs
 		self.config_names = config_names
-		self.warmup = configs[0].run_jmeter
+		self.warmup = configs[0].run_jmeter or (self.benchmark == "renaissance")
 		self.no_aotcache = no_aotcache
 		self.no_warm_scc = no_warm_scc
 
@@ -1290,7 +1352,7 @@ class MultiInstanceExperimentResult:
 		if Experiment.LocalJIT in experiments:
 			if normalized:
 				add_normalized_results(self)
-			elif normalized_fields is not None and config.run_jmeter:
+			elif normalized_fields is not None and (config.run_jmeter or (self.benchmark == "renaissance")):
 				add_normalized_results(self, normalized_fields)
 
 		extra_fields = ["jitserver_mem", "jitserver_cpu"]
@@ -1343,7 +1405,7 @@ class ScaleAllExperimentsResult:
 	def __init__(self, experiments, bench, configs, details=False, kwargs_list=None):
 		self.experiments = experiments
 		self.benchmark = bench.name()
-		self.warmup = configs[0].run_jmeter
+		self.warmup = configs[0].run_jmeter or (self.benchmark == "renaissance")
 
 		self.results = [ScaleExperimentResult(experiments, bench, configs[i], details, keep_throughput_data=False,
 		                                      **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
@@ -1395,7 +1457,7 @@ class LatencyAllExperimentsResult:
 	def __init__(self, experiments, bench, configs, details=False, kwargs_list=None):
 		self.experiments = experiments
 		self.benchmark = bench.name()
-		self.warmup = configs[0].run_jmeter
+		self.warmup = configs[0].run_jmeter or (self.benchmark == "renaissance")
 
 		self.results = [LatencyExperimentResult(experiments, bench, configs[i], details,
 		                                        **((kwargs_list[i] or {}) if kwargs_list is not None else {}))
@@ -1691,3 +1753,245 @@ class NThreadsAllExperimentsResult:
 
 	def save_results(self, legends=None):
 		self.save_all_line_plots(legends)
+
+
+# Based on single_full_warmup_time
+renaissance_workloads = (
+	( # Group 0: profile cache is best
+		("mnemonics", "MN"),
+		("movie-lens", "ML"),
+		("philosophers", "PH"),
+		("par-mnemonics", "PM"),
+		("reactors", "RE"),
+		("rx-scrabble", "RS"),
+		("scala-stm-bench7", "SS"),
+		("scrabble", "SC"),
+	), ( # Group 1: full cache is best
+		("akka-uct", "AU"),
+		("als", "AL"),
+		("dec-tree", "DT"),
+		("dotty", "DO"),
+		("gauss-mix", "GM"),
+		("log-regression", "LR"),
+		("naive-bayes", "NB"),
+		("scala-kmeans", "SK"),
+	), ( # Group 2: the rest
+		("chi-square", "CS"),
+		("db-shootout", "DS"),
+		("finagle-chirper", "FC"),
+		("finagle-http", "FH"),
+		("fj-kmeans", "FK"),
+		("future-genetic", "FG"),
+		("page-rank", "PR"),
+		("scala-doku", "SD"),
+	),
+)
+
+
+class RenaissanceAllWorkloadsResult:
+	def __init__(self, is_single, experiments, config, results, details=False):
+		excluded = (Experiment.LocalJIT, Experiment.AOTPrefetcher, Experiment.AOTPrefetcherWarm)
+		self.is_single = is_single
+		self.experiments = [e for e in experiments if e not in excluded]
+		self.e_names = experiment_names_single if is_single else experiment_names_multi
+		self.config = config
+		self.results = results # {w: ExperimentResult for w in all workloads}
+		self.details = details
+
+		self.fields = [f for f in results[renaissance_workloads[0][0][0]].fields if f.endswith("_normalized")]
+
+	def get_mean_df(self, group, field, avg, only_avg):
+		workloads = (renaissance_workloads[group] if group is not None
+		             else list(itertools.chain.from_iterable(renaissance_workloads)))
+		means = [[self.results[workloads[i][0]].values[field + "_means"][e]
+		          for i in range(len(workloads))] for e in Experiment]
+
+		data = {self.e_names[e]: ([] if only_avg else [means[e][i] for i in range(len(workloads))]) +
+		                         ([gmean(means[e])] if avg else [])
+		        for e in self.experiments}
+		index = (([] if only_avg else [workloads[i][1] for i in range(len(workloads))]) + (["Avg."] if avg else []))
+
+		return pd.DataFrame(data, index=index)
+
+	def get_stdev_data(self, group, field, avg, only_avg):
+		workloads = (renaissance_workloads[group] if group is not None
+		             else list(itertools.chain.from_iterable(renaissance_workloads)))
+		means  = [[self.results[workloads[i][0]].values[field + "_means"][e]
+		           for i in range(len(workloads))] for e in Experiment]
+		stdevs = [[self.results[workloads[i][0]].values[field + "_stdevs"][e]
+		           for i in range(len(workloads))] for e in Experiment]
+		gmeans  = [gmean(means[e])  if means[e] is not None else None for e in Experiment] if avg else None
+		gstdevs = [gstdev(means[e]) if means[e] is not None else None for e in Experiment] if avg else None
+
+		return [[([] if only_avg else [stdevs[e][i] for i in range(len(workloads))]) +
+		         ([gmeans[e] - gmeans[e] / gstdevs[e]] if avg else []),
+				 ([] if only_avg else [stdevs[e][i] for i in range(len(workloads))]) +
+				 ([gmeans[e] * gstdevs[e] - gmeans[e]] if avg else [])]
+		        for e in self.experiments]
+
+	def get_overlay_df(self, group, field, avg, only_avg, part_f, total_f, factor=None):
+		workloads = (renaissance_workloads[group] if group is not None
+		             else list(itertools.chain.from_iterable(renaissance_workloads)))
+		v = [self.results[workloads[i][0]].values for i in range(len(workloads))]
+		values = [[((factor or 1) * v[i][field + "_means"][e] * v[i][part_f + "_means"][e] / v[i][total_f + "_means"][e])
+		           if v[i][part_f + "_means"][e] else 0.0 for i in range(len(workloads))] for e in Experiment]
+
+		data = {self.e_names[e]: ([] if only_avg else [values[e][i] for i in range(len(workloads))]) +
+		                         ([gmean(values[e])] if avg else [])
+		        for e in self.experiments}
+		index = ([] if only_avg else [workloads[i][1] for i in range(len(workloads))]) + (["Avg."] if avg else [])
+
+		return pd.DataFrame(data, index=index)
+
+	def save_bar_plot(self, group, field, avg, only_avg, legend=True,
+	                  overlay_label=None, part_f=None, total_f=None, factor=None):
+		colors = ["C{}".format((e.to_non_warm() if self.is_single else e).value) for e in self.experiments]
+		ax = self.get_mean_df(group, field, avg, only_avg).plot.bar(
+			yerr=self.get_stdev_data(group, field, avg, only_avg), rot=0, width=0.8, legend=False, color=colors
+		)
+
+		if overlay_label is not None:
+			self.get_overlay_df(group, field, avg, only_avg, part_f, total_f, factor).plot.bar(
+				ax=ax, rot=0, width=0.8, legend=False, color=colors,
+				edgecolor="black", linewidth=0.5, hatch="xxxxxx", alpha=0.5
+			)
+
+		ax.hlines(1, 0, 1, transform=ax.get_yaxis_transform(), colors="C{}".format(Experiment.LocalJIT.value),
+		          linestyles="dashed", linewidths=1.0)
+		if avg and not only_avg:
+			ax.vlines(math.floor(ax.get_xlim()[1]) - 0.5, 0, 1, transform=ax.get_xaxis_transform(), colors="black")
+
+		if legend:
+			handles = [matplotlib.lines.Line2D([0], [0], color="C{}".format(Experiment.LocalJIT.value),
+			                                   linestyle="dashed", linewidth=1.0)]
+			labels = [self.e_names[Experiment.LocalJIT]]
+
+			handles.extend(matplotlib.patches.Patch(color="C{}".format((e.to_non_warm() if self.is_single else e).value))
+			               for e in self.experiments)
+			labels.extend(self.e_names[e] for e in self.experiments)
+
+			if overlay_label is not None:
+				handles.append(matplotlib.patches.Patch(edgecolor="black", facecolor="none",
+				                                        linewidth=0.5, hatch="xxxxxx", alpha=0.5))
+				labels.append(overlay_label)
+
+			ax.legend(handles, labels, bbox_to_anchor=(1.05, 0.05, 0.45, 0.95) if only_avg else (-0.085, 1.05, 1.085, 1.0),
+			          loc="upper left" if only_avg else "lower left", ncol=1 if only_avg else len(handles),
+			          mode=None if only_avg else "expand", borderaxespad=0.0)
+
+		ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter("%.1f"))
+		ax.set(xlabel="" if only_avg else "Workload", ylabel=field_label(field))
+
+		name = "{}_{}_{}_{}".format(
+			self.config.name, field, ("only_avg" if only_avg else "with_avg") if avg else "no_avg",
+			group if group is not None else "all"
+		)
+		save_plot(ax, name, "renaissance",
+		          size=(3.0 if legend else 2.0, 2.25) if only_avg else (6.0, 2.5 if legend else 2.25))
+
+	@staticmethod
+	def overlay_desc(field):
+		if field == "overall_total_cpu_time_normalized":
+			return ("JITServer CPU", "total_jitserver_cpu", "overall_total_cpu_time", 60)
+		elif field == "overall_total_peak_mem_normalized":
+			return ("JITServer mem.", "total_jitserver_mem", "overall_total_peak_mem", 1024)
+		else:
+			return (None,)
+
+	def save_all_bar_plots(self, legends=None, overlays=False):
+		for f in self.fields:
+			overlay = self.overlay_desc(f) if overlays else (None,)
+
+			self.save_bar_plot(None, f, True, True, True, *overlay)
+			for g in range(len(renaissance_workloads)):
+				self.save_bar_plot(g, f, False, False, legends.get(g) if legends else True, *overlay)
+				self.save_bar_plot(g, f, True, False, legends.get(g) if legends else True, *overlay)
+				self.save_bar_plot(g, f, True, True, legends.get(g) if legends else True, *overlay)
+
+	def group_summary(self, results):
+		js_e = Experiment.AOTCache if self.is_single else Experiment.JITServer
+		ac_e = Experiment.AOTCacheWarm if self.is_single else Experiment.AOTCache
+		s = ""
+
+		for f in self.fields:
+			if self.details or f.startswith("overall_") or not field_descriptors[base_field(f)][2]:
+				s += "{} ({}):\n".format(field_label(f, True), f)
+
+				for e in self.experiments:
+					if e.is_eager() and (not self.is_single or e.is_warm_cache()):
+						values = [r.values[f + "_means"][e] for r in results]
+						js_values = [r.values[f + "_means"][js_e] for r in results]
+						ac_values = [r.values[f + "_means"][ac_e] for r in results]
+
+						rel_js_change_ps = [rel_change_p(values[i], js_values[i]) for i in range(len(values))]
+						rel_ac_change_ps = [rel_change_p(values[i], ac_values[i]) for i in range(len(values))]
+
+						avg_ratio_js = gmean([values[i] / js_values[i] if js_values[i] else 0.0
+						                     for i in range(len(results))])
+						avg_ratio_ac = gmean([values[i] / ac_values[i] if js_values[i] else 0.0
+						                     for i in range(len(results))])
+
+						s += "\t{}:{} avg {:.2f}, min {:.2f}, max {:.2f};\t".format(
+							e.name, " " * (max_experiment_name_len - len(e.name)),
+							gmean(values), min(values), max(values)
+						)
+						s += "rel_js: avg {:+2.1f}%, min {:+2.1f}%, max {:+2.1f}%;\t".format(
+							100.0 * (avg_ratio_js - 1.0), min(rel_js_change_ps), max(rel_js_change_ps)
+						)
+						s += "rel_ac: avg {:+2.1f}%, min {:+2.1f}%, max {:+2.1f}%\n".format(
+							100.0 * (avg_ratio_ac - 1.0), min(rel_ac_change_ps), max(rel_ac_change_ps)
+						)
+
+				s += "\n"
+
+		return s
+
+	def summary(self):
+		s = "Overall:\n\n{}".format(self.group_summary(self.results.values()))
+
+		for g in range(len(renaissance_workloads)):
+			results = [self.results[w[0]] for w in renaissance_workloads[g]]
+			s += "Group {}:\n\n{}".format(g, self.group_summary(results))
+
+		return s
+
+	def save_results(self, legends=None, overlays=False):
+		save_summary(self.summary(), "renaissance", self.config)
+		self.save_all_bar_plots(legends, overlays)
+
+
+def renaissance_workload_config(config, workload, workload_runs=None):
+	result = copy.copy(config)
+	result.name = "{}_{}".format(config.name, workload)
+	result.n_runs = int((workload_runs or {}).get(workload) or config.n_runs)
+	return result
+
+
+class RenaissanceSingleInstanceAllWorkloadsResult(RenaissanceAllWorkloadsResult):
+	def __init__(self, experiments, workloads, config, workload_runs=None, details=False, kwargs_dict=None):
+		results = {
+			w: SingleInstanceExperimentResult(
+				experiments, renaissance.Renaissance, renaissance_workload_config(config, w, workload_runs),
+				details, True, **((kwargs_dict[w] or {}) if kwargs_dict is not None else {})
+			) for w in workloads
+		}
+
+		super().__init__(True, experiments, config, results, details)
+
+
+class RenaissanceMultiInstanceAllWorkloadsResult(RenaissanceAllWorkloadsResult):
+	def __init__(self, experiments, workloads, config, workload_runs=None, details=False, kwargs_dict=None):
+		results = {
+			w: DensityExperimentResult(
+				experiments, renaissance.Renaissance, renaissance_workload_config(config, w, workload_runs),
+				details, True, **((kwargs_dict[w] or {}) if kwargs_dict is not None else {})
+			)
+			if config.n_invocations is not None
+			else ScaleExperimentResult(
+				experiments, renaissance.Renaissance, renaissance_workload_config(config, w, workload_runs),
+				details, True, **((kwargs_dict[w] or {}) if kwargs_dict is not None else {})
+			)
+			for w in workloads
+		}
+
+		super().__init__(False, experiments, config, results, details)

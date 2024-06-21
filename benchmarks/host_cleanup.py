@@ -7,13 +7,15 @@ import acmeair
 import daytrader
 import petclinic
 import remote
+import renaissance
 import util
 
 
 bench_cls = {
 	"acmeair": acmeair.AcmeAir,
 	"daytrader": daytrader.DayTrader,
-	"petclinic": petclinic.PetClinic
+	"petclinic": petclinic.PetClinic,
+	"renaissance": renaissance.Renaissance,
 }
 
 

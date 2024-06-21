@@ -120,6 +120,7 @@ def main():
 			throughput_mode=False,
 			profile_more=False,
 			client_malloc_trim_time=None,
+			client_duplicate_stdouterr=False,
 			comp_stats_on_jitdump=False,
 			exclude_methods=None,
 			aotcache_detailed_memory_usage=False,

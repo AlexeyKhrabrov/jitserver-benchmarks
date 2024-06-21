@@ -3,11 +3,11 @@
 import argparse
 import getpass
 
-import daytrader
 import docker
 import jitserver
 import openj9
 import remote
+import renaissance
 import shared
 import util
 
@@ -42,9 +42,10 @@ def main():
 	parser.add_argument("subset", type=int)
 	parser.add_argument("n_instances", type=int)
 	parser.add_argument("n_runs", type=int)
+	parser.add_argument("workload")
+	parser.add_argument("repetitions", type=int, nargs="?")
 
 	parser.add_argument("-c", "--cleanup", action="store_true")
-	parser.add_argument("-j", "--jmeter", action="store_true")
 	parser.add_argument("-v", "--verbose", action="store_true")
 	parser.add_argument("-L", "--logs-path")
 	parser.add_argument("-r", "--result", action="store_true")
@@ -56,7 +57,7 @@ def main():
 	remote.RemoteHost.logs_dir = args.logs_path or remote.RemoteHost.logs_dir
 
 	config = shared.BenchmarkConfig(
-		name="test",
+		name="test_" + args.workload,
 		jitserver_config=jitserver.JITServerConfig(
 			server_vlog=True,
 			detailed_server_vlog=True,
@@ -120,32 +121,24 @@ def main():
 			throughput_mode=False,
 			profile_more=False,
 			client_malloc_trim_time=None,
-			client_duplicate_stdouterr=False,
+			client_duplicate_stdouterr=True, # workaround for stdout and stderr redirected to /dev/null before shutdown
 			comp_stats_on_jitdump=False,
 			exclude_methods=None,
 			aotcache_detailed_memory_usage=False,
 		),
 		jitserver_docker_config=None,
-		db_config=shared.DBConfig(
-			docker_config=docker.DockerConfig(
-				ncpus=None,
-				memory=None,
-				pin_cpus=False,
-				network="host",
-			),
-			use_internal_addr=False,
-		),
+		db_config=shared.DBConfig(docker_config=docker.DockerConfig()), # unused
 		application_config=shared.ApplicationConfig(
 			docker_config=docker.DockerConfig(
 				ncpus=1,
-				memory="1g",
+				memory="3g",
 				pin_cpus=True,
 				network="host",
 			),
 			jvm_config=openj9.JVMConfig(
 				heap_size=None,
 				virtualized=False,
-				scc_size="192m",
+				scc_size="256m",
 				nojit=False,
 			),
 			populate_scc=False,
@@ -155,40 +148,24 @@ def main():
 			use_internal_addr=False,
 			share_scc=False,
 			start_interval=float("+inf"), # seconds
-			start_timeout=2 * 60.0, # seconds
+			start_timeout=60.0, # seconds
 			sleep_time=1.0, # seconds
-			stop_timeout=10.0, # seconds
-			stop_attempts=6,
+			stop_timeout=30 * 60.0, # seconds
+			stop_attempts=None,
 			kill_remote_on_timeout=False,
 			javacore_interval=None,
 			save_jitdump=False,
 			save_javacore=False,
 			save_scc_stats=False,
 		),
-		jmeter_config=shared.JMeterConfig(
-			docker_config=docker.DockerConfig(
-				ncpus=1,
-				memory="4g",
-				pin_cpus=True,
-				network="host",
-			),
-			jvm_config=openj9.JVMConfig(), # defaults
-			nthreads=6,
-			duration=6 * 60, # seconds
-			summariser_interval=6, # seconds; minimum is 6
-			latency_data=False,
-			report_data=False,
-			keep_running=True,
-			stop_timeout=3 * 60, # seconds
-			scc_extra_duration=None,
-			duration_includes_start=False,
-		),
+		jmeter_config=shared.JMeterConfig(docker_config=docker.DockerConfig(), jvm_config=openj9.JVMConfig(),
+		                                  nthreads=0, duration=0, summariser_interval=0), # unused
 		n_jitservers=1,
 		n_dbs=1,
 		n_instances=args.n_instances,
 		cache_extra_instance=True,
 		populate_cache_bench=None,
-		run_jmeter=args.jmeter,
+		run_jmeter=False,
 		n_runs=args.n_runs,
 		attempts=3,
 		skip_runs=(),
@@ -204,19 +181,26 @@ def main():
 
 		results.results_dir = args.results_path or results.results_dir
 		results.plot_format = args.format or results.plot_format
+		results.throughput_time_index = False
+		results.throughput_marker_interval = 1
 
 		assert args.n_instances == 1
 		results.SingleInstanceExperimentResult(
-			result_experiments, daytrader.DayTrader, config, args.details
+			result_experiments, renaissance.Renaissance, config, args.details,
 		).save_results()
 		return
 
-	hosts = [daytrader.DayTraderHost(*h) for h in remote.load_hosts(args.hosts_file)]
+	hosts = [renaissance.RenaissanceHost(*h) for h in remote.load_hosts(args.hosts_file)]
 	host0 = hosts[(2 * args.subset) % len(hosts)]
 	host1 = hosts[(2 * args.subset + 1) % len(hosts)]
 
-	cluster = shared.BenchmarkCluster(config, daytrader.DayTrader, jitserver_hosts=[host0], db_hosts=[host0],
-	                                  application_hosts=[host1], jmeter_hosts=[host0])
+	cluster = shared.BenchmarkCluster(
+		config, renaissance.Renaissance,
+		jitserver_hosts=[host0], db_hosts=[host0], application_hosts=[host1], jmeter_hosts=[host0],
+		extra_args=renaissance.Renaissance.extra_args(args.workload, config.application_config, args.repetitions,
+		                                              no_forced_gc=not config.jitserver_config.noclassgc),
+		fix_log_cmd=renaissance.Renaissance.fix_log_cmd()
+	)
 
 	util.verbose = args.verbose
 	util.set_sigint_handler()

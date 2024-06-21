@@ -120,6 +120,7 @@ def main():
 			throughput_mode=False,
 			profile_more=False,
 			client_malloc_trim_time=None,
+			client_duplicate_stdouterr=False,
 			comp_stats_on_jitdump=True, # workaround for premature JVM shutdown
 			exclude_methods=( # workaround for AOT miscompilation bug
 				"org/springframework/beans/AbstractPropertyAccessor.setPropertyValues(Lorg/springframework/beans/PropertyValues;ZZ)V",
